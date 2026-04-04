@@ -5,7 +5,12 @@
       "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git)",
       "Bash(npm install:*)",
       "Bash(npx shadcn@latest init --yes)",
-      "Bash(npx shadcn@latest init --defaults)"
+      "Bash(npx shadcn@latest init --defaults)",
+      "Bash(npx shadcn@latest add form input label select textarea card toast)",
+      "Bash(npx shadcn@latest add form input label select textarea card sonner --yes)",
+      "Bash(npx shadcn@latest add form --yes)",
+      "Bash(npm run:*)",
+      "Bash(node -e \":*)"
     ]
   }
 }
