@@ -1,17 +1,25 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { saveProductionRecord, loadProductionRecord } from "./actions";
 import {
   ProductionFormData,
   ZAMAN_DILIMLERI,
   DURUS_KOLONLARI,
+  BOLUMLER,
 } from "@/lib/types";
 
 function toNum(val: string): number | null {
@@ -38,7 +46,7 @@ function buildEmptyRows(): ProductionFormData["rows"] {
 export default function ProductionFormPage() {
   const today = new Date().toISOString().split("T")[0];
 
-  const { register, handleSubmit, watch, reset } =
+  const { register, handleSubmit, watch, reset, control } =
     useForm<ProductionFormData>({
       defaultValues: {
         bolum: "",
@@ -128,10 +136,23 @@ export default function ProductionFormPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="bolum">Bölüm *</Label>
-                <Input
-                  id="bolum"
-                  placeholder="Örn: N603"
-                  {...register("bolum")}
+                <Controller
+                  control={control}
+                  name="bolum"
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger id="bolum">
+                        <SelectValue placeholder="Bölüm seçiniz..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BOLUMLER.map((b) => (
+                          <SelectItem key={b} value={b}>
+                            {b}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
               </div>
               <div className="space-y-1">

@@ -1,3 +1,19 @@
+export const BOLUMLER = [
+  "Pres Hücresi",
+  "ETM Hücresi",
+  "ROB104-108 Hücresi",
+  "Flowform Hücresi",
+  "N602 Hücresi",
+  "N603 Hücresi",
+  "ROB109 Hücresi",
+  "Quench Hücresi",
+  "ROB110-111 Hücresi",
+  "Fosfat Hücresi",
+  "Boya Hücresi",
+] as const;
+
+export type Bolum = (typeof BOLUMLER)[number];
+
 export type ProductionRow = {
   sira_no: number;
   zaman_dilimi: string;
