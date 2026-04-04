@@ -231,6 +231,24 @@ export default function ProductionFormPage() {
       return;
     }
 
+    // Açıklama validasyonu
+    const aciklamaEksik: string[] = [];
+    data.rows.forEach((row) => {
+      if (row.ariza_turu && !row.ariza_aciklama?.trim())
+        aciklamaEksik.push(`${row.zaman_dilimi} → Arıza açıklaması`);
+      if ((row.planli_durus_turu === "P1" || row.planli_durus_turu === "P2") && !row.planli_durus_aciklama?.trim())
+        aciklamaEksik.push(`${row.zaman_dilimi} → Planlı Duruş açıklaması`);
+      if (row.setup_turu && !row.setup_aciklama?.trim())
+        aciklamaEksik.push(`${row.zaman_dilimi} → Setup ve Ayar açıklaması`);
+    });
+    if (aciklamaEksik.length > 0) {
+      toast.error(
+        `Aşağıdaki satırlarda açıklama girilmedi:\n${aciklamaEksik.join("\n")}`,
+        { duration: 6000, style: { whiteSpace: "pre-line" } }
+      );
+      return;
+    }
+
     if (hasExistingRecord) {
       pendingDataRef.current = data;
       setConfirmOpen(true);
