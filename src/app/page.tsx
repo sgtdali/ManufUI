@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { saveProductionRecord, loadProductionRecord } from "./actions";
 import {
   ProductionFormData,
@@ -44,10 +54,44 @@ function buildEmptyRows(): ProductionFormData["rows"] {
   }));
 }
 
+function applyRecordToForm(
+  record: Record<string, unknown>,
+  bolum: string,
+  tarih: string
+): ProductionFormData {
+  const rows = (record.manuf_production_rows as Record<string, unknown>[] ?? []);
+  const loadedRows = buildEmptyRows().map((emptyRow) => {
+    const found = rows.find(
+      (r) => r.zaman_dilimi === emptyRow.zaman_dilimi
+    ) as Record<string, number | null> | undefined;
+    return found
+      ? {
+          sira_no: emptyRow.sira_no,
+          zaman_dilimi: emptyRow.zaman_dilimi,
+          uretim_adeti: found.uretim_adeti,
+          mola: found.mola,
+          ariza: found.ariza,
+          planli_durus: found.planli_durus,
+          setup_ve_ayar: found.setup_ve_ayar,
+          takim_degisimi: found.takim_degisimi,
+          onceki_istasyon_bekleme: found.onceki_istasyon_bekleme,
+          musteri_kaynakli_durus: found.musteri_kaynakli_durus,
+          kalite_kaynakli_durus: found.kalite_kaynakli_durus,
+        }
+      : emptyRow;
+  });
+  return {
+    bolum,
+    sorumlu: (record.sorumlu as string) ?? "",
+    tarih,
+    rows: loadedRows,
+  };
+}
+
 export default function ProductionFormPage() {
   const today = new Date().toISOString().split("T")[0];
 
-  const { register, handleSubmit, watch, reset, control, setValue } =
+  const { register, handleSubmit, watch, reset, control, setValue, getValues } =
     useForm<ProductionFormData>({
       defaultValues: {
         bolum: "",
@@ -58,66 +102,88 @@ export default function ProductionFormPage() {
     });
 
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [autoLoading, setAutoLoading] = useState(false);
+  const [hasExistingRecord, setHasExistingRecord] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const pendingDataRef = useRef<ProductionFormData | null>(null);
 
   const bolum = watch("bolum");
   const tarih = watch("tarih");
 
-  const handleLoad = useCallback(async () => {
+  // Otomatik yükleme: bölüm veya tarih değişince arka planda çek
+  useEffect(() => {
+    if (!bolum || !tarih) {
+      setHasExistingRecord(false);
+      return;
+    }
+    let cancelled = false;
+    setAutoLoading(true);
+    loadProductionRecord(bolum, tarih).then((record) => {
+      if (cancelled) return;
+      setAutoLoading(false);
+      if (record) {
+        setHasExistingRecord(true);
+        reset(applyRecordToForm(record as Record<string, unknown>, bolum, tarih));
+        toast.success(`${bolum} / ${tarih} kaydı otomatik yüklendi.`);
+      } else {
+        setHasExistingRecord(false);
+        reset({ bolum, sorumlu: BOLUM_SORUMLU[bolum] ?? "", tarih, rows: buildEmptyRows() });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [bolum, tarih]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleManualLoad = useCallback(async () => {
     if (!bolum || !tarih) {
       toast.warning("Bölüm ve tarih giriniz.");
       return;
     }
-    setLoading(true);
+    setAutoLoading(true);
     const record = await loadProductionRecord(bolum, tarih);
-    setLoading(false);
-
+    setAutoLoading(false);
     if (!record) {
-      toast.info("Bu bölüm/tarih için kayıt bulunamadı. Yeni form açıldı.");
-      reset({ bolum, sorumlu: "", tarih, rows: buildEmptyRows() });
+      setHasExistingRecord(false);
+      toast.info("Bu bölüm/tarih için kayıt bulunamadı.");
+      reset({ bolum, sorumlu: BOLUM_SORUMLU[bolum] ?? "", tarih, rows: buildEmptyRows() });
       return;
     }
-
-    const loadedRows = buildEmptyRows().map((emptyRow) => {
-      const found = record.manuf_production_rows?.find(
-        (r: { zaman_dilimi: string }) => r.zaman_dilimi === emptyRow.zaman_dilimi
-      );
-      return found
-        ? {
-            sira_no: emptyRow.sira_no,
-            zaman_dilimi: emptyRow.zaman_dilimi,
-            uretim_adeti: found.uretim_adeti,
-            mola: found.mola,
-            ariza: found.ariza,
-            planli_durus: found.planli_durus,
-            setup_ve_ayar: found.setup_ve_ayar,
-            takim_degisimi: found.takim_degisimi,
-            onceki_istasyon_bekleme: found.onceki_istasyon_bekleme,
-            musteri_kaynakli_durus: found.musteri_kaynakli_durus,
-            kalite_kaynakli_durus: found.kalite_kaynakli_durus,
-          }
-        : emptyRow;
-    });
-
-    reset({ bolum, sorumlu: record.sorumlu ?? "", tarih, rows: loadedRows });
-    toast.success("Kayıt yüklendi.");
+    setHasExistingRecord(true);
+    reset(applyRecordToForm(record as Record<string, unknown>, bolum, tarih));
+    toast.success("Kayıt yenilendi.");
   }, [bolum, tarih, reset]);
 
-  const onSubmit = async (data: ProductionFormData) => {
-    if (!data.bolum) {
-      toast.error("Bölüm zorunludur.");
-      return;
-    }
+  const doSave = useCallback(async (data: ProductionFormData) => {
     setSaving(true);
     const result = await saveProductionRecord(data);
     setSaving(false);
-
     if (result.success) {
+      setHasExistingRecord(true);
       toast.success("Kayıt başarıyla kaydedildi.");
     } else {
       toast.error(`Hata: ${result.error}`);
     }
-  };
+  }, []);
+
+  const onSubmit = useCallback(async (data: ProductionFormData) => {
+    if (!data.bolum) {
+      toast.error("Bölüm zorunludur.");
+      return;
+    }
+    if (hasExistingRecord) {
+      pendingDataRef.current = data;
+      setConfirmOpen(true);
+      return;
+    }
+    await doSave(data);
+  }, [hasExistingRecord, doSave]);
+
+  const handleConfirmUpdate = useCallback(async () => {
+    setConfirmOpen(false);
+    if (pendingDataRef.current) {
+      await doSave(pendingDataRef.current);
+      pendingDataRef.current = null;
+    }
+  }, [doSave]);
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -131,7 +197,19 @@ export default function ProductionFormPage() {
         {/* Form başlığı */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Form Bilgileri</CardTitle>
+            <CardTitle className="text-base flex items-center gap-3">
+              Form Bilgileri
+              {autoLoading && (
+                <span className="text-xs font-normal text-blue-600 animate-pulse">
+                  Kayıt kontrol ediliyor...
+                </span>
+              )}
+              {!autoLoading && hasExistingRecord && bolum && tarih && (
+                <span className="text-xs font-normal text-green-600">
+                  ✓ Mevcut kayıt yüklendi
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -179,10 +257,10 @@ export default function ProductionFormPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleLoad}
-                disabled={loading}
+                onClick={handleManualLoad}
+                disabled={autoLoading}
               >
-                {loading ? "Yükleniyor..." : "Mevcut Kaydı Yükle"}
+                {autoLoading ? "Yükleniyor..." : "Yenile"}
               </Button>
             </div>
           </CardContent>
@@ -270,6 +348,27 @@ export default function ProductionFormPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Güncelleme onay diyalogu */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mevcut kayıt güncellenecek</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{getValues("bolum")}</strong> bölümü için{" "}
+              <strong>{getValues("tarih")}</strong> tarihli kayıt zaten mevcut.
+              Değişiklikleriniz mevcut verinin üzerine yazılacak. Devam etmek
+              istiyor musunuz?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmUpdate}>
+              Güncelle
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
