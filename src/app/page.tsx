@@ -32,7 +32,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { saveProductionRecord, loadProductionRecord } from "./actions";
+import { saveProductionRecord, loadProductionRecord, loadAllProductionRecords } from "./actions";
+import { exportToExcel } from "@/lib/exportExcel";
 import {
   ProductionFormData,
   ZAMAN_DILIMLERI,
@@ -126,6 +127,7 @@ export default function ProductionFormPage() {
     });
 
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);
   const [hasExistingRecord, setHasExistingRecord] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -167,6 +169,18 @@ export default function ProductionFormPage() {
     });
     return () => { cancelled = true; };
   }, [bolum, tarih]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    const records = await loadAllProductionRecords();
+    setExporting(false);
+    if (!records || records.length === 0) {
+      toast.info("Dışa aktarılacak kayıt bulunamadı.");
+      return;
+    }
+    await exportToExcel(records as Parameters<typeof exportToExcel>[0]);
+    toast.success(`${records.length} kayıt Excel'e aktarıldı.`);
+  }, []);
 
   const handleManualLoad = useCallback(async () => {
     if (!bolum || !tarih) {
@@ -333,7 +347,7 @@ export default function ProductionFormPage() {
                 <Input id="tarih" type="date" {...register("tarih")} />
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -341,6 +355,15 @@ export default function ProductionFormPage() {
                 disabled={autoLoading}
               >
                 {autoLoading ? "Yükleniyor..." : "Yenile"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleExport}
+                disabled={exporting}
+                className="border-green-600 text-green-700 hover:bg-green-50"
+              >
+                {exporting ? "Hazırlanıyor..." : "Excel'e Aktar"}
               </Button>
             </div>
           </CardContent>

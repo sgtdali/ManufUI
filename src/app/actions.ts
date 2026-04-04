@@ -60,6 +60,19 @@ export async function saveProductionRecord(data: ProductionFormData) {
   return { success: true, recordId: record.id };
 }
 
+export async function loadAllProductionRecords() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("manuf_production_records")
+    .select("*, manuf_production_rows(*)")
+    .order("tarih", { ascending: false })
+    .order("bolum", { ascending: true });
+
+  if (error) return null;
+  return data;
+}
+
 export async function loadProductionRecord(bolum: string, tarih: string) {
   const supabase = await createClient();
 
