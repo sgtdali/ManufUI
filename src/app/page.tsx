@@ -334,7 +334,7 @@ export default function ProductionFormPage() {
                               key={k.key}
                               className="border border-gray-300 px-1 py-1"
                             >
-                              <div className="flex flex-col items-center gap-1">
+                              <div className="flex flex-row items-center gap-1 justify-center">
                                 <Input
                                   type="number"
                                   min={0}
