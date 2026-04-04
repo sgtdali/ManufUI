@@ -193,6 +193,33 @@ export default function ProductionFormPage() {
       toast.error("Bölüm zorunludur.");
       return;
     }
+
+    // Alt tür validasyonu
+    const eksikler: string[] = [];
+    const altTurKontrol: { key: string; altTurKey: string; label: string }[] = [
+      { key: "mola", altTurKey: "mola_turu", label: "Mola" },
+      { key: "ariza", altTurKey: "ariza_turu", label: "Arıza" },
+      { key: "planli_durus", altTurKey: "planli_durus_turu", label: "Planlı Duruş" },
+      { key: "setup_ve_ayar", altTurKey: "setup_turu", label: "Setup ve Ayar" },
+      { key: "musteri_kaynakli_durus", altTurKey: "musteri_durus_turu", label: "Müşteri Kaynaklı Duruş" },
+    ];
+    data.rows.forEach((row) => {
+      altTurKontrol.forEach(({ key, altTurKey, label }) => {
+        const sure = (row as Record<string, unknown>)[key] as number | null;
+        const tur = (row as Record<string, unknown>)[altTurKey] as string | null;
+        if (sure != null && sure > 0 && !tur) {
+          eksikler.push(`${row.zaman_dilimi} → ${label}`);
+        }
+      });
+    });
+    if (eksikler.length > 0) {
+      toast.error(
+        `Aşağıdaki satırlarda tür seçimi yapılmadı:\n${eksikler.join("\n")}`,
+        { duration: 6000, style: { whiteSpace: "pre-line" } }
+      );
+      return;
+    }
+
     if (hasExistingRecord) {
       pendingDataRef.current = data;
       setConfirmOpen(true);
