@@ -24,6 +24,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { saveProductionRecord, loadProductionRecord } from "./actions";
 import {
   ProductionFormData,
@@ -47,6 +55,7 @@ function buildEmptyRows(): ProductionFormData["rows"] {
     mola_turu: null,
     ariza: null,
     ariza_turu: null,
+    ariza_aciklama: null,
     planli_durus: null,
     planli_durus_turu: null,
     setup_ve_ayar: null,
@@ -78,6 +87,7 @@ function applyRecordToForm(
           mola_turu: found.mola_turu as string | null,
           ariza: found.ariza as number | null,
           ariza_turu: found.ariza_turu as string | null,
+          ariza_aciklama: found.ariza_aciklama as string | null,
           planli_durus: found.planli_durus as number | null,
           planli_durus_turu: found.planli_durus_turu as string | null,
           setup_ve_ayar: found.setup_ve_ayar as number | null,
@@ -116,6 +126,9 @@ export default function ProductionFormPage() {
   const [hasExistingRecord, setHasExistingRecord] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const pendingDataRef = useRef<ProductionFormData | null>(null);
+
+  // Arıza açıklama dialog state
+  const [arizaDialog, setArizaDialog] = useState<{ rowIndex: number; aciklama: string } | null>(null);
 
   const bolum = watch("bolum");
   const tarih = watch("tarih");
@@ -320,7 +333,7 @@ export default function ProductionFormPage() {
                             type="number"
                             min={0}
                             className="h-8 text-center w-20 mx-auto"
-                            placeholder="—"
+                            placeholder=""
                             {...register(`rows.${i}.uretim_adeti`, {
                               setValueAs: toNum,
                             })}
@@ -340,7 +353,7 @@ export default function ProductionFormPage() {
                                   min={0}
                                   max={60}
                                   className="h-8 text-center w-16"
-                                  placeholder="—"
+                                  placeholder=""
                                   {...register(
                                     `rows.${i}.${k.key}` as `rows.${number}.${typeof k.key}`,
                                     { setValueAs: toNum }
@@ -352,11 +365,19 @@ export default function ProductionFormPage() {
                                     name={`rows.${i}.${k.altTurKey}` as `rows.${number}.${typeof k.altTurKey}`}
                                     render={({ field }) => (
                                       <Select
-                                        onValueChange={field.onChange}
+                                        onValueChange={(val) => {
+                                          field.onChange(val);
+                                          if (k.key === "ariza") {
+                                            setArizaDialog({
+                                              rowIndex: i,
+                                              aciklama: (watchedRows?.[i]?.ariza_aciklama as string) ?? "",
+                                            });
+                                          }
+                                        }}
                                         value={(field.value as string) ?? ""}
                                       >
                                         <SelectTrigger className="h-7 text-xs w-16 px-1">
-                                          <SelectValue placeholder="—" />
+                                          <SelectValue placeholder="" />
                                         </SelectTrigger>
                                         <SelectContent>
                                           {k.altTurler!.map((t) => (
@@ -388,6 +409,50 @@ export default function ProductionFormPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Arıza açıklama dialog */}
+      <Dialog
+        open={arizaDialog !== null}
+        onOpenChange={(open) => { if (!open) setArizaDialog(null); }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Arıza Açıklaması — {arizaDialog !== null ? ZAMAN_DILIMLERI[arizaDialog.rowIndex].label : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Textarea
+              rows={4}
+              placeholder="Arıza hakkında açıklama giriniz..."
+              value={arizaDialog?.aciklama ?? ""}
+              onChange={(e) =>
+                setArizaDialog((prev) =>
+                  prev ? { ...prev, aciklama: e.target.value } : null
+                )
+              }
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setArizaDialog(null)}>
+              İptal
+            </Button>
+            <Button
+              onClick={() => {
+                if (arizaDialog !== null) {
+                  setValue(
+                    `rows.${arizaDialog.rowIndex}.ariza_aciklama`,
+                    arizaDialog.aciklama || null
+                  );
+                }
+                setArizaDialog(null);
+              }}
+            >
+              Tamam
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Güncelleme onay diyalogu */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>

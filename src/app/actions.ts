@@ -35,6 +35,7 @@ export async function saveProductionRecord(data: ProductionFormData) {
     mola_turu: row.mola_turu,
     ariza: row.ariza,
     ariza_turu: row.ariza_turu,
+    ariza_aciklama: row.ariza_aciklama,
     planli_durus: row.planli_durus,
     planli_durus_turu: row.planli_durus_turu,
     setup_ve_ayar: row.setup_ve_ayar,
