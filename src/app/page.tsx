@@ -58,8 +58,10 @@ function buildEmptyRows(): ProductionFormData["rows"] {
     ariza_aciklama: null,
     planli_durus: null,
     planli_durus_turu: null,
+    planli_durus_aciklama: null,
     setup_ve_ayar: null,
     setup_turu: null,
+    setup_aciklama: null,
     takim_degisimi: null,
     onceki_istasyon_bekleme: null,
     musteri_kaynakli_durus: null,
@@ -90,8 +92,10 @@ function applyRecordToForm(
           ariza_aciklama: found.ariza_aciklama as string | null,
           planli_durus: found.planli_durus as number | null,
           planli_durus_turu: found.planli_durus_turu as string | null,
+          planli_durus_aciklama: found.planli_durus_aciklama as string | null,
           setup_ve_ayar: found.setup_ve_ayar as number | null,
           setup_turu: found.setup_turu as string | null,
+          setup_aciklama: found.setup_aciklama as string | null,
           takim_degisimi: found.takim_degisimi as number | null,
           onceki_istasyon_bekleme: found.onceki_istasyon_bekleme as number | null,
           musteri_kaynakli_durus: found.musteri_kaynakli_durus as number | null,
@@ -127,8 +131,15 @@ export default function ProductionFormPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const pendingDataRef = useRef<ProductionFormData | null>(null);
 
-  // Arıza açıklama dialog state
-  const [arizaDialog, setArizaDialog] = useState<{ rowIndex: number; aciklama: string } | null>(null);
+  // Açıklama dialog state
+  type AciklamaDialogType = {
+    rowIndex: number;
+    alan: "ariza" | "planli_durus" | "setup";
+    baslik: string;
+    aciklamaKey: "ariza_aciklama" | "planli_durus_aciklama" | "setup_aciklama";
+    aciklama: string;
+  };
+  const [aciklamaDialog, setAciklamaDialog] = useState<AciklamaDialogType | null>(null);
 
   const bolum = watch("bolum");
   const tarih = watch("tarih");
@@ -395,9 +406,28 @@ export default function ProductionFormPage() {
                                         onValueChange={(val) => {
                                           field.onChange(val);
                                           if (k.key === "ariza") {
-                                            setArizaDialog({
+                                            setAciklamaDialog({
                                               rowIndex: i,
+                                              alan: "ariza",
+                                              baslik: "Arıza Açıklaması",
+                                              aciklamaKey: "ariza_aciklama",
                                               aciklama: (watchedRows?.[i]?.ariza_aciklama as string) ?? "",
+                                            });
+                                          } else if (k.key === "planli_durus" && (val === "P1" || val === "P2")) {
+                                            setAciklamaDialog({
+                                              rowIndex: i,
+                                              alan: "planli_durus",
+                                              baslik: "Planlı Duruş Açıklaması",
+                                              aciklamaKey: "planli_durus_aciklama",
+                                              aciklama: (watchedRows?.[i]?.planli_durus_aciklama as string) ?? "",
+                                            });
+                                          } else if (k.key === "setup_ve_ayar") {
+                                            setAciklamaDialog({
+                                              rowIndex: i,
+                                              alan: "setup",
+                                              baslik: "Setup ve Ayar Açıklaması",
+                                              aciklamaKey: "setup_aciklama",
+                                              aciklama: (watchedRows?.[i]?.setup_aciklama as string) ?? "",
                                             });
                                           }
                                         }}
@@ -437,42 +467,42 @@ export default function ProductionFormPage() {
         </Card>
       </div>
 
-      {/* Arıza açıklama dialog */}
+      {/* Açıklama dialog */}
       <Dialog
-        open={arizaDialog !== null}
-        onOpenChange={(open) => { if (!open) setArizaDialog(null); }}
+        open={aciklamaDialog !== null}
+        onOpenChange={(open) => { if (!open) setAciklamaDialog(null); }}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Arıza Açıklaması — {arizaDialog !== null ? ZAMAN_DILIMLERI[arizaDialog.rowIndex].label : ""}
+              {aciklamaDialog?.baslik} — {aciklamaDialog !== null ? ZAMAN_DILIMLERI[aciklamaDialog.rowIndex].label : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="py-2">
             <Textarea
               rows={4}
-              placeholder="Arıza hakkında açıklama giriniz..."
-              value={arizaDialog?.aciklama ?? ""}
+              placeholder="Açıklama giriniz..."
+              value={aciklamaDialog?.aciklama ?? ""}
               onChange={(e) =>
-                setArizaDialog((prev) =>
+                setAciklamaDialog((prev) =>
                   prev ? { ...prev, aciklama: e.target.value } : null
                 )
               }
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setArizaDialog(null)}>
+            <Button variant="outline" onClick={() => setAciklamaDialog(null)}>
               İptal
             </Button>
             <Button
               onClick={() => {
-                if (arizaDialog !== null) {
+                if (aciklamaDialog !== null) {
                   setValue(
-                    `rows.${arizaDialog.rowIndex}.ariza_aciklama`,
-                    arizaDialog.aciklama || null
+                    `rows.${aciklamaDialog.rowIndex}.${aciklamaDialog.aciklamaKey}`,
+                    aciklamaDialog.aciklama || null
                   );
                 }
-                setArizaDialog(null);
+                setAciklamaDialog(null);
               }}
             >
               Tamam

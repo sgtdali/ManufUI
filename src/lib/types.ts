@@ -39,8 +39,10 @@ export type ProductionRow = {
   ariza_aciklama: string | null;
   planli_durus: number | null;
   planli_durus_turu: string | null;
+  planli_durus_aciklama: string | null;
   setup_ve_ayar: number | null;
   setup_turu: string | null;
+  setup_aciklama: string | null;
   takim_degisimi: number | null;
   onceki_istasyon_bekleme: number | null;
   musteri_kaynakli_durus: number | null;
