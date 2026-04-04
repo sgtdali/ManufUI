@@ -44,12 +44,17 @@ function buildEmptyRows(): ProductionFormData["rows"] {
     zaman_dilimi: z.label,
     uretim_adeti: null,
     mola: null,
+    mola_turu: null,
     ariza: null,
+    ariza_turu: null,
     planli_durus: null,
+    planli_durus_turu: null,
     setup_ve_ayar: null,
+    setup_turu: null,
     takim_degisimi: null,
     onceki_istasyon_bekleme: null,
     musteri_kaynakli_durus: null,
+    musteri_durus_turu: null,
     kalite_kaynakli_durus: null,
   }));
 }
@@ -63,20 +68,25 @@ function applyRecordToForm(
   const loadedRows = buildEmptyRows().map((emptyRow) => {
     const found = rows.find(
       (r) => r.zaman_dilimi === emptyRow.zaman_dilimi
-    ) as Record<string, number | null> | undefined;
+    ) as Record<string, number | string | null> | undefined;
     return found
       ? {
           sira_no: emptyRow.sira_no,
           zaman_dilimi: emptyRow.zaman_dilimi,
-          uretim_adeti: found.uretim_adeti,
-          mola: found.mola,
-          ariza: found.ariza,
-          planli_durus: found.planli_durus,
-          setup_ve_ayar: found.setup_ve_ayar,
-          takim_degisimi: found.takim_degisimi,
-          onceki_istasyon_bekleme: found.onceki_istasyon_bekleme,
-          musteri_kaynakli_durus: found.musteri_kaynakli_durus,
-          kalite_kaynakli_durus: found.kalite_kaynakli_durus,
+          uretim_adeti: found.uretim_adeti as number | null,
+          mola: found.mola as number | null,
+          mola_turu: found.mola_turu as string | null,
+          ariza: found.ariza as number | null,
+          ariza_turu: found.ariza_turu as string | null,
+          planli_durus: found.planli_durus as number | null,
+          planli_durus_turu: found.planli_durus_turu as string | null,
+          setup_ve_ayar: found.setup_ve_ayar as number | null,
+          setup_turu: found.setup_turu as string | null,
+          takim_degisimi: found.takim_degisimi as number | null,
+          onceki_istasyon_bekleme: found.onceki_istasyon_bekleme as number | null,
+          musteri_kaynakli_durus: found.musteri_kaynakli_durus as number | null,
+          musteri_durus_turu: found.musteri_durus_turu as string | null,
+          kalite_kaynakli_durus: found.kalite_kaynakli_durus as number | null,
         }
       : emptyRow;
   });
@@ -109,6 +119,7 @@ export default function ProductionFormPage() {
 
   const bolum = watch("bolum");
   const tarih = watch("tarih");
+  const watchedRows = watch("rows");
 
   // Otomatik yükleme: bölüm veya tarih değişince arka planda çek
   useEffect(() => {
@@ -315,24 +326,53 @@ export default function ProductionFormPage() {
                             })}
                           />
                         </td>
-                        {DURUS_KOLONLARI.map((k) => (
-                          <td
-                            key={k.key}
-                            className="border border-gray-300 px-1 py-1"
-                          >
-                            <Input
-                              type="number"
-                              min={0}
-                              max={60}
-                              className="h-8 text-center w-16 mx-auto"
-                              placeholder="—"
-                              {...register(
-                                `rows.${i}.${k.key}` as `rows.${number}.${typeof k.key}`,
-                                { setValueAs: toNum }
-                              )}
-                            />
-                          </td>
-                        ))}
+                        {DURUS_KOLONLARI.map((k) => {
+                          const hasValue = (watchedRows?.[i]?.[k.key] as number | null) != null
+                            && (watchedRows?.[i]?.[k.key] as number) > 0;
+                          return (
+                            <td
+                              key={k.key}
+                              className="border border-gray-300 px-1 py-1"
+                            >
+                              <div className="flex flex-col items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={60}
+                                  className="h-8 text-center w-16"
+                                  placeholder="—"
+                                  {...register(
+                                    `rows.${i}.${k.key}` as `rows.${number}.${typeof k.key}`,
+                                    { setValueAs: toNum }
+                                  )}
+                                />
+                                {k.altTurKey && k.altTurler && hasValue && (
+                                  <Controller
+                                    control={control}
+                                    name={`rows.${i}.${k.altTurKey}` as `rows.${number}.${typeof k.altTurKey}`}
+                                    render={({ field }) => (
+                                      <Select
+                                        onValueChange={field.onChange}
+                                        value={(field.value as string) ?? ""}
+                                      >
+                                        <SelectTrigger className="h-7 text-xs w-16 px-1">
+                                          <SelectValue placeholder="—" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {k.altTurler!.map((t) => (
+                                            <SelectItem key={t.code} value={t.code} className="text-xs">
+                                              {t.code}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  />
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>

@@ -32,12 +32,17 @@ export async function saveProductionRecord(data: ProductionFormData) {
     zaman_dilimi: row.zaman_dilimi,
     uretim_adeti: row.uretim_adeti,
     mola: row.mola,
+    mola_turu: row.mola_turu,
     ariza: row.ariza,
+    ariza_turu: row.ariza_turu,
     planli_durus: row.planli_durus,
+    planli_durus_turu: row.planli_durus_turu,
     setup_ve_ayar: row.setup_ve_ayar,
+    setup_turu: row.setup_turu,
     takim_degisimi: row.takim_degisimi,
     onceki_istasyon_bekleme: row.onceki_istasyon_bekleme,
     musteri_kaynakli_durus: row.musteri_kaynakli_durus,
+    musteri_durus_turu: row.musteri_durus_turu,
     kalite_kaynakli_durus: row.kalite_kaynakli_durus,
   }));
 

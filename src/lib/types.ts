@@ -33,12 +33,17 @@ export type ProductionRow = {
   zaman_dilimi: string;
   uretim_adeti: number | null;
   mola: number | null;
+  mola_turu: string | null;
   ariza: number | null;
+  ariza_turu: string | null;
   planli_durus: number | null;
+  planli_durus_turu: string | null;
   setup_ve_ayar: number | null;
+  setup_turu: string | null;
   takim_degisimi: number | null;
   onceki_istasyon_bekleme: number | null;
   musteri_kaynakli_durus: number | null;
+  musteri_durus_turu: string | null;
   kalite_kaynakli_durus: number | null;
 };
 
@@ -61,13 +66,45 @@ export const ZAMAN_DILIMLERI = [
   { sira_no: 9, label: "16:00 - 17:15" },
 ];
 
-export const DURUS_KOLONLARI: { key: keyof ProductionRow; label: string }[] = [
-  { key: "mola", label: "Mola" },
-  { key: "ariza", label: "Arıza" },
-  { key: "planli_durus", label: "Planlı Duruş" },
-  { key: "setup_ve_ayar", label: "Setup ve Ayar" },
+export type AltTurOption = { code: string };
+
+export const DURUS_KOLONLARI: {
+  key: keyof ProductionRow;
+  label: string;
+  altTurKey?: keyof ProductionRow;
+  altTurler?: AltTurOption[];
+}[] = [
+  {
+    key: "mola",
+    label: "Mola",
+    altTurKey: "mola_turu",
+    altTurler: [{ code: "M1" }, { code: "M2" }],
+  },
+  {
+    key: "ariza",
+    label: "Arıza",
+    altTurKey: "ariza_turu",
+    altTurler: [{ code: "E" }, { code: "A" }, { code: "M" }, { code: "O" }],
+  },
+  {
+    key: "planli_durus",
+    label: "Planlı Duruş",
+    altTurKey: "planli_durus_turu",
+    altTurler: [{ code: "P1" }, { code: "P2" }, { code: "P3" }],
+  },
+  {
+    key: "setup_ve_ayar",
+    label: "Setup ve Ayar",
+    altTurKey: "setup_turu",
+    altTurler: [{ code: "SA1" }, { code: "SA2" }],
+  },
   { key: "takim_degisimi", label: "Takım Değişimi" },
   { key: "onceki_istasyon_bekleme", label: "Bir Önceki İstasyon Parça Bekleme" },
-  { key: "musteri_kaynakli_durus", label: "Müşteri Kaynaklı Duruş" },
+  {
+    key: "musteri_kaynakli_durus",
+    label: "Müşteri Kaynaklı Duruş",
+    altTurKey: "musteri_durus_turu",
+    altTurler: [{ code: "MKB1" }, { code: "MKB2" }, { code: "MKB3" }],
+  },
   { key: "kalite_kaynakli_durus", label: "Kalite Kaynaklı Duruş" },
 ];
