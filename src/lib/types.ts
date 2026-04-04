@@ -12,6 +12,20 @@ export const BOLUMLER = [
   "Boya Hücresi",
 ] as const;
 
+export const BOLUM_SORUMLU: Record<string, string> = {
+  "Pres Hücresi": "Musa Akyol",
+  "ETM Hücresi": "İbrahim Çetinbak",
+  "ROB104-108 Hücresi": "Suat Tunç",
+  "Flowform Hücresi": "Gökalp Atmaca",
+  "N602 Hücresi": "Gökalp Atmaca",
+  "N603 Hücresi": "Gökalp Atmaca",
+  "ROB109 Hücresi": "Mücahit Toptaş",
+  "Quench Hücresi": "Calor",
+  "ROB110-111 Hücresi": "Taner Çelik",
+  "Fosfat Hücresi": "Halil Kesit",
+  "Boya Hücresi": "Halil Kesit",
+};
+
 export type Bolum = (typeof BOLUMLER)[number];
 
 export type ProductionRow = {

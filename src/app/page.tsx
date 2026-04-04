@@ -20,6 +20,7 @@ import {
   ZAMAN_DILIMLERI,
   DURUS_KOLONLARI,
   BOLUMLER,
+  BOLUM_SORUMLU,
 } from "@/lib/types";
 
 function toNum(val: string): number | null {
@@ -46,7 +47,7 @@ function buildEmptyRows(): ProductionFormData["rows"] {
 export default function ProductionFormPage() {
   const today = new Date().toISOString().split("T")[0];
 
-  const { register, handleSubmit, watch, reset, control } =
+  const { register, handleSubmit, watch, reset, control, setValue } =
     useForm<ProductionFormData>({
       defaultValues: {
         bolum: "",
@@ -140,7 +141,13 @@ export default function ProductionFormPage() {
                   control={control}
                   name="bolum"
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        setValue("sorumlu", BOLUM_SORUMLU[val as string] ?? "");
+                      }}
+                      value={field.value}
+                    >
                       <SelectTrigger id="bolum">
                         <SelectValue placeholder="Bölüm seçiniz..." />
                       </SelectTrigger>
