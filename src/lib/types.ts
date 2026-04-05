@@ -1,7 +1,8 @@
 export const BOLUMLER = [
   "Pres Hücresi",
   "ETM Hücresi",
-  "ROB104-108 Hücresi",
+  "ROB104 Hücresi",
+  "ROB108 Hücresi",
   "Flowform Hücresi",
   "N602 Hücresi",
   "N603 Hücresi",
@@ -15,7 +16,8 @@ export const BOLUMLER = [
 export const BOLUM_SORUMLU: Record<string, string> = {
   "Pres Hücresi": "Musa Akyol",
   "ETM Hücresi": "İbrahim Çetinbak",
-  "ROB104-108 Hücresi": "Suat Tunç",
+  "ROB104 Hücresi": "Suat Tunç",
+  "ROB108 Hücresi": "Suat Tunç",
   "Flowform Hücresi": "Gökalp Atmaca",
   "N602 Hücresi": "Gökalp Atmaca",
   "N603 Hücresi": "Gökalp Atmaca",
