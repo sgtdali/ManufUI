@@ -18,7 +18,8 @@
       "Bash(npx shadcn@latest add alert-dialog --yes)",
       "Bash(npx shadcn@latest add dialog --yes)",
       "Bash(npm audit:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "mcp__claude_ai_Supabase__execute_sql"
     ]
   }
 }
