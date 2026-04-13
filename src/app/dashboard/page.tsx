@@ -19,6 +19,11 @@ type DepartmentSummary = {
   netSure: number;
 };
 
+type DashboardSearchParams = {
+  baslangic?: string | string[];
+  bitis?: string | string[];
+};
+
 const DAILY_PLANNED_MINUTES = 555;
 
 const DOWNTIME_KEYS = DURUS_KOLONLARI.map((column) => column.key).filter(
@@ -54,6 +59,21 @@ function formatDate(value: string) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date(`${value}T00:00:00`));
+}
+
+function getDateParam(value: string | string[] | undefined) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  if (!rawValue || !/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) return "";
+  return rawValue;
+}
+
+function getDateRangeLabel(startDate: string, endDate: string) {
+  if (startDate && endDate) {
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+  }
+  if (startDate) return `${formatDate(startDate)} ve sonrası`;
+  if (endDate) return `${formatDate(endDate)} ve öncesi`;
+  return "Tüm kayıtlar";
 }
 
 function percent(value: number, total: number) {
@@ -107,11 +127,29 @@ export const metadata = {
   title: "Dashboard | Uretim Takip Sistemi",
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<DashboardSearchParams>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const startDate = getDateParam(params.baslangic);
+  const endDate = getDateParam(params.bitis);
+  const dateRangeLabel = getDateRangeLabel(startDate, endDate);
+
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("manuf_production_records")
-    .select("id, bolum, sorumlu, tarih, updated_at, manuf_production_rows(*)")
+    .select("id, bolum, sorumlu, tarih, updated_at, manuf_production_rows(*)");
+
+  if (startDate) {
+    query = query.gte("tarih", startDate);
+  }
+  if (endDate) {
+    query = query.lte("tarih", endDate);
+  }
+
+  const { data, error } = await query
     .order("tarih", { ascending: false })
     .order("bolum", { ascending: true });
 
@@ -182,7 +220,7 @@ export default async function DashboardPage() {
               Üretim dashboard
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-zinc-600">
-              Bölüm bazında üretim, duruş süreleri ve son kayıtlar tek ekranda.
+              {dateRangeLabel} için bölüm bazında üretim, duruş süreleri ve son kayıtlar.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -206,6 +244,50 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </header>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <form
+            action="/dashboard"
+            className="grid gap-3 md:grid-cols-[1fr_1fr_auto_auto]"
+          >
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700" htmlFor="baslangic">
+                Başlangıç tarihi
+              </label>
+              <input
+                className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
+                defaultValue={startDate}
+                id="baslangic"
+                name="baslangic"
+                type="date"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-zinc-700" htmlFor="bitis">
+                Bitiş tarihi
+              </label>
+              <input
+                className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
+                defaultValue={endDate}
+                id="bitis"
+                name="bitis"
+                type="date"
+              />
+            </div>
+            <button
+              className="self-end rounded-md border border-emerald-700 bg-emerald-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-800"
+              type="submit"
+            >
+              Uygula
+            </button>
+            <Link
+              className="self-end rounded-md border border-zinc-300 bg-white px-4 py-2 text-center text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+              href="/dashboard"
+            >
+              Tüm veriler
+            </Link>
+          </form>
+        </section>
 
         {error ? (
           <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">

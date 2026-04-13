@@ -19,6 +19,9 @@ const KOLONLAR = [
   { header: "Arıza (dk)", key: "ariza", width: 10 },
   { header: "Arıza Türü", key: "ariza_turu", width: 12 },
   { header: "Arıza Açıklaması", key: "ariza_aciklama", width: 30 },
+  { header: "Arıza Giderildi", key: "ariza_giderildi", width: 16 },
+  { header: "Arıza Giderilme Açıklaması", key: "ariza_giderilme_aciklama", width: 36 },
+  { header: "Arıza Giderildi Zamanı", key: "ariza_giderildi_at", width: 22 },
   { header: "Planlı Duruş (dk)", key: "planli_durus", width: 18 },
   { header: "Planlı Duruş Türü", key: "planli_durus_turu", width: 18 },
   { header: "Planlı Duruş Açıklaması", key: "planli_durus_aciklama", width: 30 },
@@ -31,6 +34,17 @@ const KOLONLAR = [
   { header: "Müşteri Duruş Türü", key: "musteri_durus_turu", width: 20 },
   { header: "Kalite Kaynaklı Duruş (dk)", key: "kalite_kaynakli_durus", width: 26 },
 ];
+
+function formatDateTime(value: unknown) {
+  if (typeof value !== "string" || !value) return "";
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
 
 export async function exportToExcel(records: RawRecord[]) {
   const wb = new ExcelJS.Workbook();
@@ -69,6 +83,7 @@ export async function exportToExcel(records: RawRecord[]) {
 
     for (const zaman of ZAMAN_SIRASI) {
       const r = rowsByZaman[zaman] ?? {};
+      const hasAriza = typeof r.ariza === "number" && r.ariza > 0;
       const dataRow = ws.addRow({
         tarih: record.tarih,
         bolum: record.bolum,
@@ -80,6 +95,9 @@ export async function exportToExcel(records: RawRecord[]) {
         ariza: r.ariza ?? "",
         ariza_turu: r.ariza_turu ?? "",
         ariza_aciklama: r.ariza_aciklama ?? "",
+        ariza_giderildi: hasAriza ? (r.ariza_giderildi === true ? "Evet" : "Hayır") : "",
+        ariza_giderilme_aciklama: hasAriza ? r.ariza_giderilme_aciklama ?? "" : "",
+        ariza_giderildi_at: hasAriza ? formatDateTime(r.ariza_giderildi_at) : "",
         planli_durus: r.planli_durus ?? "",
         planli_durus_turu: r.planli_durus_turu ?? "",
         planli_durus_aciklama: r.planli_durus_aciklama ?? "",

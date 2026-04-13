@@ -12,6 +12,9 @@ const KOLONLAR = [
   { header: "Arıza (dk)", key: "ariza", width: 10 },
   { header: "Arıza Türü", key: "ariza_turu", width: 12 },
   { header: "Arıza Açıklaması", key: "ariza_aciklama", width: 30 },
+  { header: "Arıza Giderildi", key: "ariza_giderildi", width: 16 },
+  { header: "Arıza Giderilme Açıklaması", key: "ariza_giderilme_aciklama", width: 36 },
+  { header: "Arıza Giderildi Zamanı", key: "ariza_giderildi_at", width: 22 },
   { header: "Planlı Duruş (dk)", key: "planli_durus", width: 18 },
   { header: "Planlı Duruş Türü", key: "planli_durus_turu", width: 18 },
   { header: "Planlı Duruş Açıklaması", key: "planli_durus_aciklama", width: 30 },
@@ -30,6 +33,17 @@ const ZAMAN_SIRASI = [
   "10:45 - 12:00", "12:00 - 13:00", "13:00 - 14:00",
   "14:00 - 15:00", "15:00 - 16:00", "16:00 - 17:15",
 ];
+
+function formatDateTime(value: unknown) {
+  if (typeof value !== "string" || !value) return "";
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
 
 export async function GET() {
   const supabase = await createClient();
@@ -68,13 +82,14 @@ export async function GET() {
   // Veri satırları
   let rowIndex = 2;
   for (const record of records ?? []) {
-    type DbRow = Record<string, string | number | null>;
+    type DbRow = Record<string, string | number | boolean | null>;
     const rowsByZaman: Record<string, DbRow> = Object.fromEntries(
       (record.manuf_production_rows as DbRow[] ?? []).map((r) => [r.zaman_dilimi as string, r])
     );
 
     for (const zaman of ZAMAN_SIRASI) {
       const r: DbRow = rowsByZaman[zaman] ?? {};
+      const hasAriza = typeof r.ariza === "number" && r.ariza > 0;
 
       const dataRow = ws.addRow({
         tarih: record.tarih,
@@ -87,6 +102,9 @@ export async function GET() {
         ariza: r.ariza ?? null,
         ariza_turu: r.ariza_turu ?? "",
         ariza_aciklama: r.ariza_aciklama ?? "",
+        ariza_giderildi: hasAriza ? (r.ariza_giderildi === true ? "Evet" : "Hayır") : "",
+        ariza_giderilme_aciklama: hasAriza ? r.ariza_giderilme_aciklama ?? "" : "",
+        ariza_giderildi_at: hasAriza ? formatDateTime(r.ariza_giderildi_at) : "",
         planli_durus: r.planli_durus ?? null,
         planli_durus_turu: r.planli_durus_turu ?? "",
         planli_durus_aciklama: r.planli_durus_aciklama ?? "",
