@@ -351,6 +351,15 @@ export default function ProductionFormPage() {
                   Excel&apos;e Aktar
                 </Button>
               </a>
+              <a href="/dashboard">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-emerald-700 text-emerald-800 hover:bg-emerald-50"
+                >
+                  Dashboard
+                </Button>
+              </a>
             </div>
           </CardContent>
         </Card>
