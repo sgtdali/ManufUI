@@ -348,7 +348,7 @@ export default function ProductionFormPage() {
                   variant="outline"
                   className="border-green-600 text-green-700 hover:bg-green-50"
                 >
-                  Excel'e Aktar
+                  Excel&apos;e Aktar
                 </Button>
               </a>
             </div>

@@ -31,6 +31,7 @@ export const BOLUM_SORUMLU: Record<string, string> = {
 export type Bolum = (typeof BOLUMLER)[number];
 
 export type ProductionRow = {
+  id?: string;
   sira_no: number;
   zaman_dilimi: string;
   uretim_adeti: number | null;
@@ -50,6 +51,23 @@ export type ProductionRow = {
   musteri_kaynakli_durus: number | null;
   musteri_durus_turu: string | null;
   kalite_kaynakli_durus: number | null;
+  ariza_giderildi?: boolean;
+  ariza_giderilme_aciklama?: string | null;
+  ariza_giderildi_at?: string | null;
+};
+
+export type ArizaDetail = {
+  id: string;
+  tarih: string;
+  bolum: string;
+  sorumlu: string;
+  zamanDilimi: string;
+  dakika: number;
+  tur: string;
+  aciklama: string;
+  giderildi: boolean;
+  giderilmeAciklama: string | null;
+  giderildiAt: string | null;
 };
 
 export type ProductionFormData = {
