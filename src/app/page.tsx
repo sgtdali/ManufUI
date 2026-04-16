@@ -40,6 +40,12 @@ import {
   BOLUMLER,
   BOLUM_SORUMLU,
 } from "@/lib/types";
+import {
+  formatTargetDowntimeIssues,
+  getEnteredDowntimeMinutes,
+  getRequiredDowntimeMinutes,
+  validateTargetDowntime,
+} from "@/lib/productionValidation";
 
 function toNum(val: string): number | null {
   const n = parseInt(val, 10);
@@ -50,7 +56,9 @@ function buildEmptyRows(): ProductionFormData["rows"] {
   return ZAMAN_DILIMLERI.map((z) => ({
     sira_no: z.sira_no,
     zaman_dilimi: z.label,
+    hedef_uretim_adeti: null,
     uretim_adeti: null,
+    musteri_var: false,
     mola: null,
     mola_turu: null,
     ariza: null,
@@ -79,12 +87,14 @@ function applyRecordToForm(
   const loadedRows = buildEmptyRows().map((emptyRow) => {
     const found = rows.find(
       (r) => r.zaman_dilimi === emptyRow.zaman_dilimi
-    ) as Record<string, number | string | null> | undefined;
+    ) as Record<string, number | string | boolean | null> | undefined;
     return found
       ? {
           sira_no: emptyRow.sira_no,
           zaman_dilimi: emptyRow.zaman_dilimi,
+          hedef_uretim_adeti: found.hedef_uretim_adeti as number | null,
           uretim_adeti: found.uretim_adeti as number | null,
+          musteri_var: found.musteri_var === true,
           mola: found.mola as number | null,
           mola_turu: found.mola_turu as string | null,
           ariza: found.ariza as number | null,
@@ -249,6 +259,15 @@ export default function ProductionFormPage() {
       return;
     }
 
+    const targetIssues = validateTargetDowntime(data);
+    if (targetIssues.length > 0) {
+      toast.error(
+        `Hedef/gerçekleşen farkı için duruş süresi eksik:\n${formatTargetDowntimeIssues(targetIssues)}`,
+        { duration: 9000, style: { whiteSpace: "pre-line" } }
+      );
+      return;
+    }
+
     if (hasExistingRecord) {
       pendingDataRef.current = data;
       setConfirmOpen(true);
@@ -383,6 +402,9 @@ export default function ProductionFormPage() {
                       <th className="border border-blue-800 px-3 py-2 text-center whitespace-nowrap">
                         Gerçekleşen<br />Üretim Adeti
                       </th>
+                      <th className="border border-blue-800 px-2 py-2 text-center text-xs leading-tight whitespace-nowrap">
+                        Müşteri<br />Var
+                      </th>
                       {DURUS_KOLONLARI.map((k) => (
                         <th
                           key={k.key}
@@ -391,6 +413,9 @@ export default function ProductionFormPage() {
                           {k.label}
                         </th>
                       ))}
+                      <th className="border border-blue-800 px-3 py-2 text-center whitespace-nowrap">
+                        Hedef<br />Üretim Adeti
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -403,23 +428,66 @@ export default function ProductionFormPage() {
                           {z.label}
                         </td>
                         <td className="border border-gray-300 px-1 py-1">
-                          <Input
-                            type="number"
-                            min={0}
-                            className="h-8 text-center w-20 mx-auto"
-                            placeholder=""
-                            {...register(`rows.${i}.uretim_adeti`, {
-                              setValueAs: toNum,
-                            })}
+                          <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                            <Input
+                              type="number"
+                              min={0}
+                              className="h-8 text-center w-20"
+                              placeholder=""
+                              {...register(`rows.${i}.uretim_adeti`, {
+                                setValueAs: toNum,
+                              })}
+                            />
+                            {(() => {
+                              const row = watchedRows?.[i];
+                              const requiredDowntime = row
+                                ? getRequiredDowntimeMinutes(row)
+                                : 0;
+                              const enteredDowntime = row
+                                ? getEnteredDowntimeMinutes(row)
+                                : 0;
+                              const remainingDowntime = Math.max(
+                                requiredDowntime - enteredDowntime,
+                                0
+                              );
+
+                              return (
+                                <span
+                                  className={`inline-flex h-8 min-w-20 items-center justify-center rounded-md border px-2 text-xs font-medium ${
+                                    remainingDowntime > 0
+                                      ? "border-rose-300 bg-rose-50 text-rose-700"
+                                      : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  }`}
+                                  title={`Gerekli: ${requiredDowntime} dk, girilen: ${enteredDowntime} dk`}
+                                >
+                                  Kalan {remainingDowntime} dk
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                        <td className="border border-gray-300 px-1 py-1 text-center">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 accent-blue-700"
+                            aria-label={`${z.label} müşteri var`}
+                            {...register(`rows.${i}.musteri_var`)}
                           />
                         </td>
                         {DURUS_KOLONLARI.map((k) => {
                           const hasValue = (watchedRows?.[i]?.[k.key] as number | null) != null
                             && (watchedRows?.[i]?.[k.key] as number) > 0;
+                          const requiredDowntime = watchedRows?.[i]
+                            ? getRequiredDowntimeMinutes(watchedRows[i])
+                            : 0;
+                          const enteredDowntime = watchedRows?.[i]
+                            ? getEnteredDowntimeMinutes(watchedRows[i])
+                            : 0;
+                          const needsDowntime = requiredDowntime > enteredDowntime;
                           return (
                             <td
                               key={k.key}
-                              className="border border-gray-300 px-1 py-1"
+                              className={`border border-gray-300 px-1 py-1 ${needsDowntime ? "bg-rose-50" : ""}`}
                             >
                               <div className="flex flex-row items-center gap-1 justify-center">
                                 <Input
@@ -487,6 +555,17 @@ export default function ProductionFormPage() {
                             </td>
                           );
                         })}
+                        <td className="border border-gray-300 px-1 py-1">
+                          <Input
+                            type="number"
+                            min={0}
+                            className="h-8 text-center w-20 mx-auto"
+                            placeholder=""
+                            {...register(`rows.${i}.hedef_uretim_adeti`, {
+                              setValueAs: toNum,
+                            })}
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -2,8 +2,20 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { ProductionFormData } from "@/lib/types";
+import {
+  formatTargetDowntimeIssues,
+  validateTargetDowntime,
+} from "@/lib/productionValidation";
 
 export async function saveProductionRecord(data: ProductionFormData) {
+  const targetIssues = validateTargetDowntime(data);
+  if (targetIssues.length > 0) {
+    return {
+      success: false,
+      error: formatTargetDowntimeIssues(targetIssues),
+    };
+  }
+
   const supabase = await createClient();
 
   // Başlık kaydını upsert et (aynı bölüm+tarih varsa güncelle)
@@ -30,7 +42,9 @@ export async function saveProductionRecord(data: ProductionFormData) {
     record_id: record.id,
     sira_no: row.sira_no,
     zaman_dilimi: row.zaman_dilimi,
+    hedef_uretim_adeti: row.hedef_uretim_adeti,
     uretim_adeti: row.uretim_adeti,
+    musteri_var: row.musteri_var,
     mola: row.mola,
     mola_turu: row.mola_turu,
     ariza: row.ariza,

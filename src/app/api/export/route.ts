@@ -7,6 +7,7 @@ const KOLONLAR = [
   { header: "Sorumlu", key: "sorumlu", width: 20 },
   { header: "Zaman Dilimi", key: "zaman_dilimi", width: 16 },
   { header: "Üretim Adeti", key: "uretim_adeti", width: 14 },
+  { header: "Müşteri Var", key: "musteri_var", width: 14 },
   { header: "Mola (dk)", key: "mola", width: 10 },
   { header: "Mola Türü", key: "mola_turu", width: 12 },
   { header: "Arıza (dk)", key: "ariza", width: 10 },
@@ -26,6 +27,7 @@ const KOLONLAR = [
   { header: "Müşteri Kaynaklı Duruş (dk)", key: "musteri_kaynakli_durus", width: 28 },
   { header: "Müşteri Duruş Türü", key: "musteri_durus_turu", width: 20 },
   { header: "Kalite Kaynaklı Duruş (dk)", key: "kalite_kaynakli_durus", width: 26 },
+  { header: "Hedef Üretim Adeti", key: "hedef_uretim_adeti", width: 18 },
 ];
 
 const ZAMAN_SIRASI = [
@@ -96,7 +98,9 @@ export async function GET() {
         bolum: record.bolum,
         sorumlu: record.sorumlu ?? "",
         zaman_dilimi: zaman,
+        hedef_uretim_adeti: r.hedef_uretim_adeti ?? null,
         uretim_adeti: r.uretim_adeti ?? null,
+        musteri_var: r.musteri_var === true ? "Evet" : "Hayır",
         mola: r.mola ?? null,
         mola_turu: r.mola_turu ?? "",
         ariza: r.ariza ?? null,

@@ -34,7 +34,9 @@ export type ProductionRow = {
   id?: string;
   sira_no: number;
   zaman_dilimi: string;
+  hedef_uretim_adeti: number | null;
   uretim_adeti: number | null;
+  musteri_var: boolean;
   mola: number | null;
   mola_turu: string | null;
   ariza: number | null;
@@ -107,7 +109,13 @@ export const DURUS_KOLONLARI: {
     key: "ariza",
     label: "Arıza",
     altTurKey: "ariza_turu",
-    altTurler: [{ code: "E" }, { code: "A" }, { code: "M" }, { code: "O" }],
+    altTurler: [
+      { code: "E" },
+      { code: "A" },
+      { code: "M" },
+      { code: "O" },
+      { code: "Belirsiz" },
+    ],
   },
   {
     key: "planli_durus",
