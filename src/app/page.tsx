@@ -39,6 +39,8 @@ import {
   DURUS_KOLONLARI,
   BOLUMLER,
   BOLUM_SORUMLU,
+  getZamanDilimleriForDate,
+  type ZamanDilimi,
 } from "@/lib/types";
 import {
   formatTargetDowntimeIssues,
@@ -52,8 +54,10 @@ function toNum(val: string): number | null {
   return isNaN(n) ? null : n;
 }
 
-function buildEmptyRows(): ProductionFormData["rows"] {
-  return ZAMAN_DILIMLERI.map((z) => ({
+function buildEmptyRows(
+  zamanDilimleri: ZamanDilimi[] = ZAMAN_DILIMLERI
+): ProductionFormData["rows"] {
+  return zamanDilimleri.map((z) => ({
     sira_no: z.sira_no,
     zaman_dilimi: z.label,
     hedef_uretim_adeti: null,
@@ -84,7 +88,7 @@ function applyRecordToForm(
   tarih: string
 ): ProductionFormData {
   const rows = (record.manuf_production_rows as Record<string, unknown>[] ?? []);
-  const loadedRows = buildEmptyRows().map((emptyRow) => {
+  const loadedRows = buildEmptyRows(getZamanDilimleriForDate(tarih)).map((emptyRow) => {
     const found = rows.find(
       (r) => r.zaman_dilimi === emptyRow.zaman_dilimi
     ) as Record<string, number | string | boolean | null> | undefined;
@@ -131,7 +135,7 @@ export default function ProductionFormPage() {
         bolum: "",
         sorumlu: "",
         tarih: today,
-        rows: buildEmptyRows(),
+        rows: buildEmptyRows(getZamanDilimleriForDate(today)),
       },
     });
 
@@ -154,6 +158,7 @@ export default function ProductionFormPage() {
   const bolum = watch("bolum");
   const tarih = watch("tarih");
   const watchedRows = watch("rows");
+  const zamanDilimleri = getZamanDilimleriForDate(tarih);
 
   // Otomatik yükleme: bölüm veya tarih değişince arka planda çek
   useEffect(() => {
@@ -172,7 +177,12 @@ export default function ProductionFormPage() {
         toast.success(`${bolum} / ${tarih} kaydı otomatik yüklendi.`);
       } else {
         setHasExistingRecord(false);
-        reset({ bolum, sorumlu: BOLUM_SORUMLU[bolum] ?? "", tarih, rows: buildEmptyRows() });
+        reset({
+          bolum,
+          sorumlu: BOLUM_SORUMLU[bolum] ?? "",
+          tarih,
+          rows: buildEmptyRows(getZamanDilimleriForDate(tarih)),
+        });
       }
     });
     return () => { cancelled = true; };
@@ -189,7 +199,12 @@ export default function ProductionFormPage() {
     if (!record) {
       setHasExistingRecord(false);
       toast.info("Bu bölüm/tarih için kayıt bulunamadı.");
-      reset({ bolum, sorumlu: BOLUM_SORUMLU[bolum] ?? "", tarih, rows: buildEmptyRows() });
+      reset({
+        bolum,
+        sorumlu: BOLUM_SORUMLU[bolum] ?? "",
+        tarih,
+        rows: buildEmptyRows(getZamanDilimleriForDate(tarih)),
+      });
       return;
     }
     setHasExistingRecord(true);
@@ -419,7 +434,7 @@ export default function ProductionFormPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ZAMAN_DILIMLERI.map((z, i) => (
+                    {zamanDilimleri.map((z, i) => (
                       <tr
                         key={z.label}
                         className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
@@ -590,7 +605,7 @@ export default function ProductionFormPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {aciklamaDialog?.baslik} — {aciklamaDialog !== null ? ZAMAN_DILIMLERI[aciklamaDialog.rowIndex].label : ""}
+              {aciklamaDialog?.baslik} — {aciklamaDialog !== null ? zamanDilimleri[aciklamaDialog.rowIndex]?.label ?? "" : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="py-2">

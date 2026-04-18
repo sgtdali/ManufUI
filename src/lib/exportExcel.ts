@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { getZamanDilimleriForDate } from "@/lib/types";
 
 type RawRow = Record<string, unknown>;
 type RawRecord = {
@@ -71,19 +72,19 @@ export async function exportToExcel(records: RawRecord[]) {
   headerRow.height = 32;
 
   // Veri satırları
-  const ZAMAN_SIRASI = [
-    "07:45 - 08:45", "08:45 - 09:45", "09:45 - 10:45",
-    "10:45 - 12:00", "12:00 - 13:00", "13:00 - 14:00",
-    "14:00 - 15:00", "15:00 - 16:00", "16:00 - 17:15",
-  ];
-
   let rowIndex = 2;
   for (const record of records) {
+    const rawRows = record.manuf_production_rows ?? [];
     const rowsByZaman = Object.fromEntries(
-      (record.manuf_production_rows ?? []).map((r) => [r.zaman_dilimi as string, r])
+      rawRows.map((r) => [r.zaman_dilimi as string, r])
     );
+    const zamanSirasi = getZamanDilimleriForDate(record.tarih).map((z) => z.label);
+    const extraZamanlar = rawRows
+      .map((r) => r.zaman_dilimi as string)
+      .filter((zaman) => zaman && !zamanSirasi.includes(zaman));
+    const exportZamanSirasi = [...zamanSirasi, ...extraZamanlar];
 
-    for (const zaman of ZAMAN_SIRASI) {
+    for (const zaman of exportZamanSirasi) {
       const r = rowsByZaman[zaman] ?? {};
       const hasAriza = typeof r.ariza === "number" && r.ariza > 0;
       const dataRow = ws.addRow({

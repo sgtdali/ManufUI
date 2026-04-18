@@ -79,7 +79,12 @@ export type ProductionFormData = {
   rows: ProductionRow[];
 };
 
-export const ZAMAN_DILIMLERI = [
+export type ZamanDilimi = {
+  sira_no: number;
+  label: string;
+};
+
+export const ZAMAN_DILIMLERI: ZamanDilimi[] = [
   { sira_no: 1, label: "07:45 - 08:45" },
   { sira_no: 2, label: "08:45 - 09:45" },
   { sira_no: 3, label: "09:45 - 10:45" },
@@ -90,6 +95,30 @@ export const ZAMAN_DILIMLERI = [
   { sira_no: 8, label: "15:00 - 16:00" },
   { sira_no: 9, label: "16:00 - 17:15" },
 ];
+
+export const CUMA_CUMARTESI_ZAMAN_DILIMLERI: ZamanDilimi[] = [
+  { sira_no: 1, label: "09:00 - 10:00" },
+  { sira_no: 2, label: "10:00 - 11:00" },
+  { sira_no: 3, label: "11:00 - 12:00" },
+  { sira_no: 4, label: "12:00 - 13:00" },
+  { sira_no: 5, label: "13:00 - 14:00" },
+  { sira_no: 6, label: "14:00 - 15:00" },
+  { sira_no: 7, label: "15:00 - 16:00" },
+  { sira_no: 8, label: "16:00 - 17:00" },
+];
+
+export function getZamanDilimleriForDate(tarih: string | null | undefined) {
+  if (!tarih || !/^\d{4}-\d{2}-\d{2}$/.test(tarih)) {
+    return ZAMAN_DILIMLERI;
+  }
+
+  const day = new Date(`${tarih}T00:00:00`).getDay();
+  if (day === 5 || day === 6) {
+    return CUMA_CUMARTESI_ZAMAN_DILIMLERI;
+  }
+
+  return ZAMAN_DILIMLERI;
+}
 
 export type AltTurOption = { code: string };
 

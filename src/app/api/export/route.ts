@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getZamanDilimleriForDate } from "@/lib/types";
 import ExcelJS from "exceljs";
 
 const KOLONLAR = [
@@ -28,12 +29,6 @@ const KOLONLAR = [
   { header: "Müşteri Duruş Türü", key: "musteri_durus_turu", width: 20 },
   { header: "Kalite Kaynaklı Duruş (dk)", key: "kalite_kaynakli_durus", width: 26 },
   { header: "Hedef Üretim Adeti", key: "hedef_uretim_adeti", width: 18 },
-];
-
-const ZAMAN_SIRASI = [
-  "07:45 - 08:45", "08:45 - 09:45", "09:45 - 10:45",
-  "10:45 - 12:00", "12:00 - 13:00", "13:00 - 14:00",
-  "14:00 - 15:00", "15:00 - 16:00", "16:00 - 17:15",
 ];
 
 function formatDateTime(value: unknown) {
@@ -85,11 +80,17 @@ export async function GET() {
   let rowIndex = 2;
   for (const record of records ?? []) {
     type DbRow = Record<string, string | number | boolean | null>;
+    const rawRows = (record.manuf_production_rows as DbRow[] ?? []);
     const rowsByZaman: Record<string, DbRow> = Object.fromEntries(
-      (record.manuf_production_rows as DbRow[] ?? []).map((r) => [r.zaman_dilimi as string, r])
+      rawRows.map((r) => [r.zaman_dilimi as string, r])
     );
+    const zamanSirasi = getZamanDilimleriForDate(record.tarih).map((z) => z.label);
+    const extraZamanlar = rawRows
+      .map((r) => r.zaman_dilimi as string)
+      .filter((zaman) => zaman && !zamanSirasi.includes(zaman));
+    const exportZamanSirasi = [...zamanSirasi, ...extraZamanlar];
 
-    for (const zaman of ZAMAN_SIRASI) {
+    for (const zaman of exportZamanSirasi) {
       const r: DbRow = rowsByZaman[zaman] ?? {};
       const hasAriza = typeof r.ariza === "number" && r.ariza > 0;
 
