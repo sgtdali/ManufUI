@@ -75,23 +75,26 @@ export async function exportToExcel(records: RawRecord[]) {
   let rowIndex = 2;
   for (const record of records) {
     const rawRows = record.manuf_production_rows ?? [];
-    const rowsByZaman = Object.fromEntries(
-      rawRows.map((r) => [r.zaman_dilimi as string, r])
-    );
-    const zamanSirasi = getZamanDilimleriForDate(record.tarih).map((z) => z.label);
-    const extraZamanlar = rawRows
-      .map((r) => r.zaman_dilimi as string)
-      .filter((zaman) => zaman && !zamanSirasi.includes(zaman));
-    const exportZamanSirasi = [...zamanSirasi, ...extraZamanlar];
+    const exportRows =
+      rawRows.length > 0
+        ? rawRows
+            .slice()
+            .sort(
+              (a, b) =>
+                (((a.sira_no as number | null) ?? 0) -
+                  ((b.sira_no as number | null) ?? 0))
+            )
+        : getZamanDilimleriForDate(record.tarih).map(
+            (z) => ({ sira_no: z.sira_no, zaman_dilimi: z.label } as RawRow)
+          );
 
-    for (const zaman of exportZamanSirasi) {
-      const r = rowsByZaman[zaman] ?? {};
+    for (const r of exportRows) {
       const hasAriza = typeof r.ariza === "number" && r.ariza > 0;
       const dataRow = ws.addRow({
         tarih: record.tarih,
         bolum: record.bolum,
         sorumlu: record.sorumlu ?? "",
-        zaman_dilimi: zaman,
+        zaman_dilimi: r.zaman_dilimi ?? "",
         hedef_uretim_adeti: r.hedef_uretim_adeti ?? "",
         uretim_adeti: r.uretim_adeti ?? "",
         musteri_var: r.musteri_var === true ? "Evet" : "Hayır",

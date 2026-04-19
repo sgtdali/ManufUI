@@ -88,36 +88,42 @@ function applyRecordToForm(
   tarih: string
 ): ProductionFormData {
   const rows = (record.manuf_production_rows as Record<string, unknown>[] ?? []);
-  const loadedRows = buildEmptyRows(getZamanDilimleriForDate(tarih)).map((emptyRow) => {
-    const found = rows.find(
-      (r) => r.zaman_dilimi === emptyRow.zaman_dilimi
-    ) as Record<string, number | string | boolean | null> | undefined;
-    return found
-      ? {
-          sira_no: emptyRow.sira_no,
-          zaman_dilimi: emptyRow.zaman_dilimi,
-          hedef_uretim_adeti: found.hedef_uretim_adeti as number | null,
-          uretim_adeti: found.uretim_adeti as number | null,
-          musteri_var: found.musteri_var === true,
-          mola: found.mola as number | null,
-          mola_turu: found.mola_turu as string | null,
-          ariza: found.ariza as number | null,
-          ariza_turu: found.ariza_turu as string | null,
-          ariza_aciklama: found.ariza_aciklama as string | null,
-          planli_durus: found.planli_durus as number | null,
-          planli_durus_turu: found.planli_durus_turu as string | null,
-          planli_durus_aciklama: found.planli_durus_aciklama as string | null,
-          setup_ve_ayar: found.setup_ve_ayar as number | null,
-          setup_turu: found.setup_turu as string | null,
-          setup_aciklama: found.setup_aciklama as string | null,
-          takim_degisimi: found.takim_degisimi as number | null,
-          onceki_istasyon_bekleme: found.onceki_istasyon_bekleme as number | null,
-          musteri_kaynakli_durus: found.musteri_kaynakli_durus as number | null,
-          musteri_durus_turu: found.musteri_durus_turu as string | null,
-          kalite_kaynakli_durus: found.kalite_kaynakli_durus as number | null,
-        }
-      : emptyRow;
-  });
+  const loadedRows =
+    rows.length > 0
+      ? rows
+          .slice()
+          .sort(
+            (a, b) =>
+              ((a.sira_no as number | null) ?? 0) -
+              ((b.sira_no as number | null) ?? 0)
+          )
+          .map((found, index) => {
+            const row = found as Record<string, number | string | boolean | null>;
+            return {
+              sira_no: (row.sira_no as number | null) ?? index + 1,
+              zaman_dilimi: (row.zaman_dilimi as string | null) ?? "",
+              hedef_uretim_adeti: row.hedef_uretim_adeti as number | null,
+              uretim_adeti: row.uretim_adeti as number | null,
+              musteri_var: row.musteri_var === true,
+              mola: row.mola as number | null,
+              mola_turu: row.mola_turu as string | null,
+              ariza: row.ariza as number | null,
+              ariza_turu: row.ariza_turu as string | null,
+              ariza_aciklama: row.ariza_aciklama as string | null,
+              planli_durus: row.planli_durus as number | null,
+              planli_durus_turu: row.planli_durus_turu as string | null,
+              planli_durus_aciklama: row.planli_durus_aciklama as string | null,
+              setup_ve_ayar: row.setup_ve_ayar as number | null,
+              setup_turu: row.setup_turu as string | null,
+              setup_aciklama: row.setup_aciklama as string | null,
+              takim_degisimi: row.takim_degisimi as number | null,
+              onceki_istasyon_bekleme: row.onceki_istasyon_bekleme as number | null,
+              musteri_kaynakli_durus: row.musteri_kaynakli_durus as number | null,
+              musteri_durus_turu: row.musteri_durus_turu as string | null,
+              kalite_kaynakli_durus: row.kalite_kaynakli_durus as number | null,
+            };
+          })
+      : buildEmptyRows(getZamanDilimleriForDate(tarih));
   return {
     bolum,
     sorumlu: (record.sorumlu as string) ?? "",
@@ -159,6 +165,10 @@ export default function ProductionFormPage() {
   const tarih = watch("tarih");
   const watchedRows = watch("rows");
   const zamanDilimleri = getZamanDilimleriForDate(tarih);
+  const tableRows =
+    watchedRows && watchedRows.length > 0
+      ? watchedRows
+      : buildEmptyRows(zamanDilimleri);
 
   // Otomatik yükleme: bölüm veya tarih değişince arka planda çek
   useEffect(() => {
@@ -434,13 +444,13 @@ export default function ProductionFormPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {zamanDilimleri.map((z, i) => (
+                    {tableRows.map((row, i) => (
                       <tr
-                        key={z.label}
+                        key={row.zaman_dilimi}
                         className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
                       >
                         <td className="border border-gray-300 px-3 py-1 font-medium whitespace-nowrap text-blue-800">
-                          {z.label}
+                          {row.zaman_dilimi}
                         </td>
                         <td className="border border-gray-300 px-1 py-1">
                           <div className="flex items-center justify-center gap-2 whitespace-nowrap">
@@ -485,7 +495,7 @@ export default function ProductionFormPage() {
                           <input
                             type="checkbox"
                             className="h-4 w-4 rounded border-gray-300 accent-blue-700"
-                            aria-label={`${z.label} müşteri var`}
+                            aria-label={`${row.zaman_dilimi} müşteri var`}
                             {...register(`rows.${i}.musteri_var`)}
                           />
                         </td>
@@ -605,7 +615,7 @@ export default function ProductionFormPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {aciklamaDialog?.baslik} — {aciklamaDialog !== null ? zamanDilimleri[aciklamaDialog.rowIndex]?.label ?? "" : ""}
+              {aciklamaDialog?.baslik} — {aciklamaDialog !== null ? tableRows[aciklamaDialog.rowIndex]?.zaman_dilimi ?? "" : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="py-2">
