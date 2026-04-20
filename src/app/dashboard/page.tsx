@@ -225,6 +225,12 @@ export default async function DashboardPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
+              className="rounded-md border border-blue-700 bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-800"
+              href="/veri-takip"
+            >
+              Veri takip
+            </Link>
+            <Link
               className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-800"
               href="/arıza"
             >
