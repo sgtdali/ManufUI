@@ -1,0 +1,9 @@
+export const ETM_SHIFT_START = "08:00";
+export const ETM_SHIFT_END = "17:30";
+export const ETM_HAT_CYCLE_MINUTES = 3;
+export const ETM_CUTTING_INSERT_INTERVAL = 10;
+export const ETM_CUTTING_INSERT_CHANGE_MINUTES = 5;
+export const ETM_DRILL_BIT_INTERVAL = 300;
+export const ETM_DRILL_BIT_CHANGE_MINUTES = 10;
+export const ETM_PALET_INTERVAL = 20;
+export const ETM_PALET_CHANGE_MINUTES = 10;
