@@ -193,3 +193,44 @@ export async function deleteCustomScheduleParam(key: string) {
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
+
+export type WipStockItem = {
+  tarih: string;
+  kaynak_hucresi: string;
+  hedef_hucresi: string;
+  hesaplanan_adet: number;
+  gercek_adet: number | null;
+  override_edildi: boolean;
+};
+
+export async function loadCellWipStock(
+  cellName: string,
+  startDate: string,
+  endDate: string
+): Promise<{
+  incoming: WipStockItem[];
+  outgoing: WipStockItem[];
+}> {
+  if (!isDateValue(startDate) || !isDateValue(endDate) || startDate > endDate) {
+    return { incoming: [], outgoing: [] };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_wip_stock")
+    .select("tarih, kaynak_hucresi, hedef_hucresi, hesaplanan_adet, gercek_adet, override_edildi")
+    .gte("tarih", startDate)
+    .lte("tarih", endDate);
+
+  if (error) {
+    console.warn("loadCellWipStock error:", error.message);
+    return { incoming: [], outgoing: [] };
+  }
+
+  const items = (data ?? []) as WipStockItem[];
+  const incoming = items.filter(item => item.hedef_hucresi === cellName);
+  const outgoing = items.filter(item => item.kaynak_hucresi === cellName);
+
+  return { incoming, outgoing };
+}
+

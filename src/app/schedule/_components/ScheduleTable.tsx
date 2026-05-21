@@ -11,11 +11,12 @@ type Props = {
   schedule: DayPlan[];
   overrides: Record<string, DayOverride>;
   actuals: Record<string, number>;
+  wipOutgoing: Record<string, number | null>;
   updateOverride: (key: string, patch: DayOverride) => void;
   clearDayOverride: (key: string) => void;
 };
 
-export function ScheduleTable({ schedule, overrides, actuals, updateOverride, clearDayOverride }: Props) {
+export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updateOverride, clearDayOverride }: Props) {
   return (
     <Card className="rounded-xl shadow-sm border-zinc-200 overflow-hidden bg-white">
       <CardHeader className="border-b border-zinc-100 pb-3 flex flex-row items-center justify-between">
@@ -51,6 +52,7 @@ export function ScheduleTable({ schedule, overrides, actuals, updateOverride, cl
                 <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">Kapas.</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold">Pres</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold">ETM</th>
+                <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">ETM Stok</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold">Fark</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold">Erkek</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold">Dişi</th>
@@ -211,6 +213,12 @@ export function ScheduleTable({ schedule, overrides, actuals, updateOverride, cl
                     {/* ETM hazır */}
                     <td className="px-1.5 py-2 text-right text-zinc-500 text-xs">
                       {formatNumber(day.sameDayEtmReady)}
+                    </td>
+                    {/* ETM Stok */}
+                    <td className="px-1.5 py-2 text-right text-zinc-500 font-medium text-xs">
+                      {wipOutgoing[day.key] !== undefined && wipOutgoing[day.key] !== null
+                        ? formatNumber(wipOutgoing[day.key]!)
+                        : "—"}
                     </td>
                     {/* Fark */}
                     <td className="px-1.5 py-2 text-right">

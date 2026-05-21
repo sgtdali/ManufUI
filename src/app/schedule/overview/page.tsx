@@ -12,19 +12,33 @@ import {
   loadWipStock,
   calculateAndSaveWip,
   type CellParam,
-  type WipStockItem,
 } from "./actions";
+import type { WipStockItem } from "../actions";
 import {
   getFirstDayOfMonth,
   getLastDayOfMonth,
   getDaysInRange,
   toDayKey,
+  formatNumber,
 } from "../utils";
 
 import { SummaryBar } from "./_components/SummaryBar";
 import { CellGrid } from "./_components/CellGrid";
 import { DayDetailPanel } from "./_components/DayDetailPanel";
 import { type CellName } from "./constants";
+
+const TRANSITIONS = [
+  { source: "Pres Hücresi", target: "ETM Hücresi", label: "Pres → ETM" },
+  { source: "ETM Hücresi", target: "ROB108 Hücresi", label: "ETM → ROB108" },
+  { source: "ROB108 Hücresi", target: "Flowform Hücresi", label: "ROB108 → Flowform" },
+  { source: "Flowform Hücresi", target: "ROB104 Hücresi", label: "Flowform → ROB104" },
+  { source: "ROB104 Hücresi", target: "N602 Hücresi", label: "ROB104 → N602+N603" },
+  { source: "N602 Hücresi", target: "ROB109 Hücresi", label: "N602+N603 → ROB109" },
+  { source: "ROB109 Hücresi", target: "Quench Hücresi", label: "ROB109 → Quench" },
+  { source: "Quench Hücresi", target: "ROB110-111 Hücresi", label: "Quench → ROB110-111" },
+  { source: "ROB110-111 Hücresi", target: "Fosfat Hücresi", label: "ROB110-111 → Fosfat" },
+  { source: "Fosfat Hücresi", target: "Boya Hücresi", label: "Fosfat → Boya" },
+];
 
 export default function ScheduleOverviewPage() {
   const today = new Date();
@@ -64,6 +78,16 @@ export default function ScheduleOverviewPage() {
   const todayKey = useMemo(() => {
     return toDayKey(today);
   }, []);
+
+  const latestWipDate = useMemo(() => {
+    if (wipStock.length === 0) return null;
+    const dates = Array.from(new Set(wipStock.map((w) => w.tarih))).sort();
+    const pastDates = dates.filter((d) => d <= todayKey);
+    if (pastDates.length > 0) {
+      return pastDates[pastDates.length - 1];
+    }
+    return dates[dates.length - 1];
+  }, [wipStock, todayKey]);
 
   // ── Data Fetching ────────────────────────────────────────────────────────
   const fetchData = () => {
@@ -131,9 +155,13 @@ export default function ScheduleOverviewPage() {
           
           <div className="flex flex-wrap gap-2">
             <Link href="/schedule">
-              <Button type="button" variant="outline" className="flex items-center gap-1 text-xs font-bold">
-                <ArrowLeft className="size-3.5" />
-                Pres Planı Detayı
+              <Button type="button" variant="outline" className="text-xs font-bold">
+                Pres Detay
+              </Button>
+            </Link>
+            <Link href="/schedule/etm">
+              <Button type="button" variant="outline" className="text-xs font-bold">
+                ETM Detay
               </Button>
             </Link>
             <Link href="/dashboard">
@@ -236,6 +264,101 @@ export default function ScheduleOverviewPage() {
           endDate={endDate}
           campaignTarget={campaignTarget}
         />
+
+        {/* Hat WIP Özeti */}
+        {latestWipDate ? (
+          <Card className="rounded-xl border border-zinc-200 shadow-sm bg-white overflow-hidden">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between border-b border-zinc-150 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-blue-50 text-blue-700 rounded-lg border border-blue-100">
+                    <Layers className="size-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-zinc-800">Hat WIP Özeti</h2>
+                    <p className="text-[11px] text-zinc-500 font-medium">Hücreler arası stok durum göstergeleri</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Son Güncelleme:</span>
+                  <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-bold text-zinc-700 border border-zinc-200">
+                    {latestWipDate.split("-").reverse().join(".")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                {TRANSITIONS.map((t) => {
+                  const match = wipStock.find(
+                    (w) =>
+                      w.tarih === latestWipDate &&
+                      w.kaynak_hucresi === t.source &&
+                      w.hedef_hucresi === t.target
+                  );
+                  const value =
+                    match !== undefined
+                      ? match.override_edildi && match.gercek_adet !== null
+                        ? match.gercek_adet
+                        : match.hesaplanan_adet
+                      : null;
+
+                  // Define status
+                  let status: "starved" | "low" | "healthy" | "nodata" = "nodata";
+                  if (value !== null) {
+                    if (value === 0) status = "starved";
+                    else if (value < 50) status = "low";
+                    else status = "healthy";
+                  }
+
+                  // Styling based on status
+                  let statusBg = "bg-zinc-50/50 border-zinc-150 text-zinc-800";
+                  let badgeClass = "bg-zinc-100 text-zinc-600 border-zinc-200";
+                  let statusText = "Veri Yok";
+                  let valueColor = "text-zinc-400";
+
+                  if (status === "starved") {
+                    statusBg = "bg-rose-50/30 border-rose-100 hover:bg-rose-50/50";
+                    badgeClass = "bg-rose-100 text-rose-700 border-rose-200";
+                    statusText = "Kritik (Boş)";
+                    valueColor = "text-rose-600 font-extrabold";
+                  } else if (status === "low") {
+                    statusBg = "bg-amber-50/30 border-amber-100 hover:bg-amber-50/50";
+                    badgeClass = "bg-amber-100 text-amber-700 border-amber-250";
+                    statusText = "Düşük Stok";
+                    valueColor = "text-amber-600 font-bold";
+                  } else if (status === "healthy") {
+                    statusBg = "bg-emerald-50/20 border-emerald-100 hover:bg-emerald-50/40";
+                    badgeClass = "bg-emerald-100 text-emerald-700 border-emerald-200";
+                    statusText = "Yeterli";
+                    valueColor = "text-emerald-600 font-bold";
+                  }
+
+                  return (
+                    <div
+                      key={t.label}
+                      className={`flex flex-col justify-between p-3 rounded-lg border transition-all ${statusBg}`}
+                    >
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider truncate" title={t.label}>
+                          {t.label}
+                        </p>
+                        <p className={`text-lg leading-tight ${valueColor}`}>
+                          {value !== null ? formatNumber(value) : "—"}
+                          {value !== null && <span className="text-[10px] font-normal ml-0.5 text-zinc-500"> adet</span>}
+                        </p>
+                      </div>
+                      <div className="mt-2.5 flex items-center justify-between">
+                        <span className={`inline-flex items-center rounded px-1.5 py-0.2 text-[9px] font-bold border uppercase tracking-wider ${badgeClass}`}>
+                          {statusText}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Timeline Grid */}
         {daysInRange.length === 0 ? (

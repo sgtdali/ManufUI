@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ETM_SHIFT_START, ETM_SHIFT_END, ETM_HAT_CYCLE_MINUTES, ETM_CUTTING_INSERT_INTERVAL, ETM_DRILL_BIT_INTERVAL, ETM_PALET_INTERVAL, ETM_CUTTING_INSERT_CHANGE_MINUTES, ETM_DRILL_BIT_CHANGE_MINUTES, ETM_PALET_CHANGE_MINUTES } from "./constants";
 import type { EtmDayOverride, EtmProcessParams, ToolChangeItem, ScheduleParamRow } from "./types";
 import { buildEtmSchedule } from "./utils";
-import { getFirstDayOfMonth, getLastDayOfMonth, formatNumber } from "../utils";
+import { getFirstDayOfMonth, getLastDayOfMonth, formatNumber, toDayKey } from "../utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -23,6 +23,7 @@ import {
   loadEtmToolChanges,
   deleteEtmToolChange,
 } from "./actions";
+import { loadCellWipStock, type WipStockItem } from "../actions";
 
 type StockState = {
   kumLastCheck: string | null;
@@ -66,6 +67,12 @@ export default function EtmSchedulePage() {
   const [toolChanges, setToolChanges] = useState<ToolChangeItem[]>([]);
   const [scheduleParams, setScheduleParams] = useState<ScheduleParamRow[]>([]);
   
+  // ── WIP verisi ───────────────────────────────────────────────────────────
+  const [wipData, setWipData] = useState<{ incoming: WipStockItem[]; outgoing: WipStockItem[] }>({
+    incoming: [],
+    outgoing: [],
+  });
+
   const [isLoading, startTransition] = useTransition();
 
   // ── Stok / Sarf Malzeme Durumu ───────────────────────────────────────────
@@ -115,6 +122,9 @@ export default function EtmSchedulePage() {
         } else {
           toast.error(`Parametreler yüklenemedi: ${paramsResult.error}`);
         }
+
+        const wipResult = await loadCellWipStock("ETM Hücresi", startDate, endDate);
+        setWipData(wipResult);
       } catch (e) {
         console.error(e);
         toast.error("Veriler yüklenirken bir hata oluştu.");
@@ -307,6 +317,27 @@ export default function EtmSchedulePage() {
     });
   }, [rawSchedule, stockState]);
 
+  const wipIncoming = useMemo(() => {
+    const map: Record<string, number | null> = {};
+    for (const item of wipData.incoming) {
+      if (item.kaynak_hucresi === "Pres Hücresi") {
+        map[item.tarih] = item.override_edildi && item.gercek_adet !== null ? item.gercek_adet : item.hesaplanan_adet;
+      }
+    }
+    return map;
+  }, [wipData.incoming]);
+
+  const todayKey = useMemo(() => {
+    return toDayKey(new Date());
+  }, []);
+
+  const wipMetricValue = useMemo(() => {
+    const pastWorkdays = schedule.filter((d) => d.isWorkday && d.key <= todayKey);
+    const targetDay = pastWorkdays[pastWorkdays.length - 1];
+    if (!targetDay) return null;
+    return wipIncoming[targetDay.key] ?? null;
+  }, [schedule, wipIncoming, todayKey]);
+
   // ── Override Yönetimi ────────────────────────────────────────────────────
   const handleSaveOverride = (key: string, override: EtmDayOverride) => {
     setOverrides((cur) => {
@@ -404,7 +435,7 @@ export default function EtmSchedulePage() {
         </header>
 
         {/* Ana Metrik Kartları */}
-        <EtmMetricCards plans={schedule} />
+        <EtmMetricCards plans={schedule} wipIncomingValue={wipMetricValue} />
 
         {/* Sol Sidebar + Sağ Timeline Izgarası */}
         <div className="grid gap-6 xl:grid-cols-[360px_1fr] items-start">
@@ -507,6 +538,7 @@ export default function EtmSchedulePage() {
           <div className="flex flex-col gap-6">
             <EtmScheduleTable
               plans={schedule}
+              wipIncoming={wipIncoming}
               onSaveOverride={handleSaveOverride}
               onClearOverride={handleClearOverride}
             />

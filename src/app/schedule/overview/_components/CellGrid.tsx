@@ -3,7 +3,8 @@
 import { useState, Fragment } from "react";
 import { CellGridRow } from "./CellGridRow";
 import { WipRow } from "./WipRow";
-import { type CellParam, type WipStockItem } from "../actions";
+import { type CellParam } from "../actions";
+import type { WipStockItem } from "../../actions";
 import { CELLS, CELL_FLOWS, type CellName } from "../constants";
 import { toDayKey, formatDate, formatWeekday, formatNumber } from "../../utils";
 import { Button } from "@/components/ui/button";

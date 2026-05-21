@@ -1,6 +1,6 @@
 "use client";
 
-import { type WipStockItem } from "../actions";
+import type { WipStockItem } from "../../actions";
 import { toDayKey, formatNumber } from "../../utils";
 
 type Props = {

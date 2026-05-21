@@ -88,15 +88,7 @@ export async function loadCellParams() {
 
   return params;
 }
-
-export type WipStockItem = {
-  tarih: string;
-  kaynak_hucresi: string;
-  hedef_hucresi: string;
-  hesaplanan_adet: number;
-  gercek_adet: number | null;
-  override_edildi: boolean;
-};
+import type { WipStockItem } from "../actions";
 
 export async function loadWipStock(startDate: string, endDate: string) {
   const supabase = await createClient();

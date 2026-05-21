@@ -8,11 +8,12 @@ import { Wrench, Settings2, Calendar, ShieldAlert } from "lucide-react";
 
 type Props = {
   plans: EtmDayPlan[];
+  wipIncoming?: Record<string, number | null>;
   onSaveOverride: (key: string, override: EtmDayOverride) => void;
   onClearOverride: (key: string) => void;
 };
 
-export function EtmScheduleTable({ plans, onSaveOverride, onClearOverride }: Props) {
+export function EtmScheduleTable({ plans, wipIncoming = {}, onSaveOverride, onClearOverride }: Props) {
   const todayKey = toDayKey(new Date());
   
   // Inline editing state
@@ -69,6 +70,7 @@ export function EtmScheduleTable({ plans, onSaveOverride, onClearOverride }: Pro
               <th className="py-3 px-3 text-center">Hedef</th>
               <th className="py-3 px-3 text-center">Gerçek / Plan</th>
               <th className="py-3 px-3 text-center">Kapasite</th>
+              <th className="py-3 px-3 text-center">Pres Stok</th>
               <th className="py-3 px-4">Duruş Detayı</th>
               <th className="py-3 px-4">Uyarılı Durum</th>
               <th className="py-3 px-4 text-right">Aksiyon</th>
@@ -148,6 +150,13 @@ export function EtmScheduleTable({ plans, onSaveOverride, onClearOverride }: Pro
                       {plan.isWorkday ? formatNumber(plan.capacityProduced) : "—"}
                     </td>
 
+                    {/* Pres Stok Column */}
+                    <td className="py-3 px-3 text-center text-zinc-500 font-semibold">
+                      {wipIncoming[plan.key] !== undefined && wipIncoming[plan.key] !== null
+                        ? formatNumber(wipIncoming[plan.key] as number)
+                        : "—"}
+                    </td>
+
                     {/* Stops Column */}
                     <td className="py-3 px-4 text-zinc-500 font-medium whitespace-nowrap">
                       {plan.isWorkday ? (
@@ -211,7 +220,7 @@ export function EtmScheduleTable({ plans, onSaveOverride, onClearOverride }: Pro
                   {/* Inline edit drawer */}
                   {isEditing && (
                     <tr className="bg-zinc-50/50">
-                      <td colSpan={7} className="p-4 border-b border-zinc-200">
+                      <td colSpan={8} className="p-4 border-b border-zinc-200">
                         <div className="flex flex-wrap gap-4 items-end bg-white p-4 rounded-lg border border-zinc-200 shadow-inner">
                           {/* produced input */}
                           <div className="flex flex-col gap-1">

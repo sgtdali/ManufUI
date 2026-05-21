@@ -2,12 +2,20 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { CalendarDays, Factory, Hammer, TimerReset } from "lucide-react";
+import { CalendarDays, Factory, Hammer, TimerReset, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 
-import { loadPressActuals, loadMoldChanges, loadScheduleParams, type MoldChange, type ScheduleParamRow } from "./actions";
+import {
+  loadPressActuals,
+  loadMoldChanges,
+  loadScheduleParams,
+  loadCellWipStock,
+  type MoldChange,
+  type ScheduleParamRow,
+  type WipStockItem,
+} from "./actions";
 import { SHIFT_START, SHIFT_END, FURNACE_START } from "./constants";
 import type { DayOverride } from "./types";
 import {
@@ -18,6 +26,7 @@ import {
   numberInput,
   sum,
   DEFAULT_PROCESS_PARAMS,
+  toDayKey,
   type ProcessParams,
 } from "./utils";
 
@@ -60,6 +69,12 @@ export default function SchedulePage() {
   const [scheduleParams, setScheduleParams] = useState<ScheduleParamRow[]>([]);
   const [, startParamsTransition] = useTransition();
 
+  // ── WIP verisi ───────────────────────────────────────────────────────────
+  const [wipData, setWipData] = useState<{ incoming: WipStockItem[]; outgoing: WipStockItem[] }>({
+    incoming: [],
+    outgoing: [],
+  });
+
   // ── Sidebar sekme durumu ─────────────────────────────────────────────────
   const [activeSidebarTab, setActiveSidebarTab] = useState<"settings" | "molds" | "params">("settings");
 
@@ -85,6 +100,13 @@ export default function SchedulePage() {
       if (mcResult.success) setMoldChanges(mcResult.data ?? []);
       else setMoldChanges([]);
     });
+
+    const loadWip = async () => {
+      const wipResult = await loadCellWipStock("Pres Hücresi", startDate, endDate);
+      if (cancelled) return;
+      setWipData(wipResult);
+    };
+    loadWip();
 
     return () => { cancelled = true; };
   }, [endDate, startDate]);
@@ -158,6 +180,33 @@ export default function SchedulePage() {
   const periodSurplus     = Math.max(periodPressed - periodTarget, 0);
   const maintenanceHours  = sum(schedule, "maintenanceMinutes") / 60;
   const firstRiskDay      = schedule.find((d) => d.isWorkday && (d.targetGap > 0 || d.maintenanceMinutes > 0));
+
+  const todayKey = useMemo(() => {
+    return toDayKey(new Date());
+  }, []);
+
+  const wipMetricValue = useMemo(() => {
+    const pastWorkdays = schedule.filter((d) => d.isWorkday && d.key <= todayKey);
+    const targetDay = pastWorkdays[pastWorkdays.length - 1];
+    if (!targetDay) return null;
+
+    const match = wipData.outgoing.find(
+      (item) => item.tarih === targetDay.key && item.hedef_hucresi === "ETM Hücresi"
+    );
+    if (!match) return null;
+
+    return match.override_edildi && match.gercek_adet !== null ? match.gercek_adet : match.hesaplanan_adet;
+  }, [schedule, wipData.outgoing, todayKey]);
+
+  const wipOutgoing = useMemo(() => {
+    const map: Record<string, number | null> = {};
+    for (const item of wipData.outgoing) {
+      if (item.hedef_hucresi === "ETM Hücresi") {
+        map[item.tarih] = item.override_edildi && item.gercek_adet !== null ? item.gercek_adet : item.hesaplanan_adet;
+      }
+    }
+    return map;
+  }, [wipData.outgoing]);
 
   // ── Kurtarma hesabı ───────────────────────────────────────────────────────
   const recoveryDays = schedule.filter((d) => d.isWorkday && d.source === "plan" && d.availableMinutes > 0);
@@ -311,7 +360,7 @@ export default function SchedulePage() {
           {/* Sağ – Metrikler + içerik */}
           <div className="flex flex-col gap-6">
             {/* Metrik kartları */}
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5 items-start">
               <MetricCard
                 icon={<CalendarDays />}
                 label="Hedef günü"
@@ -344,6 +393,13 @@ export default function SchedulePage() {
                 note={firstRiskDay ? `${firstRiskDay.label}: ${firstRiskDay.maintenanceLabel}` : "Planlı duruş yok"}
                 color="amber"
               />
+              <MetricCard
+                icon={<Layers />}
+                label="ETM'ye giden stok"
+                value={wipMetricValue !== null ? formatNumber(wipMetricValue) : "—"}
+                note="Kümülatif birikmiş stok"
+                color={wipMetricValue !== null && wipMetricValue > 0 ? "blue" : "amber"}
+              />
             </div>
 
             {/* Kurtarma senaryosu */}
@@ -364,6 +420,7 @@ export default function SchedulePage() {
               schedule={schedule}
               overrides={overrides}
               actuals={actuals}
+              wipOutgoing={wipOutgoing}
               updateOverride={updateOverride}
               clearDayOverride={clearDayOverride}
             />

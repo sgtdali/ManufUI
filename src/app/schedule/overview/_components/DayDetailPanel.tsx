@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import { X, Factory, Info, ArrowUpRight, ArrowDownRight, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { type WipStockItem, type CellParam } from "../actions";
+import { type CellParam } from "../actions";
+import type { WipStockItem } from "../../actions";
 import { CELL_FLOWS, type CellName } from "../constants";
 import { formatNumber, formatDate, formatWeekday } from "../../utils";
 

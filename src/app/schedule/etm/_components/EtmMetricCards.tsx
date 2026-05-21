@@ -4,13 +4,14 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatNumber } from "../../utils";
 import type { EtmDayPlan } from "../types";
-import { Hammer, Flame, Calculator, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Hammer, Flame, Calculator, AlertTriangle, CheckCircle2, Layers } from "lucide-react";
 
 type Props = {
   plans: EtmDayPlan[];
+  wipIncomingValue: number | null;
 };
 
-export function EtmMetricCards({ plans }: Props) {
+export function EtmMetricCards({ plans, wipIncomingValue }: Props) {
   // 1. Produced metric
   const totalProduced = plans.reduce((acc, p) => acc + p.produced, 0);
   const totalTarget = plans.reduce((acc, p) => acc + p.target, 0);
@@ -64,7 +65,7 @@ export function EtmMetricCards({ plans }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {/* 1. Produced */}
       <Card className="border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-shadow">
         <CardContent className="p-4 flex items-center justify-between">
@@ -151,6 +152,37 @@ export function EtmMetricCards({ plans }: Props) {
             nearestCritical ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-zinc-50 text-zinc-600 border-zinc-100"
           }`}>
             <AlertTriangle className="size-5" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 5. Pres'ten Gelen Stok */}
+      <Card className={`border shadow-sm hover:shadow-md transition-shadow ${
+        wipIncomingValue !== null && wipIncomingValue < 50 ? "border-rose-200 bg-rose-50/10" : "border-zinc-200 bg-white"
+      }`}>
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Pres'ten Gelen Stok</p>
+            <p className={`text-2xl font-extrabold ${
+              wipIncomingValue !== null && wipIncomingValue < 50 ? "text-rose-600" : "text-zinc-900"
+            }`}>
+              {wipIncomingValue !== null ? `${formatNumber(wipIncomingValue)}` : "—"}
+              {wipIncomingValue !== null && <span className={`text-xs font-semibold ml-1 ${
+                wipIncomingValue < 50 ? "text-rose-500" : "text-zinc-500"
+              }`}>adet</span>}
+            </p>
+            {wipIncomingValue !== null && wipIncomingValue < 50 ? (
+              <p className="text-[11px] text-rose-700 font-semibold flex items-center gap-1">
+                <AlertTriangle className="size-3" /> Düşük stok uyarısı
+              </p>
+            ) : (
+              <p className="text-[11px] text-zinc-500 font-medium">Kümülatif gelen stok</p>
+            )}
+          </div>
+          <div className={`rounded-lg p-2.5 border ${
+            wipIncomingValue !== null && wipIncomingValue < 50 ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-zinc-50 text-zinc-600 border-zinc-100"
+          }`}>
+            <Layers className="size-5" />
           </div>
         </CardContent>
       </Card>
