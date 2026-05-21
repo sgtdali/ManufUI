@@ -57,6 +57,82 @@ export function DayDetailPanel({
     return { value, isOverride: match.override_edildi };
   };
 
+  // Compute custom display list for Upstream WIPs
+  const upstreamWips = (() => {
+    // 1. If N602 or N603, show combined upstream: ROB104 -> N602+N603
+    if (cellName === "N602 Hücresi" || cellName === "N603 Hücresi") {
+      const { value, isOverride } = getWipDetails("ROB104 Hücresi", "N602 Hücresi");
+      return [
+        {
+          key: "ROB104 Hücresi->N602 Hücresi",
+          label: "ROB104 → N602+N603",
+          value,
+          isOverride,
+        },
+      ];
+    }
+    // 2. If ROB109, show combined upstream: N602+N603 -> ROB109
+    if (cellName === "ROB109 Hücresi") {
+      const { value, isOverride } = getWipDetails("N602 Hücresi", "ROB109 Hücresi");
+      return [
+        {
+          key: "N602 Hücresi->ROB109 Hücresi",
+          label: "N602+N603 → ROB109",
+          value,
+          isOverride,
+        },
+      ];
+    }
+    // 3. Normal mapping
+    return flows.upstream.map((up) => {
+      const { value, isOverride } = getWipDetails(up, cellName);
+      return {
+        key: `${up}->${cellName}`,
+        label: `${up.replace(" Hücresi", "")} → ${cellName.replace(" Hücresi", "")}`,
+        value,
+        isOverride,
+      };
+    });
+  })();
+
+  // Compute custom display list for Downstream WIPs
+  const downstreamWips = (() => {
+    // 1. If ROB104, show combined downstream: ROB104 -> N602+N603
+    if (cellName === "ROB104 Hücresi") {
+      const { value, isOverride } = getWipDetails("ROB104 Hücresi", "N602 Hücresi");
+      return [
+        {
+          key: "ROB104 Hücresi->N602 Hücresi",
+          label: "ROB104 → N602+N603",
+          value,
+          isOverride,
+        },
+      ];
+    }
+    // 2. If N602 or N603, show combined downstream: N602+N603 -> ROB109
+    if (cellName === "N602 Hücresi" || cellName === "N603 Hücresi") {
+      const { value, isOverride } = getWipDetails("N602 Hücresi", "ROB109 Hücresi");
+      return [
+        {
+          key: "N602 Hücresi->ROB109 Hücresi",
+          label: "N602+N603 → ROB109",
+          value,
+          isOverride,
+        },
+      ];
+    }
+    // 3. Normal mapping
+    return flows.downstream.map((down) => {
+      const { value, isOverride } = getWipDetails(cellName, down);
+      return {
+        key: `${cellName}->${down}`,
+        label: `${cellName.replace(" Hücresi", "")} → ${down.replace(" Hücresi", "")}`,
+        value,
+        isOverride,
+      };
+    });
+  })();
+
   const formattedDate = `${formatDate(date)} ${formatWeekday(date)}`;
 
   return (
@@ -139,28 +215,25 @@ export function DayDetailPanel({
                 <ArrowUpRight className="size-5 text-indigo-500" />
                 <h3 className="text-sm font-bold text-zinc-800 uppercase tracking-wider">Giriş Stokları (WIP)</h3>
               </div>
-              {flows.upstream.length === 0 ? (
+              {upstreamWips.length === 0 ? (
                 <p className="text-xs text-zinc-500 italic">Bu başlangıç istasyonudur, giriş stoku yok.</p>
               ) : (
                 <div className="space-y-3">
-                  {flows.upstream.map((up) => {
-                    const { value, isOverride } = getWipDetails(up, cellName);
-                    return (
-                      <div key={up} className="flex items-center justify-between border-b border-zinc-50 pb-2 last:border-b-0 last:pb-0">
-                        <div>
-                          <p className="text-xs font-semibold text-zinc-700">{up} → {cellName}</p>
-                          {isOverride && (
-                            <span className="inline-flex items-center rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-inset ring-orange-600/10 mt-0.5">
-                              Manuel Giriş
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm font-extrabold text-zinc-900">
-                          {value !== null ? formatNumber(value) : "—"}
-                        </p>
+                  {upstreamWips.map((wip) => (
+                    <div key={wip.key} className="flex items-center justify-between border-b border-zinc-50 pb-2 last:border-b-0 last:pb-0">
+                      <div>
+                        <p className="text-xs font-semibold text-zinc-700">{wip.label}</p>
+                        {wip.isOverride && (
+                          <span className="inline-flex items-center rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-inset ring-orange-600/10 mt-0.5">
+                            Manuel Giriş
+                          </span>
+                        )}
                       </div>
-                    );
-                  })}
+                      <p className="text-sm font-extrabold text-zinc-900">
+                        {wip.value !== null ? formatNumber(wip.value) : "—"}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
@@ -173,28 +246,25 @@ export function DayDetailPanel({
                 <ArrowDownRight className="size-5 text-indigo-500" />
                 <h3 className="text-sm font-bold text-zinc-800 uppercase tracking-wider">Çıkış Stokları (WIP)</h3>
               </div>
-              {flows.downstream.length === 0 ? (
+              {downstreamWips.length === 0 ? (
                 <p className="text-xs text-zinc-500 italic">Bu son istasyonudur, çıkış stoku yok.</p>
               ) : (
                 <div className="space-y-3">
-                  {flows.downstream.map((down) => {
-                    const { value, isOverride } = getWipDetails(cellName, down);
-                    return (
-                      <div key={down} className="flex items-center justify-between border-b border-zinc-50 pb-2 last:border-b-0 last:pb-0">
-                        <div>
-                          <p className="text-xs font-semibold text-zinc-700">{cellName} → {down}</p>
-                          {isOverride && (
-                            <span className="inline-flex items-center rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-inset ring-orange-600/10 mt-0.5">
-                              Manuel Giriş
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm font-extrabold text-zinc-900">
-                          {value !== null ? formatNumber(value) : "—"}
-                        </p>
+                  {downstreamWips.map((wip) => (
+                    <div key={wip.key} className="flex items-center justify-between border-b border-zinc-50 pb-2 last:border-b-0 last:pb-0">
+                      <div>
+                        <p className="text-xs font-semibold text-zinc-700">{wip.label}</p>
+                        {wip.isOverride && (
+                          <span className="inline-flex items-center rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-inset ring-orange-600/10 mt-0.5">
+                            Manuel Giriş
+                          </span>
+                        )}
                       </div>
-                    );
-                  })}
+                      <p className="text-sm font-extrabold text-zinc-900">
+                        {wip.value !== null ? formatNumber(wip.value) : "—"}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

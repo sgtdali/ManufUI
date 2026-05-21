@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Layers } from "lucide-react";
+import { ArrowLeft, RefreshCw, Layers, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -10,6 +10,7 @@ import {
   loadAllCellActuals,
   loadCellParams,
   loadWipStock,
+  calculateAndSaveWip,
   type CellParam,
   type WipStockItem,
 } from "./actions";
@@ -38,6 +39,10 @@ export default function ScheduleOverviewPage() {
   const [cellParams, setCellParams] = useState<Record<string, CellParam>>({});
   const [wipStock, setWipStock] = useState<WipStockItem[]>([]);
   const [isLoading, startTransition] = useTransition();
+
+  // WIP calculation states
+  const [wipError, setWipError] = useState<string | null>(null);
+  const [isCalculatingWip, setIsCalculatingWip] = useState(false);
 
   // Detail panel states
   const [selectedCellName, setSelectedCellName] = useState<CellName | null>(null);
@@ -85,6 +90,24 @@ export default function ScheduleOverviewPage() {
     setSelectedDateKey(toDayKey(date));
     setSelectedActualValue(actualValue);
     setIsPanelOpen(true);
+  };
+
+  const handleCalculateWip = async () => {
+    setWipError(null);
+    setIsCalculatingWip(true);
+    try {
+      const res = await calculateAndSaveWip(startDate, endDate, actuals);
+      if (res.success) {
+        fetchData();
+      } else {
+        setWipError(res.error || "WIP hesabı başarısız oldu.");
+      }
+    } catch (err: any) {
+      console.error("WIP calculation failed:", err);
+      setWipError(err.message || "Bilinmeyen bir hata oluştu.");
+    } finally {
+      setIsCalculatingWip(false);
+    }
   };
 
   return (
@@ -165,7 +188,12 @@ export default function ScheduleOverviewPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              {isLoading && (
+              {wipError && (
+                <span className="text-xs text-rose-600 font-semibold mr-2 animate-pulse">
+                  Hata: {wipError}
+                </span>
+              )}
+              {(isLoading || isCalculatingWip) && (
                 <span className="flex items-center gap-1.5 text-xs text-zinc-400 font-semibold">
                   <RefreshCw className="size-3.5 animate-spin text-zinc-400" />
                   Yükleniyor...
@@ -173,13 +201,28 @@ export default function ScheduleOverviewPage() {
               )}
               <Button
                 type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCalculateWip}
+                disabled={isLoading || isCalculatingWip}
+                className="text-blue-700 hover:text-blue-800 border-blue-200 hover:bg-blue-50 text-xs font-bold flex items-center gap-1.5 shadow-sm"
+              >
+                {isCalculatingWip ? (
+                  <RefreshCw className="size-3.5 animate-spin" />
+                ) : (
+                  <Calculator className="size-3.5" />
+                )}
+                WIP Hesapla
+              </Button>
+              <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={fetchData}
-                disabled={isLoading}
+                disabled={isLoading || isCalculatingWip}
                 className="text-zinc-500 hover:text-zinc-800 text-xs font-semibold flex items-center gap-1"
               >
-                {!isLoading && <RefreshCw className="size-3.5" />}
+                {!(isLoading || isCalculatingWip) && <RefreshCw className="size-3.5" />}
                 Yenile
               </Button>
             </div>

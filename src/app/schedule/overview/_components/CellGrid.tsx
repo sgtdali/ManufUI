@@ -129,16 +129,20 @@ export function CellGrid({
 
                         {/* 2. Downstream WIP Row(s) */}
                         {!isLastCell &&
-                          flows.downstream.map((down) => (
-                            <WipRow
-                              key={`${cell}->${down}`}
-                              source={cell}
-                              target={down}
-                              days={days}
-                              wipStock={wipStock}
-                              todayKey={todayKey}
-                            />
-                          ))}
+                          flows.downstream.map((down) => {
+                            if (cell === "ROB104 Hücresi" && down === "N603 Hücresi") return null;
+                            if (cell === "N603 Hücresi" && down === "ROB109 Hücresi") return null;
+                            return (
+                              <WipRow
+                                key={`${cell}->${down}`}
+                                source={cell}
+                                target={down}
+                                days={days}
+                                wipStock={wipStock}
+                                todayKey={todayKey}
+                              />
+                            );
+                          })}
                       </Fragment>
                     );
                   })}
@@ -198,15 +202,23 @@ export function CellGrid({
                     const cellCls = getCellClassesForMobile(actualValue, capacity, isWorkday, isWeekend, dateKey);
 
                     // Grab downstream WIP stocks for display
-                    const downstreamStocks = flows.downstream.map((down) => {
-                      const wipVal = getWipValue(dateKey, cell, down);
-                      const isStarved = !isWeekend && dateKey <= todayKey && wipVal === 0;
-                      return {
-                        targetName: down.replace(" Hücresi", ""),
-                        val: wipVal,
-                        isStarved,
-                      };
-                    });
+                    const downstreamStocks = flows.downstream
+                      .filter((down) => !(cell === "ROB104 Hücresi" && down === "N603 Hücresi"))
+                      .filter((down) => !(cell === "N603 Hücresi" && down === "ROB109 Hücresi"))
+                      .map((down) => {
+                        const wipVal = getWipValue(dateKey, cell, down);
+                        const isStarved = !isWeekend && dateKey <= todayKey && wipVal === 0;
+                        const label = cell === "ROB104 Hücresi" && down === "N602 Hücresi"
+                          ? "N602+N603"
+                          : cell === "N602 Hücresi" && down === "ROB109 Hücresi"
+                          ? "ROB109 (N602+N603)"
+                          : down.replace(" Hücresi", "");
+                        return {
+                          targetName: label,
+                          val: wipVal,
+                          isStarved,
+                        };
+                      });
 
                     return (
                       <div

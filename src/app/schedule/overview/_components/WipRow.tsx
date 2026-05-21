@@ -18,7 +18,11 @@ export function WipRow({ source, target, days, wipStock, todayKey }: Props) {
         <div className="flex items-center gap-1">
           <span className="text-zinc-400">↓ Stok:</span>
           <span>
-            {source.replace(" Hücresi", "")} → {target.replace(" Hücresi", "")}
+            {source === "ROB104 Hücresi" && target === "N602 Hücresi"
+              ? "ROB104 → N602+N603"
+              : source === "N602 Hücresi" && target === "ROB109 Hücresi"
+              ? "N602+N603 → ROB109"
+              : `${source.replace(" Hücresi", "")} → ${target.replace(" Hücresi", "")}`}
           </span>
         </div>
       </td>
