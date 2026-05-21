@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { DayPlan, DayOverride } from "../types";
-import { formatNumber, numberInput } from "../utils";
+import { formatNumber, numberInput, parseTime } from "../utils";
 
 type Props = {
   schedule: DayPlan[];
@@ -50,6 +50,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                 <th className="px-1.5 py-2.5 font-semibold">İlk Pres</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">Hedef</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">Kapas.</th>
+                <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">Fırın Çıkış</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold">Pres</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold">ETM</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">ETM Stok</th>
@@ -188,6 +189,31 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                     {/* Kapasite */}
                     <td className="px-1.5 py-2 text-right text-zinc-400 text-xs">
                       {formatNumber(day.capacityPressed)}
+                    </td>
+                    {/* Fırın Çıkış */}
+                    <td className="px-1.5 py-2 text-right">
+                      {day.lastFurnaceExitTime ? (() => {
+                        const exitMin = parseTime(day.lastFurnaceExitTime);
+                        const limitGreen = parseTime("07:45") ?? 465;
+                        const limitYellow = parseTime("12:00") ?? 720;
+                        let badgeCls = "text-zinc-500 font-semibold";
+                        if (exitMin !== null) {
+                          if (exitMin <= limitGreen) {
+                            badgeCls = "inline-flex items-center rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700";
+                          } else if (exitMin <= limitYellow) {
+                            badgeCls = "inline-flex items-center rounded bg-amber-50 border border-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700";
+                          } else {
+                            badgeCls = "inline-flex items-center rounded bg-orange-50 border border-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700";
+                          }
+                        }
+                        return (
+                          <span className={badgeCls}>
+                            {day.lastFurnaceExitTime}
+                          </span>
+                        );
+                      })() : (
+                        <span className="text-zinc-400 font-medium">—</span>
+                      )}
                     </td>
                     {/* Preslenen */}
                     <td className="px-1.5 py-2 text-right">

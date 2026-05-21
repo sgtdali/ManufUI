@@ -322,6 +322,12 @@ export function buildSchedule({
     const sameDayEtmReady = Math.min(pressed, plannedSameDayCapacity);
     const target = isBaseWorkday ? dailyTarget : 0;
 
+    let lastFurnaceExitTime: string | null = null;
+    if (pressStartAbsoluteMinute !== null && pressed > 0) {
+      const lastFurnaceExitMinute = pressStartAbsoluteMinute + (pressed * pressCycleMinutes) + normalizationProcessMinutes;
+      lastFurnaceExitTime = formatTimeFromMinutes(lastFurnaceExitMinute);
+    }
+
     maleRemaining = plannedMaleRemainingEnd;
     femaleRemaining = plannedFemaleRemainingEnd;
 
@@ -347,6 +353,7 @@ export function buildSchedule({
       targetGap: Math.max(target - pressed, 0),
       maleRemainingEnd: maleRemaining,
       femaleRemainingEnd: femaleRemaining,
+      lastFurnaceExitTime,
     });
   }
 

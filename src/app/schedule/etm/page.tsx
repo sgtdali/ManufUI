@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { ETM_SHIFT_START, ETM_SHIFT_END, ETM_HAT_CYCLE_MINUTES, ETM_CUTTING_INSERT_INTERVAL, ETM_DRILL_BIT_INTERVAL, ETM_PALET_INTERVAL, ETM_CUTTING_INSERT_CHANGE_MINUTES, ETM_DRILL_BIT_CHANGE_MINUTES, ETM_PALET_CHANGE_MINUTES } from "./constants";
 import type { EtmDayOverride, EtmProcessParams, ToolChangeItem, ScheduleParamRow } from "./types";
 import { buildEtmSchedule } from "./utils";
-import { getFirstDayOfMonth, getLastDayOfMonth, formatNumber, toDayKey } from "../utils";
+import { getFirstDayOfMonth, getLastDayOfMonth, formatNumber, toDayKey, formatTimeFromMinutes } from "../utils";
+import { PRESS_CYCLE_MINUTES, NORMALIZATION_PROCESS_MINUTES } from "../constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -23,7 +24,7 @@ import {
   loadEtmToolChanges,
   deleteEtmToolChange,
 } from "./actions";
-import { loadCellWipStock, type WipStockItem } from "../actions";
+import { loadCellWipStock, loadYesterdayPressData, type WipStockItem } from "../actions";
 
 type StockState = {
   kumLastCheck: string | null;
@@ -72,6 +73,13 @@ export default function EtmSchedulePage() {
     incoming: [],
     outgoing: [],
   });
+
+  // ── Yeni state ──────────────────────────────────────────────────────────
+  const [pressScheduleForEtm, setPressScheduleForEtm] = useState<{
+    lastFurnaceExitTime: string | null;
+    pressed: number;
+    key: string;
+  } | null>(null);
 
   const [isLoading, startTransition] = useTransition();
 
@@ -125,6 +133,22 @@ export default function EtmSchedulePage() {
 
         const wipResult = await loadCellWipStock("ETM Hücresi", startDate, endDate);
         setWipData(wipResult);
+
+        const todayKey = toDayKey(new Date());
+        const pressResult = await loadYesterdayPressData(todayKey);
+        if (pressResult.success && pressResult.data) {
+          const pressed = pressResult.data.pressed;
+          const pressStartMinute = 465; // 07:45
+          const lastFurnaceExitMinute = pressStartMinute + (pressed * PRESS_CYCLE_MINUTES) + NORMALIZATION_PROCESS_MINUTES;
+          const lastExitTime = formatTimeFromMinutes(lastFurnaceExitMinute);
+          setPressScheduleForEtm({
+            lastFurnaceExitTime: lastExitTime,
+            pressed,
+            key: pressResult.data.tarih,
+          });
+        } else {
+          setPressScheduleForEtm(null);
+        }
       } catch (e) {
         console.error(e);
         toast.error("Veriler yüklenirken bir hata oluştu.");
@@ -435,7 +459,12 @@ export default function EtmSchedulePage() {
         </header>
 
         {/* Ana Metrik Kartları */}
-        <EtmMetricCards plans={schedule} wipIncomingValue={wipMetricValue} />
+        <EtmMetricCards
+          plans={schedule}
+          wipIncomingValue={wipMetricValue}
+          pressFurnaceExitTime={pressScheduleForEtm?.lastFurnaceExitTime}
+          pressedYesterday={pressScheduleForEtm?.pressed}
+        />
 
         {/* Sol Sidebar + Sağ Timeline Izgarası */}
         <div className="grid gap-6 xl:grid-cols-[360px_1fr] items-start">

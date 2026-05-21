@@ -22,6 +22,7 @@ export type DayPlan = {
   targetGap: number;
   maleRemainingEnd: number;
   femaleRemainingEnd: number;
+  lastFurnaceExitTime: string | null;
 };
 
 export type DayOverride = {

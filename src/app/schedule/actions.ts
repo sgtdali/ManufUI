@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isWeekday } from "./utils";
 
 type ProductionRow = {
   uretim_adeti: number | null;
@@ -232,5 +233,50 @@ export async function loadCellWipStock(
   const outgoing = items.filter(item => item.kaynak_hucresi === cellName);
 
   return { incoming, outgoing };
+}
+
+export async function loadYesterdayPressData(targetDate: string): Promise<{
+  success: boolean;
+  data: { tarih: string; pressed: number } | null;
+  error?: string;
+}> {
+  if (!isDateValue(targetDate)) {
+    return { success: false, error: "Geçersiz tarih.", data: null };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_production_records")
+    .select("tarih, manuf_production_rows(uretim_adeti)")
+    .like("bolum", "Pres%")
+    .lt("tarih", targetDate)
+    .order("tarih", { ascending: false });
+
+  if (error) {
+    return { success: false, error: error.message, data: null };
+  }
+
+  for (const record of (data ?? []) as ProductionRecord[]) {
+    const recordDate = new Date(record.tarih + "T00:00:00");
+    if (!isWeekday(recordDate)) {
+      continue;
+    }
+    const totalPressed = (record.manuf_production_rows ?? []).reduce(
+      (total, row) => total + numberValue(row.uretim_adeti),
+      0
+    );
+    if (totalPressed === 0) {
+      continue;
+    }
+    return {
+      success: true,
+      data: {
+        tarih: record.tarih,
+        pressed: totalPressed,
+      },
+    };
+  }
+
+  return { success: true, data: null };
 }
 

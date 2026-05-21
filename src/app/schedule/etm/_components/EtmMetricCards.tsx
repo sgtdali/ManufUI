@@ -2,16 +2,18 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatNumber } from "../../utils";
+import { formatNumber, parseTime } from "../../utils";
 import type { EtmDayPlan } from "../types";
-import { Hammer, Flame, Calculator, AlertTriangle, CheckCircle2, Layers } from "lucide-react";
+import { Hammer, Flame, Calculator, AlertTriangle, CheckCircle2, Layers, Clock } from "lucide-react";
 
 type Props = {
   plans: EtmDayPlan[];
   wipIncomingValue: number | null;
+  pressFurnaceExitTime?: string | null;
+  pressedYesterday?: number;
 };
 
-export function EtmMetricCards({ plans, wipIncomingValue }: Props) {
+export function EtmMetricCards({ plans, wipIncomingValue, pressFurnaceExitTime, pressedYesterday }: Props) {
   // 1. Produced metric
   const totalProduced = plans.reduce((acc, p) => acc + p.produced, 0);
   const totalTarget = plans.reduce((acc, p) => acc + p.target, 0);
@@ -64,8 +66,41 @@ export function EtmMetricCards({ plans, wipIncomingValue }: Props) {
     }
   }
 
+    const exitMinute = pressFurnaceExitTime ? parseTime(pressFurnaceExitTime) : null;
+    const limitGreen = parseTime("07:45") ?? 465;
+    const limitYellow = parseTime("12:00") ?? 720;
+
+    let statusText = "Veri yok";
+    let cardColor = "border-zinc-200 bg-white";
+    let textColor = "text-zinc-900";
+    let statusColor = "text-zinc-500";
+    let iconBg = "bg-zinc-50 text-zinc-600 border-zinc-100";
+
+    if (pressFurnaceExitTime && exitMinute !== null) {
+      if (exitMinute <= limitGreen) {
+        statusText = "Sabah hazır";
+        cardColor = "border-emerald-255 bg-emerald-50/10"; // wait, let's use border-emerald-200
+        cardColor = "border-emerald-200 bg-emerald-50/10";
+        textColor = "text-emerald-700";
+        statusColor = "text-emerald-700 font-bold";
+        iconBg = "bg-emerald-50 text-emerald-600 border-emerald-100";
+      } else if (exitMinute <= limitYellow) {
+        statusText = "Sabah bekle";
+        cardColor = "border-amber-200 bg-amber-50/10";
+        textColor = "text-amber-700";
+        statusColor = "text-amber-700 font-bold";
+        iconBg = "bg-amber-50 text-amber-600 border-amber-100";
+      } else {
+        statusText = "Öğleden sonra";
+        cardColor = "border-orange-200 bg-orange-50/10";
+        textColor = "text-orange-700";
+        statusColor = "text-orange-700 font-bold";
+        iconBg = "bg-orange-50 text-orange-600 border-orange-100";
+      }
+    }
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {/* 1. Produced */}
       <Card className="border border-zinc-200 bg-white shadow-sm hover:shadow-md transition-shadow">
         <CardContent className="p-4 flex items-center justify-between">
@@ -183,6 +218,27 @@ export function EtmMetricCards({ plans, wipIncomingValue }: Props) {
             wipIncomingValue !== null && wipIncomingValue < 50 ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-zinc-50 text-zinc-600 border-zinc-100"
           }`}>
             <Layers className="size-5" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 6. Dün fırın son çıkış */}
+      <Card className={`border shadow-sm hover:shadow-md transition-shadow ${cardColor}`}>
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Dün Fırın Son Çıkış</p>
+            <p className={`text-2xl font-extrabold ${textColor}`}>
+              {pressFurnaceExitTime ?? "—"}
+            </p>
+            <p className={`text-[11px] font-semibold flex items-center gap-1 ${statusColor}`}>
+              <Clock className="size-3" /> {statusText}
+            </p>
+            <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
+              {pressedYesterday !== undefined && pressedYesterday !== null ? `Dün: ${formatNumber(pressedYesterday)} parça` : "Veri yok"}
+            </p>
+          </div>
+          <div className={`rounded-lg p-2.5 border ${iconBg}`}>
+            <Clock className="size-5" />
           </div>
         </CardContent>
       </Card>
