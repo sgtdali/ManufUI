@@ -52,6 +52,7 @@ export type ProductionRow = {
   onceki_istasyon_bekleme: number | null;
   musteri_kaynakli_durus: number | null;
   musteri_durus_turu: string | null;
+  musteri_durus_aciklama: string | null;
   kalite_kaynakli_durus: number | null;
   ariza_giderildi?: boolean;
   ariza_giderilme_aciklama?: string | null;

@@ -78,6 +78,7 @@ function buildEmptyRows(
     onceki_istasyon_bekleme: null,
     musteri_kaynakli_durus: null,
     musteri_durus_turu: null,
+    musteri_durus_aciklama: null,
     kalite_kaynakli_durus: null,
   }));
 }
@@ -120,6 +121,7 @@ function applyRecordToForm(
               onceki_istasyon_bekleme: row.onceki_istasyon_bekleme as number | null,
               musteri_kaynakli_durus: row.musteri_kaynakli_durus as number | null,
               musteri_durus_turu: row.musteri_durus_turu as string | null,
+              musteri_durus_aciklama: row.musteri_durus_aciklama as string | null,
               kalite_kaynakli_durus: row.kalite_kaynakli_durus as number | null,
             };
           })
@@ -154,9 +156,9 @@ export default function ProductionFormPage() {
   // Açıklama dialog state
   type AciklamaDialogType = {
     rowIndex: number;
-    alan: "ariza" | "planli_durus" | "setup";
+    alan: "ariza" | "planli_durus" | "setup" | "musteri";
     baslik: string;
-    aciklamaKey: "ariza_aciklama" | "planli_durus_aciklama" | "setup_aciklama";
+    aciklamaKey: "ariza_aciklama" | "planli_durus_aciklama" | "setup_aciklama" | "musteri_durus_aciklama";
     aciklama: string;
   };
   const [aciklamaDialog, setAciklamaDialog] = useState<AciklamaDialogType | null>(null);
@@ -275,6 +277,8 @@ export default function ProductionFormPage() {
         aciklamaEksik.push(`${row.zaman_dilimi} → Planlı Duruş açıklaması`);
       if (row.setup_turu && !row.setup_aciklama?.trim())
         aciklamaEksik.push(`${row.zaman_dilimi} → Setup ve Ayar açıklaması`);
+      if (row.musteri_durus_turu && !row.musteri_durus_aciklama?.trim())
+        aciklamaEksik.push(`${row.zaman_dilimi} → Müşteri Kaynaklı Duruş açıklaması`);
     });
     if (aciklamaEksik.length > 0) {
       toast.error(
@@ -557,6 +561,14 @@ export default function ProductionFormPage() {
                                               baslik: "Setup ve Ayar Açıklaması",
                                               aciklamaKey: "setup_aciklama",
                                               aciklama: (watchedRows?.[i]?.setup_aciklama as string) ?? "",
+                                            });
+                                          } else if (k.key === "musteri_kaynakli_durus") {
+                                            setAciklamaDialog({
+                                              rowIndex: i,
+                                              alan: "musteri",
+                                              baslik: "Müşteri Kaynaklı Duruş Açıklaması",
+                                              aciklamaKey: "musteri_durus_aciklama",
+                                              aciklama: (watchedRows?.[i]?.musteri_durus_aciklama as string) ?? "",
                                             });
                                           }
                                         }}

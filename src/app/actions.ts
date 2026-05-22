@@ -60,6 +60,7 @@ export async function saveProductionRecord(data: ProductionFormData) {
     onceki_istasyon_bekleme: row.onceki_istasyon_bekleme,
     musteri_kaynakli_durus: row.musteri_kaynakli_durus,
     musteri_durus_turu: row.musteri_durus_turu,
+    musteri_durus_aciklama: row.musteri_durus_aciklama,
     kalite_kaynakli_durus: row.kalite_kaynakli_durus,
   }));
 

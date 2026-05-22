@@ -34,6 +34,7 @@ const KOLONLAR = [
   { header: "Önceki İstasyon Bekleme (dk)", key: "onceki_istasyon_bekleme", width: 28 },
   { header: "Müşteri Kaynaklı Duruş (dk)", key: "musteri_kaynakli_durus", width: 28 },
   { header: "Müşteri Duruş Türü", key: "musteri_durus_turu", width: 20 },
+  { header: "Müşteri Duruş Açıklaması", key: "musteri_durus_aciklama", width: 30 },
   { header: "Kalite Kaynaklı Duruş (dk)", key: "kalite_kaynakli_durus", width: 26 },
   { header: "Hedef Üretim Adeti", key: "hedef_uretim_adeti", width: 18 },
 ];
@@ -116,6 +117,7 @@ export async function exportToExcel(records: RawRecord[]) {
         onceki_istasyon_bekleme: r.onceki_istasyon_bekleme ?? "",
         musteri_kaynakli_durus: r.musteri_kaynakli_durus ?? "",
         musteri_durus_turu: r.musteri_durus_turu ?? "",
+        musteri_durus_aciklama: r.musteri_durus_aciklama ?? "",
         kalite_kaynakli_durus: r.kalite_kaynakli_durus ?? "",
       });
 
