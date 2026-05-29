@@ -27,3 +27,19 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - `/veri-takip` sayfası
 - `/api/export` endpoint'i
 - `schedule/overview/` bileşenleri (WIP hesabının tam akışı)
+
+## [2026-05-28] ingest | Arıza sistemi mevcut durum ve istekler
+
+**Kaynak:** Kullanıcı konuşması + `src/app/ariza/page.tsx`
+
+**Yapılanlar:**
+- `wiki/systems/ariza-sistemi.md` oluşturuldu: veri yapısı tablosu, mevcut görünüm özeti, eksik özellikler (trend, pattern, öngörü), reaktif→proaktif hedef
+- `wiki/index.md` güncellendi: Systems tablosuna Arıza Sistemi satırı eklendi
+
+## [2026-05-28] ingest | Planlama sistemi mevcut durum ve istekler
+
+**Kaynak:** Kullanıcı konuşması + `src/app/schedule/page.tsx`, `utils.ts`
+
+**Yapılanlar:**
+- `wiki/systems/planlama-sistemi.md` oluşturuldu: 2000 parça hedefi, kayıp sebepleri tablosu, Pres simülasyonu özeti, eksikler, haftalık analiz isteği, açık sorular
+- `wiki/index.md` güncellendi: Systems tablosuna Planlama Sistemi satırı eklendi
