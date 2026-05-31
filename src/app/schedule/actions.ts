@@ -280,3 +280,127 @@ export async function loadYesterdayPressData(targetDate: string): Promise<{
   return { success: true, data: null };
 }
 
+export async function loadCellActuals(cellName: string, startDate: string, endDate: string) {
+  if (!isDateValue(startDate) || !isDateValue(endDate) || startDate > endDate) {
+    return { success: false, error: "Geçersiz tarih aralığı.", actuals: {} };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_production_records")
+    .select("tarih, manuf_production_rows(uretim_adeti)")
+    .like("bolum", `${cellName}%`)
+    .gte("tarih", startDate)
+    .lte("tarih", endDate);
+
+  if (error) {
+    return { success: false, error: error.message, actuals: {} };
+  }
+
+  const actuals: Record<string, number> = {};
+  for (const record of (data ?? []) as ProductionRecord[]) {
+    actuals[record.tarih] = (record.manuf_production_rows ?? []).reduce(
+      (total, row) => total + numberValue(row.uretim_adeti),
+      actuals[record.tarih] ?? 0
+    );
+  }
+
+  return { success: true, actuals };
+}
+
+export async function loadCellBreakdowns(cellName: string, startDate: string, endDate: string) {
+  if (!isDateValue(startDate) || !isDateValue(endDate) || startDate > endDate) {
+    return { success: false, error: "Geçersiz tarih aralığı.", data: [], breakdownsByDate: {} };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_production_records")
+    .select("tarih, manuf_production_rows(ariza, ariza_turu, ariza_aciklama)")
+    .like("bolum", `${cellName}%`)
+    .gte("tarih", startDate)
+    .lte("tarih", endDate);
+
+  if (error) {
+    return { success: false, error: error.message, breakdownsByDate: {} };
+  }
+
+  const breakdownsByDate: Record<string, { minutes: number; details: string[] }> = {};
+  for (const record of data ?? []) {
+    const dateKey = record.tarih;
+    if (!breakdownsByDate[dateKey]) {
+      breakdownsByDate[dateKey] = { minutes: 0, details: [] };
+    }
+    const rows = record.manuf_production_rows ?? [];
+    for (const row of rows) {
+      const minutes = numberValue(row.ariza);
+      if (minutes > 0) {
+        breakdownsByDate[dateKey].minutes += minutes;
+        const typeStr = row.ariza_turu ? `[${row.ariza_turu}] ` : "";
+        const descStr = row.ariza_aciklama?.trim() || "Açıklama girilmemiş";
+        breakdownsByDate[dateKey].details.push(`${typeStr}${descStr} (${minutes} dk)`);
+      }
+    }
+  }
+
+  return { success: true, breakdownsByDate };
+}
+
+export type CellBottleneckStats = {
+  bolum: string;
+  totalBreakdownMinutes: number;
+  breakdownCount: number;
+  totalDowntimeMinutes: number;
+};
+
+export async function loadBottleneckData(startDate: string, endDate: string) {
+  if (!isDateValue(startDate) || !isDateValue(endDate) || startDate > endDate) {
+    return { success: false, error: "Geçersiz tarih aralığı.", data: [] as CellBottleneckStats[] };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_production_records")
+    .select("bolum, tarih, manuf_production_rows(ariza, planli_durus, setup_ve_ayar, kalite_kaynakli_durus, musteri_kaynakli_durus)")
+    .gte("tarih", startDate)
+    .lte("tarih", endDate);
+
+  if (error) {
+    return { success: false, error: error.message, data: [] as CellBottleneckStats[] };
+  }
+
+  const statsMap: Record<string, { totalBreakdownMinutes: number; breakdownCount: number; totalDowntimeMinutes: number }> = {};
+  
+  for (const record of data ?? []) {
+    const cellName = record.bolum;
+    if (!statsMap[cellName]) {
+      statsMap[cellName] = { totalBreakdownMinutes: 0, breakdownCount: 0, totalDowntimeMinutes: 0 };
+    }
+    
+    const rows = record.manuf_production_rows ?? [];
+    for (const row of rows) {
+      const ariza = numberValue(row.ariza);
+      const planli = numberValue(row.planli_durus);
+      const setup = numberValue(row.setup_ve_ayar);
+      const kalite = numberValue(row.kalite_kaynakli_durus);
+      const musteri = numberValue(row.musteri_kaynakli_durus);
+      
+      if (ariza > 0) {
+        statsMap[cellName].totalBreakdownMinutes += ariza;
+        statsMap[cellName].breakdownCount += 1;
+      }
+      
+      statsMap[cellName].totalDowntimeMinutes += (ariza + planli + setup + kalite + musteri);
+    }
+  }
+
+  const statsList: CellBottleneckStats[] = Object.entries(statsMap).map(([bolum, stats]) => ({
+    bolum,
+    ...stats,
+  })).sort((a, b) => b.totalBreakdownMinutes - a.totalBreakdownMinutes);
+
+  return { success: true, data: statsList };
+}
+
+
+

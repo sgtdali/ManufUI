@@ -13,7 +13,7 @@ import {
   calculateAndSaveWip,
   type CellParam,
 } from "./actions";
-import type { WipStockItem } from "../actions";
+import { WipStockItem, loadBottleneckData, type CellBottleneckStats } from "../actions";
 import {
   getFirstDayOfMonth,
   getLastDayOfMonth,
@@ -25,6 +25,7 @@ import {
 import { SummaryBar } from "./_components/SummaryBar";
 import { CellGrid } from "./_components/CellGrid";
 import { DayDetailPanel } from "./_components/DayDetailPanel";
+import { BottleneckPanel } from "./_components/BottleneckPanel";
 import { type CellName } from "./constants";
 
 const TRANSITIONS = [
@@ -52,6 +53,7 @@ export default function ScheduleOverviewPage() {
   const [actuals, setActuals] = useState<Record<string, Record<string, number>>>({});
   const [cellParams, setCellParams] = useState<Record<string, CellParam>>({});
   const [wipStock, setWipStock] = useState<WipStockItem[]>([]);
+  const [bottleneckData, setBottleneckData] = useState<CellBottleneckStats[]>([]);
   const [isLoading, startTransition] = useTransition();
 
   // WIP calculation states
@@ -92,14 +94,18 @@ export default function ScheduleOverviewPage() {
   // ── Data Fetching ────────────────────────────────────────────────────────
   const fetchData = () => {
     startTransition(async () => {
-      const [act, params, wip] = await Promise.all([
+      const [act, params, wip, bRes] = await Promise.all([
         loadAllCellActuals(startDate, endDate),
         loadCellParams(),
         loadWipStock(startDate, endDate),
+        loadBottleneckData(startDate, endDate),
       ]);
       setActuals(act);
       setCellParams(params);
       setWipStock(wip);
+      if (bRes.success) {
+        setBottleneckData(bRes.data ?? []);
+      }
     });
   };
 
@@ -256,6 +262,9 @@ export default function ScheduleOverviewPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Darboğaz Analizi Kartı */}
+        <BottleneckPanel stats={bottleneckData} />
 
         {/* Summary KPIs */}
         <SummaryBar

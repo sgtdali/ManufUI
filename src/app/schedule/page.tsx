@@ -8,14 +8,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 
 import {
-  loadPressActuals,
+  loadCellActuals,
+  loadCellBreakdowns,
   loadMoldChanges,
   loadScheduleParams,
   loadCellWipStock,
+  loadBottleneckData,
   type MoldChange,
   type ScheduleParamRow,
   type WipStockItem,
+  type CellBottleneckStats,
 } from "./actions";
+import { CELLS, CELL_FLOWS, type CellName } from "./overview/constants";
+import { loadCellParams, type CellParam } from "./overview/actions";
 import { SHIFT_START, SHIFT_END, FURNACE_START } from "./constants";
 import type { DayOverride } from "./types";
 import {
@@ -37,6 +42,9 @@ import { ScheduleTable } from "./_components/ScheduleTable";
 import { SettingsSidebar } from "./_components/SettingsSidebar";
 import { MoldChangesSidebar } from "./_components/MoldChangesSidebar";
 import { ParamsSidebar } from "./_components/ParamsSidebar";
+import { LossAnalysisPanel } from "./_components/LossAnalysisPanel";
+import { CampaignOptimizer } from "./_components/CampaignOptimizer";
+
 
 export default function SchedulePage() {
   const today = new Date();
@@ -78,12 +86,19 @@ export default function SchedulePage() {
   // ── Sidebar sekme durumu ─────────────────────────────────────────────────
   const [activeSidebarTab, setActiveSidebarTab] = useState<"settings" | "molds" | "params">("settings");
 
+  // ── Dinamik Hücre ve Arıza Durumları ─────────────────────────────────────
+  const [selectedCell, setSelectedCell] = useState<CellName>("Pres Hücresi");
+  const [breakdownsByDate, setBreakdownsByDate] = useState<Record<string, { minutes: number; details: string[] }>>({});
+  const [allCellParams, setAllCellParams] = useState<Record<string, CellParam>>({});
+  const [bottlenecks, setBottlenecks] = useState<CellBottleneckStats[]>([]);
+
+
   // ── Veri yükleme ─────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
     startActualsTransition(async () => {
-      const result = await loadPressActuals(startDate, endDate);
+      const result = await loadCellActuals(selectedCell, startDate, endDate);
       if (cancelled) return;
       if (result.success) {
         setActuals(result.actuals);
@@ -101,15 +116,27 @@ export default function SchedulePage() {
       else setMoldChanges([]);
     });
 
-    const loadWip = async () => {
-      const wipResult = await loadCellWipStock("Pres Hücresi", startDate, endDate);
+    const loadWipAndBreakdowns = async () => {
+      const [wipResult, breakdownResult, paramsResult, bResult] = await Promise.all([
+        loadCellWipStock(selectedCell, startDate, endDate),
+        loadCellBreakdowns(selectedCell, startDate, endDate),
+        loadCellParams(),
+        loadBottleneckData(startDate, endDate),
+      ]);
       if (cancelled) return;
       setWipData(wipResult);
+      if (breakdownResult.success) {
+        setBreakdownsByDate(breakdownResult.breakdownsByDate ?? {});
+      }
+      setAllCellParams(paramsResult);
+      if (bResult.success) {
+        setBottlenecks(bResult.data ?? []);
+      }
     };
-    loadWip();
+    loadWipAndBreakdowns();
 
     return () => { cancelled = true; };
-  }, [endDate, startDate]);
+  }, [endDate, startDate, selectedCell]);
 
   useEffect(() => {
     startParamsTransition(async () => {
@@ -117,6 +144,7 @@ export default function SchedulePage() {
       if (result.success) setScheduleParams(result.data);
     });
   }, []);
+
 
   // ── Kalıp değişim haritası ────────────────────────────────────────────────
   const moldChangesByDate = useMemo(() => {
@@ -162,13 +190,18 @@ export default function SchedulePage() {
         actuals,
         moldChangesByDate,
         processParams,
+        breakdownsByDate,
+        cellName: selectedCell,
+        cellParams: allCellParams,
       }),
     [
       actuals, dailyTarget, defaultFurnaceStart, defaultShiftEnd, defaultShiftStart,
       endDate, holidayWorkEnabled, initialFemaleRemaining, initialMaleRemaining,
       moldChangesByDate, overtimeMinutes, overrides, processParams, startDate,
+      breakdownsByDate, selectedCell, allCellParams,
     ]
   );
+
 
   // ── Özet metrikler ────────────────────────────────────────────────────────
   const targetDays        = schedule.filter((d) => d.isBaseWorkday).length;
@@ -185,28 +218,34 @@ export default function SchedulePage() {
     return toDayKey(new Date());
   }, []);
 
+  const downstreamCell = useMemo(() => {
+    return CELL_FLOWS[selectedCell]?.downstream[0] || null;
+  }, [selectedCell]);
+
   const wipMetricValue = useMemo(() => {
+    if (!downstreamCell) return null;
     const pastWorkdays = schedule.filter((d) => d.isWorkday && d.key <= todayKey);
     const targetDay = pastWorkdays[pastWorkdays.length - 1];
     if (!targetDay) return null;
 
     const match = wipData.outgoing.find(
-      (item) => item.tarih === targetDay.key && item.hedef_hucresi === "ETM Hücresi"
+      (item) => item.tarih === targetDay.key && item.hedef_hucresi === downstreamCell
     );
     if (!match) return null;
 
     return match.override_edildi && match.gercek_adet !== null ? match.gercek_adet : match.hesaplanan_adet;
-  }, [schedule, wipData.outgoing, todayKey]);
+  }, [schedule, wipData.outgoing, todayKey, downstreamCell]);
 
   const wipOutgoing = useMemo(() => {
     const map: Record<string, number | null> = {};
+    if (!downstreamCell) return map;
     for (const item of wipData.outgoing) {
-      if (item.hedef_hucresi === "ETM Hücresi") {
+      if (item.hedef_hucresi === downstreamCell) {
         map[item.tarih] = item.override_edildi && item.gercek_adet !== null ? item.gercek_adet : item.hesaplanan_adet;
       }
     }
     return map;
-  }, [wipData.outgoing]);
+  }, [wipData.outgoing, downstreamCell]);
 
   // ── Kurtarma hesabı ───────────────────────────────────────────────────────
   const recoveryDays = schedule.filter((d) => d.isWorkday && d.source === "plan" && d.availableMinutes > 0);
@@ -250,26 +289,49 @@ export default function SchedulePage() {
 
         {/* Başlık */}
         <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-blue-700">Pres hücresi dönem planı</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-normal">Schedule</h1>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-blue-700">Hücre bazlı dönem planı</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-normal">Schedule — {selectedCell}</h1>
             <p className="mt-2 max-w-3xl text-sm text-zinc-600">
-              Pres başlangıç hazırlığı, normalizasyon fırını, kalıp ömürleri ve fazla mesai etkisini seçili tarih
-              aralığına göre görün.
+              {selectedCell === "Pres Hücresi"
+                ? "Pres başlangıç hazırlığı, normalizasyon fırını, kalıp ömürleri ve fazla mesai etkisini seçili tarih aralığına göre görün."
+                : `${selectedCell} kapasite planlaması, günlük duruşları ve hedefleri izleyin.`}
             </p>
-            <p className="mt-2 text-xs font-medium text-zinc-500">
+            
+            {/* Hücre Seçici */}
+            <div className="mt-4 flex flex-col gap-1 max-w-[280px]">
+              <label htmlFor="cell-select" className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Aktif Hücre
+              </label>
+              <select
+                id="cell-select"
+                className="text-xs font-bold text-zinc-700 bg-white border border-zinc-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                value={selectedCell}
+                onChange={(e) => setSelectedCell(e.target.value as CellName)}
+              >
+                {CELLS.map((cell) => (
+                  <option key={cell} value={cell}>
+                    {cell}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <p className="mt-3 text-xs font-medium text-zinc-500">
               {isLoadingActuals
-                ? "Supabase gerçekleşen Pres adetleri yükleniyor..."
+                ? `Supabase gerçekleşen ${selectedCell} adetleri yükleniyor...`
                 : actualsError
                   ? `Gerçekleşen veriler okunamadı: ${actualsError}`
                   : `${formatNumber(Object.keys(actuals).length)} gün için Supabase gerçekleşen verisi yüklendi.`}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/schedule/overview"><Button type="button" variant="outline">Hat Görünümü</Button></Link>
             <Link href="/dashboard"><Button type="button" variant="outline">Dashboard</Button></Link>
             <Link href="/"><Button type="button" variant="outline">Forma dön</Button></Link>
           </div>
         </header>
+
 
         {/* Ana ızgara: sol sidebar + sağ içerik */}
         <div className="grid gap-6 xl:grid-cols-[360px_1fr] items-start">
@@ -412,8 +474,28 @@ export default function SchedulePage() {
               holidayCapacity={holidayCapacity}
             />
 
+             {/* Kayıp Analizi ve Öneriler */}
+            <LossAnalysisPanel
+              schedule={schedule}
+              cycleTime={selectedCell === "Pres Hücresi" ? 3 : (570 / (allCellParams[selectedCell]?.gunluk_max_kapasite ?? 100))}
+              cellName={selectedCell}
+            />
+
+            {/* Kampanya Optimizasyonu */}
+            <CampaignOptimizer
+              schedule={schedule}
+              cellName={selectedCell}
+              overtimeMinutes={overtimeMinutes}
+              setOvertimeMinutes={setOvertimeMinutes}
+              holidayWorkEnabled={holidayWorkEnabled}
+              setHolidayWorkEnabled={setHolidayWorkEnabled}
+              updateOverride={updateOverride}
+              bottlenecks={bottlenecks}
+            />
+
             {/* Bilgi paneli */}
             <InfoPanel />
+
 
             {/* Günlük simülasyon tablosu */}
             <ScheduleTable
@@ -423,6 +505,7 @@ export default function SchedulePage() {
               wipOutgoing={wipOutgoing}
               updateOverride={updateOverride}
               clearDayOverride={clearDayOverride}
+              cellName={selectedCell}
             />
           </div>
         </div>

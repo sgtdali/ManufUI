@@ -144,6 +144,7 @@ export const DURUS_KOLONLARI: {
       { code: "A" },
       { code: "M" },
       { code: "O" },
+      { code: "Kalite" },
       { code: "Belirsiz" },
     ],
   },

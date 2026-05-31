@@ -34,3 +34,30 @@ export async function markArizaResolved(rowId: string, comment: string) {
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+export async function updateArizaType(rowId: string, newType: string) {
+  const cleanRowId = rowId.trim();
+  const cleanType = newType.trim();
+
+  if (!cleanRowId) {
+    return { success: false, error: "Arıza kaydı bulunamadı." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("manuf_production_rows")
+    .update({
+      ariza_turu: cleanType,
+    })
+    .eq("id", cleanRowId);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/ariza");
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule");
+  return { success: true };
+}
+

@@ -35,6 +35,7 @@ sources: [src/lib/types.ts, src/app/page.tsx]
 | A | — |
 | M | — |
 | O | — |
+| Kalite | Kalite kaynaklı arıza/duruş |
 | Belirsiz | Nedeni bilinmiyor |
 
 > **Not:** E/A/M/O kodlarının tam açılımları dokümante edilmemiştir. Kullanıcıdan teyit alınmalı.

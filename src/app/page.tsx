@@ -1,58 +1,35 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { saveProductionRecord, loadProductionRecord } from "./actions";
 import {
   ProductionFormData,
   ZAMAN_DILIMLERI,
   DURUS_KOLONLARI,
-  BOLUMLER,
   BOLUM_SORUMLU,
   getZamanDilimleriForDate,
   type ZamanDilimi,
+  type ProductionRow,
 } from "@/lib/types";
 import {
   formatTargetDowntimeIssues,
-  getEnteredDowntimeMinutes,
-  getRequiredDowntimeMinutes,
   validateTargetDowntime,
 } from "@/lib/productionValidation";
 
-function toNum(val: string): number | null {
-  const n = parseInt(val, 10);
-  return isNaN(n) ? null : n;
-}
+import { FormHeader } from "./_components/FormHeader";
+import { ProductionTable } from "./_components/ProductionTable";
+import { DowntimeExplanationDialog } from "./_components/DowntimeExplanationDialog";
+import { OverwriteConfirmDialog } from "./_components/OverwriteConfirmDialog";
+
+type AciklamaDialogType = {
+  rowIndex: number;
+  alan: "ariza" | "planli_durus" | "setup" | "musteri";
+  baslik: string;
+  aciklamaKey: "ariza_aciklama" | "planli_durus_aciklama" | "setup_aciklama" | "musteri_durus_aciklama";
+  aciklama: string;
+};
 
 function buildEmptyRows(
   zamanDilimleri: ZamanDilimi[] = ZAMAN_DILIMLERI
@@ -154,13 +131,6 @@ export default function ProductionFormPage() {
   const pendingDataRef = useRef<ProductionFormData | null>(null);
 
   // Açıklama dialog state
-  type AciklamaDialogType = {
-    rowIndex: number;
-    alan: "ariza" | "planli_durus" | "setup" | "musteri";
-    baslik: string;
-    aciklamaKey: "ariza_aciklama" | "planli_durus_aciklama" | "setup_aciklama" | "musteri_durus_aciklama";
-    aciklama: string;
-  };
   const [aciklamaDialog, setAciklamaDialog] = useState<AciklamaDialogType | null>(null);
 
   const bolum = watch("bolum");
@@ -313,376 +283,102 @@ export default function ProductionFormPage() {
     }
   }, [doSave]);
 
+  const handleOpenAciklamaDialog = useCallback((rowIndex: number, k: typeof DURUS_KOLONLARI[number], val: string) => {
+    if (k.key === "ariza") {
+      setAciklamaDialog({
+        rowIndex,
+        alan: "ariza",
+        baslik: "Arıza Açıklaması",
+        aciklamaKey: "ariza_aciklama",
+        aciklama: (watchedRows?.[rowIndex]?.ariza_aciklama as string) ?? "",
+      });
+    } else if (k.key === "planli_durus" && (val === "P1" || val === "P2")) {
+      setAciklamaDialog({
+        rowIndex,
+        alan: "planli_durus",
+        baslik: "Planlı Duruş Açıklaması",
+        aciklamaKey: "planli_durus_aciklama",
+        aciklama: (watchedRows?.[rowIndex]?.planli_durus_aciklama as string) ?? "",
+      });
+    } else if (k.key === "setup_ve_ayar") {
+      setAciklamaDialog({
+        rowIndex,
+        alan: "setup",
+        baslik: "Setup ve Ayar Açıklaması",
+        aciklamaKey: "setup_aciklama",
+        aciklama: (watchedRows?.[rowIndex]?.setup_aciklama as string) ?? "",
+      });
+    } else if (k.key === "musteri_kaynakli_durus") {
+      setAciklamaDialog({
+        rowIndex,
+        alan: "musteri",
+        baslik: "Müşteri Kaynaklı Duruş Açıklaması",
+        aciklamaKey: "musteri_durus_aciklama",
+        aciklama: (watchedRows?.[rowIndex]?.musteri_durus_aciklama as string) ?? "",
+      });
+    }
+  }, [watchedRows]);
+
   return (
-    <div className="min-h-screen p-4 md:p-8">
+    <div className="min-h-screen bg-zinc-50 p-4 md:p-8 text-zinc-950">
       <div className="max-w-[1400px] mx-auto space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800">
+        <header className="text-center pb-2">
+          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900">
             Günlük Üretim Takip Formu
           </h1>
-        </div>
+        </header>
 
-        {/* Form başlığı */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-3">
-              Form Bilgileri
-              {autoLoading && (
-                <span className="text-xs font-normal text-blue-600 animate-pulse">
-                  Kayıt kontrol ediliyor...
-                </span>
-              )}
-              {!autoLoading && hasExistingRecord && bolum && tarih && (
-                <span className="text-xs font-normal text-green-600">
-                  ✓ Mevcut kayıt yüklendi
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="bolum">Bölüm *</Label>
-                <Controller
-                  control={control}
-                  name="bolum"
-                  render={({ field }) => (
-                    <Select
-                      onValueChange={(val) => {
-                        field.onChange(val);
-                        setValue("sorumlu", BOLUM_SORUMLU[val as string] ?? "");
-                      }}
-                      value={field.value}
-                    >
-                      <SelectTrigger id="bolum">
-                        <SelectValue placeholder="Bölüm seçiniz..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BOLUMLER.map((b) => (
-                          <SelectItem key={b} value={b}>
-                            {b}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="sorumlu">Sorumlu</Label>
-                <Input
-                  id="sorumlu"
-                  placeholder="Ad Soyad"
-                  {...register("sorumlu")}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="tarih">Tarih *</Label>
-                <Input id="tarih" type="date" {...register("tarih")} />
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleManualLoad}
-                disabled={autoLoading}
-              >
-                {autoLoading ? "Yükleniyor..." : "Yenile"}
-              </Button>
-              <a href="/api/export" download>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-green-600 text-green-700 hover:bg-green-50"
-                >
-                  Excel&apos;e Aktar
-                </Button>
-              </a>
-              <a href="/dashboard">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-emerald-700 text-emerald-800 hover:bg-emerald-50"
-                >
-                  Dashboard
-                </Button>
-              </a>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Form Başlığı Bileşeni */}
+        <FormHeader
+          control={control}
+          register={register}
+          setValue={setValue}
+          autoLoading={autoLoading}
+          hasExistingRecord={hasExistingRecord}
+          bolum={bolum}
+          tarih={tarih}
+          onManualLoad={handleManualLoad}
+        />
 
-        {/* Üretim tablosu */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Üretim Verisi — Duruş Süreleri (dk)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-blue-700 text-white">
-                      <th className="border border-blue-800 px-3 py-2 text-left whitespace-nowrap">
-                        Zaman Dilimi
-                      </th>
-                      <th className="border border-blue-800 px-3 py-2 text-center whitespace-nowrap">
-                        Gerçekleşen<br />Üretim Adeti
-                      </th>
-                      <th className="border border-blue-800 px-2 py-2 text-center text-xs leading-tight whitespace-nowrap">
-                        Müşteri<br />Var
-                      </th>
-                      {DURUS_KOLONLARI.map((k) => (
-                        <th
-                          key={k.key}
-                          className="border border-blue-800 px-2 py-2 text-center text-xs leading-tight max-w-[90px]"
-                        >
-                          {k.label}
-                        </th>
-                      ))}
-                      <th className="border border-blue-800 px-3 py-2 text-center whitespace-nowrap">
-                        Hedef<br />Üretim Adeti
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tableRows.map((row, i) => (
-                      <tr
-                        key={row.zaman_dilimi}
-                        className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                      >
-                        <td className="border border-gray-300 px-3 py-1 font-medium whitespace-nowrap text-blue-800">
-                          {row.zaman_dilimi}
-                        </td>
-                        <td className="border border-gray-300 px-1 py-1">
-                          <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-                            <Input
-                              type="number"
-                              min={0}
-                              className="h-8 text-center w-20"
-                              placeholder=""
-                              {...register(`rows.${i}.uretim_adeti`, {
-                                setValueAs: toNum,
-                              })}
-                            />
-                            {(() => {
-                              const row = watchedRows?.[i];
-                              const requiredDowntime = row
-                                ? getRequiredDowntimeMinutes(row)
-                                : 0;
-                              const enteredDowntime = row
-                                ? getEnteredDowntimeMinutes(row)
-                                : 0;
-                              const remainingDowntime = Math.max(
-                                requiredDowntime - enteredDowntime,
-                                0
-                              );
-
-                              return (
-                                <span
-                                  className={`inline-flex h-8 min-w-20 items-center justify-center rounded-md border px-2 text-xs font-medium ${
-                                    remainingDowntime > 0
-                                      ? "border-rose-300 bg-rose-50 text-rose-700"
-                                      : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  }`}
-                                  title={`Gerekli: ${requiredDowntime} dk, girilen: ${enteredDowntime} dk`}
-                                >
-                                  Kalan {remainingDowntime} dk
-                                </span>
-                              );
-                            })()}
-                          </div>
-                        </td>
-                        <td className="border border-gray-300 px-1 py-1 text-center">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-gray-300 accent-blue-700"
-                            aria-label={`${row.zaman_dilimi} müşteri var`}
-                            {...register(`rows.${i}.musteri_var`)}
-                          />
-                        </td>
-                        {DURUS_KOLONLARI.map((k) => {
-                          const hasValue = (watchedRows?.[i]?.[k.key] as number | null) != null
-                            && (watchedRows?.[i]?.[k.key] as number) > 0;
-                          const requiredDowntime = watchedRows?.[i]
-                            ? getRequiredDowntimeMinutes(watchedRows[i])
-                            : 0;
-                          const enteredDowntime = watchedRows?.[i]
-                            ? getEnteredDowntimeMinutes(watchedRows[i])
-                            : 0;
-                          const needsDowntime = requiredDowntime > enteredDowntime;
-                          return (
-                            <td
-                              key={k.key}
-                              className={`border border-gray-300 px-1 py-1 ${needsDowntime ? "bg-rose-50" : ""}`}
-                            >
-                              <div className="flex flex-row items-center gap-1 justify-center">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  max={60}
-                                  className="h-8 text-center w-16"
-                                  placeholder=""
-                                  {...register(
-                                    `rows.${i}.${k.key}` as `rows.${number}.${typeof k.key}`,
-                                    { setValueAs: toNum }
-                                  )}
-                                />
-                                {k.altTurKey && k.altTurler && hasValue && (
-                                  <Controller
-                                    control={control}
-                                    name={`rows.${i}.${k.altTurKey}` as `rows.${number}.${typeof k.altTurKey}`}
-                                    render={({ field }) => (
-                                      <Select
-                                        onValueChange={(val) => {
-                                          field.onChange(val);
-                                          if (k.key === "ariza") {
-                                            setAciklamaDialog({
-                                              rowIndex: i,
-                                              alan: "ariza",
-                                              baslik: "Arıza Açıklaması",
-                                              aciklamaKey: "ariza_aciklama",
-                                              aciklama: (watchedRows?.[i]?.ariza_aciklama as string) ?? "",
-                                            });
-                                          } else if (k.key === "planli_durus" && (val === "P1" || val === "P2")) {
-                                            setAciklamaDialog({
-                                              rowIndex: i,
-                                              alan: "planli_durus",
-                                              baslik: "Planlı Duruş Açıklaması",
-                                              aciklamaKey: "planli_durus_aciklama",
-                                              aciklama: (watchedRows?.[i]?.planli_durus_aciklama as string) ?? "",
-                                            });
-                                          } else if (k.key === "setup_ve_ayar") {
-                                            setAciklamaDialog({
-                                              rowIndex: i,
-                                              alan: "setup",
-                                              baslik: "Setup ve Ayar Açıklaması",
-                                              aciklamaKey: "setup_aciklama",
-                                              aciklama: (watchedRows?.[i]?.setup_aciklama as string) ?? "",
-                                            });
-                                          } else if (k.key === "musteri_kaynakli_durus") {
-                                            setAciklamaDialog({
-                                              rowIndex: i,
-                                              alan: "musteri",
-                                              baslik: "Müşteri Kaynaklı Duruş Açıklaması",
-                                              aciklamaKey: "musteri_durus_aciklama",
-                                              aciklama: (watchedRows?.[i]?.musteri_durus_aciklama as string) ?? "",
-                                            });
-                                          }
-                                        }}
-                                        value={(field.value as string) ?? ""}
-                                      >
-                                        <SelectTrigger className="h-7 text-xs w-16 px-1">
-                                          <SelectValue placeholder="" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {k.altTurler!.map((t) => (
-                                            <SelectItem key={t.code} value={t.code} className="text-xs">
-                                              {t.code}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    )}
-                                  />
-                                )}
-                              </div>
-                            </td>
-                          );
-                        })}
-                        <td className="border border-gray-300 px-1 py-1">
-                          <Input
-                            type="number"
-                            min={0}
-                            className="h-8 text-center w-20 mx-auto"
-                            placeholder=""
-                            {...register(`rows.${i}.hedef_uretim_adeti`, {
-                              setValueAs: toNum,
-                            })}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="p-4 flex justify-end">
-                <Button type="submit" disabled={saving} className="px-8">
-                  {saving ? "Kaydediliyor..." : "Kaydet"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        {/* Üretim Tablosu Bileşeni */}
+        <ProductionTable
+          register={register}
+          control={control}
+          tableRows={tableRows}
+          watchedRows={watchedRows}
+          saving={saving}
+          onOpenAciklamaDialog={handleOpenAciklamaDialog}
+          onSubmit={handleSubmit(onSubmit)}
+        />
       </div>
 
-      {/* Açıklama dialog */}
-      <Dialog
-        open={aciklamaDialog !== null}
-        onOpenChange={(open) => { if (!open) setAciklamaDialog(null); }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {aciklamaDialog?.baslik} — {aciklamaDialog !== null ? tableRows[aciklamaDialog.rowIndex]?.zaman_dilimi ?? "" : ""}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-2">
-            <Textarea
-              rows={4}
-              placeholder="Açıklama giriniz..."
-              value={aciklamaDialog?.aciklama ?? ""}
-              onChange={(e) =>
-                setAciklamaDialog((prev) =>
-                  prev ? { ...prev, aciklama: e.target.value } : null
-                )
-              }
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAciklamaDialog(null)}>
-              İptal
-            </Button>
-            <Button
-              onClick={() => {
-                if (aciklamaDialog !== null) {
-                  setValue(
-                    `rows.${aciklamaDialog.rowIndex}.${aciklamaDialog.aciklamaKey}`,
-                    aciklamaDialog.aciklama || null
-                  );
-                }
-                setAciklamaDialog(null);
-              }}
-            >
-              Tamam
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Duruş Açıklama Modal Dialog Bileşeni */}
+      <DowntimeExplanationDialog
+        dialogData={aciklamaDialog}
+        onClose={() => setAciklamaDialog(null)}
+        onTextChange={(text) => {
+          setAciklamaDialog((prev) => (prev ? { ...prev, aciklama: text } : null));
+        }}
+        onConfirm={() => {
+          if (aciklamaDialog !== null) {
+            setValue(
+              `rows.${aciklamaDialog.rowIndex}.${aciklamaDialog.aciklamaKey}`,
+              aciklamaDialog.aciklama || null
+            );
+          }
+          setAciklamaDialog(null);
+        }}
+        zamanDilimiLabel={aciklamaDialog !== null ? tableRows[aciklamaDialog.rowIndex]?.zaman_dilimi ?? "" : ""}
+      />
 
-      {/* Güncelleme onay diyalogu */}
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Mevcut kayıt güncellenecek</AlertDialogTitle>
-            <AlertDialogDescription>
-              <strong>{getValues("bolum")}</strong> bölümü için{" "}
-              <strong>{getValues("tarih")}</strong> tarihli kayıt zaten mevcut.
-              Değişiklikleriniz mevcut verinin üzerine yazılacak. Devam etmek
-              istiyor musunuz?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmUpdate}>
-              Güncelle
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Kayıt Üzerine Yazma Onay Alert Dialog Bileşeni */}
+      <OverwriteConfirmDialog
+        isOpen={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        bolum={getValues("bolum")}
+        tarih={getValues("tarih")}
+        onConfirm={handleConfirmUpdate}
+      />
     </div>
   );
 }

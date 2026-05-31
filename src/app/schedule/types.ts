@@ -23,6 +23,8 @@ export type DayPlan = {
   maleRemainingEnd: number;
   femaleRemainingEnd: number;
   lastFurnaceExitTime: string | null;
+  breakdownMinutes: number;
+  breakdownDetails: string[];
 };
 
 export type DayOverride = {

@@ -37,7 +37,7 @@ Saatlik üretim satırları. Her kayıt `record_id` ile `manuf_production_record
 | mola | integer | Mola dakikası |
 | mola_turu | text | M1/M2 |
 | ariza | integer | Arıza dakikası |
-| ariza_turu | text | E/A/M/O/Belirsiz |
+| ariza_turu | text | E/A/M/O/Kalite/Belirsiz |
 | ariza_aciklama | text | Arıza açıklaması |
 | ariza_giderildi | boolean | Arıza giderildi mi (+20260413) |
 | ariza_giderilme_aciklama | text | Çözüm açıklaması (+20260413) |

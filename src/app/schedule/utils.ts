@@ -143,6 +143,9 @@ export type BuildScheduleParams = {
   actuals: Record<string, number>;
   moldChangesByDate: Record<string, ("male" | "female")[]>;
   processParams: ProcessParams;
+  breakdownsByDate?: Record<string, { minutes: number; details: string[] }>;
+  cellName?: string;
+  cellParams?: Record<string, { gunluk_max_kapasite: number | null; notlar: string | null }>;
 };
 
 export function buildSchedule({
@@ -160,6 +163,9 @@ export function buildSchedule({
   actuals,
   moldChangesByDate,
   processParams,
+  breakdownsByDate,
+  cellName = "Pres Hücresi",
+  cellParams,
 }: BuildScheduleParams): DayPlan[] {
   const {
     normalizationWarmupMinutes,
@@ -178,21 +184,42 @@ export function buildSchedule({
   let maleChangeCarryover = 0;
   let femaleChangeCarryover = 0;
 
+  const isPress = cellName === "Pres Hücresi";
+
   for (const date of days) {
     const key = toDayKey(date);
     const override = overrides[key];
     const day = date.getDay();
     const isBaseWorkday = isWeekday(date) || (holidayWorkEnabled && (day === 5 || day === 6));
     const isWorkday = isBaseWorkday || override?.forceWorkday === true;
-    const shiftStart = override?.shiftStart ?? defaultShiftStart;
-    const shiftEnd = override?.shiftEnd ?? defaultShiftEnd;
-    const furnaceStart = override?.furnaceStart ?? defaultFurnaceStart;
+    let shiftStart = override?.shiftStart ?? defaultShiftStart;
+    if ((day === 5 || day === 6) && !override?.shiftStart && defaultShiftStart === "07:45") {
+      shiftStart = "09:00";
+    }
+    
+    // Friday/Saturday Shift end adjustment
+    let shiftEnd = override?.shiftEnd ?? defaultShiftEnd;
+    if ((day === 5 || day === 6) && !override?.shiftEnd && defaultShiftEnd === "17:15") {
+      shiftEnd = "17:00";
+    }
+
+    const dayBreakdown = breakdownsByDate?.[key] || { minutes: 0, details: [] };
+    const breakdownMinutes = dayBreakdown.minutes;
+    const breakdownDetails = dayBreakdown.details;
+
     const shift = getShiftMinutes(shiftStart, shiftEnd);
+    let furnaceStart = override?.furnaceStart ?? defaultFurnaceStart;
+    if ((day === 5 || day === 6) && !override?.furnaceStart && defaultFurnaceStart === "07:45") {
+      furnaceStart = "09:00";
+    }
     const furnaceStartMinute = parseTime(furnaceStart);
     const dayOvertimeMinutes = override?.overtimeMinutes ?? overtimeMinutes;
-    const availableMinutes = isWorkday && shift ? shift.minutes + dayOvertimeMinutes : 0;
+    
+    const rawAvailableMinutes = isWorkday && shift ? shift.minutes + dayOvertimeMinutes : 0;
+    const availableMinutes = Math.max(rawAvailableMinutes - breakdownMinutes, 0);
     const shiftStartMinute = shift?.startMinute ?? 0;
     const shiftEndMinute = shift ? shift.endMinute + dayOvertimeMinutes : 0;
+    
     let maintenanceMinutes = 0;
     const maintenanceParts: string[] = [];
 
@@ -200,49 +227,51 @@ export function buildSchedule({
     const hasManualMale = manualChanges.includes("male");
     const hasManualFemale = manualChanges.includes("female");
 
-    if (hasManualFemale) {
-      if (isWorkday) {
-        femaleRemaining = 0;
-        femaleChangeCarryover = 0;
-      } else {
+    if (isPress) {
+      if (hasManualFemale) {
+        if (isWorkday) {
+          femaleRemaining = 0;
+          femaleChangeCarryover = 0;
+        } else {
+          femaleRemaining = femaleDieInterval;
+          femaleChangeCarryover = 0;
+        }
+      }
+
+      if (hasManualMale) {
+        if (isWorkday) {
+          maleRemaining = 0;
+        } else {
+          maleRemaining = maleDieInterval;
+        }
+      }
+
+      if (isWorkday && femaleChangeCarryover > 0) {
+        const used = Math.min(availableMinutes, femaleChangeCarryover);
+        maintenanceMinutes += used;
+        femaleChangeCarryover -= used;
+        maintenanceParts.push("Dişi kalıp değişimi");
+      }
+
+      if (isWorkday && femaleChangeCarryover <= 0 && femaleRemaining <= 0) {
+        const used = Math.min(availableMinutes - maintenanceMinutes, femaleDieChangeMinutes);
+        maintenanceMinutes += Math.max(used, 0);
+        femaleChangeCarryover = femaleDieChangeMinutes - Math.max(used, 0);
         femaleRemaining = femaleDieInterval;
-        femaleChangeCarryover = 0;
+        maintenanceParts.push("Dişi kalıp değişimi");
       }
-    }
 
-    if (hasManualMale) {
-      if (isWorkday) {
-        maleRemaining = 0;
-      } else {
+      if (
+        isWorkday &&
+        femaleChangeCarryover <= 0 &&
+        maleRemaining <= 0 &&
+        maintenanceMinutes < availableMinutes
+      ) {
+        const used = Math.min(availableMinutes - maintenanceMinutes, maleDieChangeMinutes);
+        maintenanceMinutes += Math.max(used, 0);
         maleRemaining = maleDieInterval;
+        maintenanceParts.push("Erkek kalıp değişimi");
       }
-    }
-
-    if (isWorkday && femaleChangeCarryover > 0) {
-      const used = Math.min(availableMinutes, femaleChangeCarryover);
-      maintenanceMinutes += used;
-      femaleChangeCarryover -= used;
-      maintenanceParts.push("Dişi kalıp değişimi");
-    }
-
-    if (isWorkday && femaleChangeCarryover <= 0 && femaleRemaining <= 0) {
-      const used = Math.min(availableMinutes - maintenanceMinutes, femaleDieChangeMinutes);
-      maintenanceMinutes += Math.max(used, 0);
-      femaleChangeCarryover = femaleDieChangeMinutes - Math.max(used, 0);
-      femaleRemaining = femaleDieInterval;
-      maintenanceParts.push("Dişi kalıp değişimi");
-    }
-
-    if (
-      isWorkday &&
-      femaleChangeCarryover <= 0 &&
-      maleRemaining <= 0 &&
-      maintenanceMinutes < availableMinutes
-    ) {
-      const used = Math.min(availableMinutes - maintenanceMinutes, maleDieChangeMinutes);
-      maintenanceMinutes += Math.max(used, 0);
-      maleRemaining = maleDieInterval;
-      maintenanceParts.push("Erkek kalıp değişimi");
     }
 
     const furnaceReadyMinute =
@@ -254,21 +283,17 @@ export function buildSchedule({
         ? Math.max(shiftStartMinute + maintenanceMinutes, furnaceReadyMinute) + prePressHeatMinutes
         : null;
     const pressStartTime =
-      pressStartAbsoluteMinute !== null && pressStartAbsoluteMinute < shiftEndMinute
+      isPress && pressStartAbsoluteMinute !== null && pressStartAbsoluteMinute < shiftEndMinute
         ? formatTimeFromMinutes(pressStartAbsoluteMinute)
         : null;
-    const pressMinutes =
-      pressStartAbsoluteMinute === null ? 0 : Math.max(shiftEndMinute - pressStartAbsoluteMinute, 0);
-    const capacityPressed = Math.floor(pressMinutes / pressCycleMinutes);
-    const sameDayReadyMinutes =
-      pressStartAbsoluteMinute === null
-        ? 0
-        : Math.max(shiftEndMinute - pressStartAbsoluteMinute - normalizationProcessMinutes, 0);
-    const sameDayCapacity = Math.floor(sameDayReadyMinutes / pressCycleMinutes);
-    let plannedCapacityPressed = capacityPressed;
-    let plannedSameDayCapacity = sameDayCapacity;
+
+    let capacityPressed = 0;
+    let sameDayEtmReady = 0;
+    let plannedCapacityPressed = 0;
+    let plannedSameDayCapacity = 0;
     let plannedMaleRemainingEnd = maleRemaining;
     let plannedFemaleRemainingEnd = femaleRemaining;
+
     const hasScenario = override?.pressed !== undefined;
     const hasActual = actuals[key] !== undefined;
     const isRecoveryWorkday = override?.forceWorkday === true && !isBaseWorkday;
@@ -278,53 +303,85 @@ export function buildSchedule({
         ? Math.max(Math.floor(actuals[key]), 0)
         : isRecoveryWorkday
           ? 0
-          : capacityPressed;
-    const dieSimulationDemand = Math.min(capacityPressed, inputPressed);
+          : -1; // -1 means use plan
 
-    if (pressStartAbsoluteMinute !== null && dieSimulationDemand > 0) {
-      const dieLimitedCapacity = Math.min(
-        dieSimulationDemand,
-        Math.max(maleRemaining, 0),
-        Math.max(femaleRemaining, 0)
-      );
+    if (isPress) {
+      const pressMinutes =
+        pressStartAbsoluteMinute === null ? 0 : Math.max(shiftEndMinute - pressStartAbsoluteMinute, 0);
+      
+      // Reduce press runtime by breakdown minutes
+      const activePressMinutes = Math.max(pressMinutes - breakdownMinutes, 0);
+      capacityPressed = Math.floor(activePressMinutes / pressCycleMinutes);
 
-      if (dieLimitedCapacity < dieSimulationDemand) {
-        plannedCapacityPressed = dieLimitedCapacity;
-        plannedSameDayCapacity = Math.min(sameDayCapacity, dieLimitedCapacity);
+      const sameDayReadyMinutes =
+        pressStartAbsoluteMinute === null
+          ? 0
+          : Math.max(shiftEndMinute - pressStartAbsoluteMinute - normalizationProcessMinutes, 0);
+      const activeSameDayReadyMinutes = Math.max(sameDayReadyMinutes - breakdownMinutes, 0);
+      const sameDayCapacity = Math.floor(activeSameDayReadyMinutes / pressCycleMinutes);
 
-        if (maleRemaining > 0 && maleRemaining <= dieLimitedCapacity) {
-          const changeStartMinute =
-            pressStartAbsoluteMinute + maleRemaining * pressCycleMinutes;
-          const availableChangeMinutes = Math.max(shiftEndMinute - changeStartMinute, 0);
-          const used = Math.min(availableChangeMinutes, maleDieChangeMinutes);
-          if (used > 0) {
-            maintenanceMinutes += used;
-            maintenanceParts.push("Erkek kalıp değişimi");
+      plannedCapacityPressed = capacityPressed;
+      plannedSameDayCapacity = sameDayCapacity;
+
+      const dieSimulationDemand = inputPressed >= 0 ? Math.min(capacityPressed, inputPressed) : capacityPressed;
+
+      if (pressStartAbsoluteMinute !== null && dieSimulationDemand > 0) {
+        const dieLimitedCapacity = Math.min(
+          dieSimulationDemand,
+          Math.max(maleRemaining, 0),
+          Math.max(femaleRemaining, 0)
+        );
+
+        if (dieLimitedCapacity < dieSimulationDemand) {
+          plannedCapacityPressed = dieLimitedCapacity;
+          plannedSameDayCapacity = Math.min(sameDayCapacity, dieLimitedCapacity);
+
+          if (maleRemaining > 0 && maleRemaining <= dieLimitedCapacity) {
+            const changeStartMinute =
+              pressStartAbsoluteMinute + maleRemaining * pressCycleMinutes;
+            const availableChangeMinutes = Math.max(shiftEndMinute - changeStartMinute, 0);
+            const used = Math.min(availableChangeMinutes, maleDieChangeMinutes);
+            if (used > 0) {
+              maintenanceMinutes += used;
+              maintenanceParts.push("Erkek kalıp değişimi");
+            }
+            maleChangeCarryover = maleDieChangeMinutes - used;
+            plannedMaleRemainingEnd = maleChangeCarryover <= 0 ? maleDieInterval : 0;
+          } else {
+            plannedMaleRemainingEnd = Math.max(maleRemaining - dieLimitedCapacity, 0);
           }
-          maleChangeCarryover = maleDieChangeMinutes - used;
-          plannedMaleRemainingEnd = maleChangeCarryover <= 0 ? maleDieInterval : 0;
-        } else {
-          plannedMaleRemainingEnd = Math.max(maleRemaining - dieLimitedCapacity, 0);
-        }
 
-        plannedFemaleRemainingEnd = Math.max(femaleRemaining - dieLimitedCapacity, 0);
-      } else {
-        plannedCapacityPressed = dieLimitedCapacity;
-        plannedSameDayCapacity = Math.min(sameDayCapacity, dieLimitedCapacity);
-        plannedMaleRemainingEnd = Math.max(maleRemaining - dieLimitedCapacity, 0);
-        plannedFemaleRemainingEnd = Math.max(femaleRemaining - dieLimitedCapacity, 0);
+          plannedFemaleRemainingEnd = Math.max(femaleRemaining - dieLimitedCapacity, 0);
+        } else {
+          plannedCapacityPressed = dieLimitedCapacity;
+          plannedSameDayCapacity = Math.min(sameDayCapacity, dieLimitedCapacity);
+          plannedMaleRemainingEnd = Math.max(maleRemaining - dieLimitedCapacity, 0);
+          plannedFemaleRemainingEnd = Math.max(femaleRemaining - dieLimitedCapacity, 0);
+        }
       }
+    } else {
+      // General Cell capacity calculation scaling based on max capacity
+      const maxCapacity = cellParams?.[cellName]?.gunluk_max_kapasite ?? dailyTarget ?? 100;
+      const baseShiftMinutes = shift ? shift.minutes : 570;
+      capacityPressed = isWorkday
+        ? Math.floor((availableMinutes / Math.max(baseShiftMinutes, 1)) * maxCapacity)
+        : 0;
+      plannedCapacityPressed = capacityPressed;
     }
 
-    const pressed =
-      hasScenario || hasActual || isRecoveryWorkday ? inputPressed : plannedCapacityPressed;
+    const finalPressed =
+      hasScenario || hasActual || isRecoveryWorkday
+        ? inputPressed
+        : plannedCapacityPressed;
+
+    const pressedVal = Math.max(finalPressed, 0);
     const source = hasScenario ? "scenario" : hasActual ? "actual" : "plan";
-    const sameDayEtmReady = Math.min(pressed, plannedSameDayCapacity);
+    sameDayEtmReady = isPress ? Math.min(pressedVal, plannedSameDayCapacity) : pressedVal;
     const target = isBaseWorkday ? dailyTarget : 0;
 
     let lastFurnaceExitTime: string | null = null;
-    if (pressStartAbsoluteMinute !== null && pressed > 0) {
-      const lastFurnaceExitMinute = pressStartAbsoluteMinute + (pressed * pressCycleMinutes) + normalizationProcessMinutes;
+    if (isPress && pressStartAbsoluteMinute !== null && pressedVal > 0) {
+      const lastFurnaceExitMinute = pressStartAbsoluteMinute + (pressedVal * pressCycleMinutes) + normalizationProcessMinutes;
       lastFurnaceExitTime = formatTimeFromMinutes(lastFurnaceExitMinute);
     }
 
@@ -346,16 +403,19 @@ export function buildSchedule({
       maintenanceLabel: maintenanceParts.length > 0 ? maintenanceParts.join(" + ") : "-",
       pressStartTime,
       capacityPressed: plannedCapacityPressed,
-      pressed,
+      pressed: pressedVal,
       source,
       sameDayEtmReady,
       target,
-      targetGap: Math.max(target - pressed, 0),
-      maleRemainingEnd: maleRemaining,
-      femaleRemainingEnd: femaleRemaining,
+      targetGap: Math.max(target - pressedVal, 0),
+      maleRemainingEnd: isPress ? maleRemaining : 0,
+      femaleRemainingEnd: isPress ? femaleRemaining : 0,
       lastFurnaceExitTime,
+      breakdownMinutes,
+      breakdownDetails,
     });
   }
 
   return result;
 }
+

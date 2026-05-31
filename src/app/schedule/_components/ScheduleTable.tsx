@@ -14,14 +14,16 @@ type Props = {
   wipOutgoing: Record<string, number | null>;
   updateOverride: (key: string, patch: DayOverride) => void;
   clearDayOverride: (key: string) => void;
+  cellName?: string;
 };
 
-export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updateOverride, clearDayOverride }: Props) {
+export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updateOverride, clearDayOverride, cellName = "Pres Hücresi" }: Props) {
+  const isPress = cellName === "Pres Hücresi";
   return (
     <Card className="rounded-xl shadow-sm border-zinc-200 overflow-hidden bg-white">
       <CardHeader className="border-b border-zinc-100 pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-base font-bold text-zinc-800 uppercase tracking-wider">
-          Günlük Pres Planı Simülasyonu
+          Günlük {cellName} Planı Simülasyonu
         </CardTitle>
         <div className="flex gap-2 text-xs font-semibold">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-emerald-700">
@@ -42,29 +44,30 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                 <th className="py-2.5 pl-3 pr-1.5 font-semibold">Gün</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold">Süre</th>
                 <th className="px-1.5 py-2.5 font-semibold">Vardiya</th>
-                <th className="px-1.5 py-2.5 font-semibold">Fırın</th>
+                {isPress && <th className="px-1.5 py-2.5 font-semibold">Fırın</th>}
                 <th className="px-1.5 py-2.5 text-right font-semibold">F.Mesai</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold">Manuel</th>
                 <th className="px-1.5 py-2.5 text-center font-semibold">Çalış</th>
                 <th className="px-1.5 py-2.5 font-semibold">Planlı Duruş</th>
-                <th className="px-1.5 py-2.5 font-semibold">İlk Pres</th>
+                <th className="px-1.5 py-2.5 font-semibold text-rose-600">Arıza</th>
+                {isPress && <th className="px-1.5 py-2.5 font-semibold">İlk Pres</th>}
                 <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">Hedef</th>
                 <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">Kapas.</th>
-                <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">Fırın Çıkış</th>
-                <th className="px-1.5 py-2.5 text-right font-semibold">Pres</th>
-                <th className="px-1.5 py-2.5 text-right font-semibold">ETM</th>
-                <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">ETM Stok</th>
+                {isPress && <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">Fırın Çıkış</th>}
+                <th className="px-1.5 py-2.5 text-right font-semibold">Üretim</th>
+                {isPress && <th className="px-1.5 py-2.5 text-right font-semibold">ETM</th>}
+                {isPress && <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">ETM Stok</th>}
                 <th className="px-1.5 py-2.5 text-right font-semibold">Fark</th>
-                <th className="px-1.5 py-2.5 text-right font-semibold">Erkek</th>
-                <th className="px-1.5 py-2.5 text-right font-semibold">Dişi</th>
+                {isPress && <th className="px-1.5 py-2.5 text-right font-semibold">Erkek</th>}
+                {isPress && <th className="px-1.5 py-2.5 text-right font-semibold">Dişi</th>}
                 <th className="py-2.5 pr-3 text-right font-semibold">Sıfırla</th>
               </tr>
             </thead>
             <tbody>
               {schedule.map((day) => {
                 const isRowDisabled = !day.isWorkday;
-                const maleRisk = day.maleRemainingEnd <= 100;
-                const femaleRisk = day.femaleRemainingEnd <= 300;
+                const maleRisk = isPress && day.maleRemainingEnd <= 100;
+                const femaleRisk = isPress && day.femaleRemainingEnd <= 300;
                 const isWeekend = day.label.includes("Cumartesi") || day.label.includes("Pazar");
                 const inputCls =
                   "bg-transparent border-transparent hover:bg-zinc-100/80 hover:border-zinc-200 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all rounded shadow-none text-xs font-medium disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-transparent";
@@ -108,16 +111,18 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                       </div>
                     </td>
                     {/* Fırın */}
-                    <td className="px-1.5 py-2">
-                      <Input
-                        aria-label={`${day.label} fırın başlangıç`}
-                        className={`h-7 w-[68px] text-center p-0 ${inputCls}`}
-                        type="time"
-                        disabled={isRowDisabled}
-                        value={overrides[day.key]?.furnaceStart ?? day.furnaceStart}
-                        onChange={(e) => updateOverride(day.key, { furnaceStart: e.target.value || undefined })}
-                      />
-                    </td>
+                    {isPress && (
+                      <td className="px-1.5 py-2">
+                        <Input
+                          aria-label={`${day.label} fırın başlangıç`}
+                          className={`h-7 w-[68px] text-center p-0 ${inputCls}`}
+                          type="time"
+                          disabled={isRowDisabled}
+                          value={overrides[day.key]?.furnaceStart ?? day.furnaceStart}
+                          onChange={(e) => updateOverride(day.key, { furnaceStart: e.target.value || undefined })}
+                        />
+                      </td>
+                    )}
                     {/* Fazla mesai */}
                     <td className="px-1.5 py-2">
                       <Input
@@ -172,16 +177,31 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                     <td className="px-1.5 py-2">
                       <span
                         className={
-                          day.maintenanceMinutes > 0
+                          isPress && day.maintenanceMinutes > 0
                             ? "inline-flex items-center rounded bg-amber-50 border border-amber-200 px-1 py-0.5 text-[9px] font-semibold text-amber-800"
                             : "text-zinc-400 text-xs"
                         }
                       >
-                        {day.maintenanceLabel}
+                        {isPress ? day.maintenanceLabel : "-"}
                       </span>
                     </td>
+                    {/* Arıza */}
+                    <td className="px-1.5 py-2">
+                      {day.breakdownMinutes > 0 ? (
+                        <div
+                          className="inline-flex items-center gap-1 rounded bg-rose-50 border border-rose-200 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 cursor-help"
+                          title={day.breakdownDetails.join("\n")}
+                        >
+                          <span>{day.breakdownMinutes} dk</span>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-400 text-xs">-</span>
+                      )}
+                    </td>
                     {/* İlk pres */}
-                    <td className="px-1.5 py-2 text-zinc-500 text-xs">{day.pressStartTime ?? "-"}</td>
+                    {isPress && (
+                      <td className="px-1.5 py-2 text-zinc-500 text-xs">{day.pressStartTime ?? "-"}</td>
+                    )}
                     {/* Hedef */}
                     <td className="px-1.5 py-2 text-right font-medium text-zinc-400 text-xs">
                       {formatNumber(day.target)}
@@ -191,31 +211,33 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                       {formatNumber(day.capacityPressed)}
                     </td>
                     {/* Fırın Çıkış */}
-                    <td className="px-1.5 py-2 text-right">
-                      {day.lastFurnaceExitTime ? (() => {
-                        const exitMin = parseTime(day.lastFurnaceExitTime);
-                        const limitGreen = parseTime("07:45") ?? 465;
-                        const limitYellow = parseTime("12:00") ?? 720;
-                        let badgeCls = "text-zinc-500 font-semibold";
-                        if (exitMin !== null) {
-                          if (exitMin <= limitGreen) {
-                            badgeCls = "inline-flex items-center rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700";
-                          } else if (exitMin <= limitYellow) {
-                            badgeCls = "inline-flex items-center rounded bg-amber-50 border border-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700";
-                          } else {
-                            badgeCls = "inline-flex items-center rounded bg-orange-50 border border-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700";
+                    {isPress && (
+                      <td className="px-1.5 py-2 text-right">
+                        {day.lastFurnaceExitTime ? (() => {
+                          const exitMin = parseTime(day.lastFurnaceExitTime);
+                          const limitGreen = parseTime("07:45") ?? 465;
+                          const limitYellow = parseTime("12:00") ?? 720;
+                          let badgeCls = "text-zinc-500 font-semibold";
+                          if (exitMin !== null) {
+                            if (exitMin <= limitGreen) {
+                              badgeCls = "inline-flex items-center rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700";
+                            } else if (exitMin <= limitYellow) {
+                              badgeCls = "inline-flex items-center rounded bg-amber-50 border border-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700";
+                            } else {
+                              badgeCls = "inline-flex items-center rounded bg-orange-50 border border-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700";
+                            }
                           }
-                        }
-                        return (
-                          <span className={badgeCls}>
-                            {day.lastFurnaceExitTime}
-                          </span>
-                        );
-                      })() : (
-                        <span className="text-zinc-400 font-medium">—</span>
-                      )}
-                    </td>
-                    {/* Preslenen */}
+                          return (
+                            <span className={badgeCls}>
+                              {day.lastFurnaceExitTime}
+                            </span>
+                          );
+                        })() : (
+                          <span className="text-zinc-400 font-medium">—</span>
+                        )}
+                      </td>
+                    )}
+                    {/* Preslenen / Üretim */}
                     <td className="px-1.5 py-2 text-right">
                       <span
                         className={
@@ -237,15 +259,19 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                       </span>
                     </td>
                     {/* ETM hazır */}
-                    <td className="px-1.5 py-2 text-right text-zinc-500 text-xs">
-                      {formatNumber(day.sameDayEtmReady)}
-                    </td>
+                    {isPress && (
+                      <td className="px-1.5 py-2 text-right text-zinc-500 text-xs">
+                        {formatNumber(day.sameDayEtmReady)}
+                      </td>
+                    )}
                     {/* ETM Stok */}
-                    <td className="px-1.5 py-2 text-right text-zinc-500 font-medium text-xs">
-                      {wipOutgoing[day.key] !== undefined && wipOutgoing[day.key] !== null
-                        ? formatNumber(wipOutgoing[day.key]!)
-                        : "—"}
-                    </td>
+                    {isPress && (
+                      <td className="px-1.5 py-2 text-right text-zinc-500 font-medium text-xs">
+                        {wipOutgoing[day.key] !== undefined && wipOutgoing[day.key] !== null
+                          ? formatNumber(wipOutgoing[day.key]!)
+                          : "—"}
+                      </td>
+                    )}
                     {/* Fark */}
                     <td className="px-1.5 py-2 text-right">
                       <span
@@ -261,21 +287,25 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                       </span>
                     </td>
                     {/* Erkek kalan */}
-                    <td
-                      className={`px-1.5 py-2 text-right text-xs font-semibold transition-all ${
-                        maleRisk ? "text-rose-600 font-bold bg-rose-50 rounded px-1" : "text-zinc-600"
-                      }`}
-                    >
-                      {formatNumber(day.maleRemainingEnd)}
-                    </td>
+                    {isPress && (
+                      <td
+                        className={`px-1.5 py-2 text-right text-xs font-semibold transition-all ${
+                          maleRisk ? "text-rose-600 font-bold bg-rose-50 rounded px-1" : "text-zinc-600"
+                        }`}
+                      >
+                        {formatNumber(day.maleRemainingEnd)}
+                      </td>
+                    )}
                     {/* Dişi kalan */}
-                    <td
-                      className={`px-1.5 py-2 text-right text-xs font-semibold transition-all ${
-                        femaleRisk ? "text-rose-600 font-bold bg-rose-50 rounded px-1" : "text-zinc-600"
-                      }`}
-                    >
-                      {formatNumber(day.femaleRemainingEnd)}
-                    </td>
+                    {isPress && (
+                      <td
+                        className={`px-1.5 py-2 text-right text-xs font-semibold transition-all ${
+                          femaleRisk ? "text-rose-600 font-bold bg-rose-50 rounded px-1" : "text-zinc-600"
+                        }`}
+                      >
+                        {formatNumber(day.femaleRemainingEnd)}
+                      </td>
+                    )}
                     {/* Sıfırla */}
                     <td className="py-2 pr-3 text-right">
                       <Button
@@ -300,3 +330,4 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
     </Card>
   );
 }
+

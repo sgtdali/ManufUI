@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ArizaDetail } from "@/lib/types";
-import { markArizaResolved } from "./actions";
+import { markArizaResolved, updateArizaType } from "./actions";
 
 type StatusFilter = "all" | "open" | "resolved";
 
@@ -141,6 +141,28 @@ export function ArizaRecordsTable({ details }: { details: ArizaDetail[] }) {
     });
   };
 
+  const handleTypeChange = (rowId: string, newType: string) => {
+    startTransition(async () => {
+      const result = await updateArizaType(rowId, newType);
+      if (!result.success) {
+        toast.error(`Tür güncellenemedi: ${result.error}`);
+        return;
+      }
+      setRows((currentRows) =>
+        currentRows.map((row) =>
+          row.id === rowId
+            ? {
+                ...row,
+                tur: newType,
+              }
+            : row
+        )
+      );
+      toast.success("Arıza türü güncellendi.");
+      router.refresh();
+    });
+  };
+
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="mb-4 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
@@ -234,9 +256,19 @@ export function ArizaRecordsTable({ details }: { details: ArizaDetail[] }) {
                 <td className="px-3 py-3 text-zinc-600">{detail.sorumlu}</td>
                 <td className="px-3 py-3 text-zinc-600">{detail.zamanDilimi}</td>
                 <td className="px-3 py-3">
-                  <span className="rounded-md bg-rose-100 px-2 py-1 text-xs font-medium text-rose-800">
-                    {detail.tur}
-                  </span>
+                  <select
+                    value={detail.tur}
+                    disabled={isPending}
+                    onChange={(e) => handleTypeChange(detail.id, e.target.value)}
+                    className="text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="E">E</option>
+                    <option value="A">A</option>
+                    <option value="M">M</option>
+                    <option value="O">O</option>
+                    <option value="Kalite">Kalite</option>
+                    <option value="Belirsiz">Belirsiz</option>
+                  </select>
                 </td>
                 <td className="px-3 py-3 text-right font-semibold">
                   {formatNumber(detail.dakika)} dk
