@@ -12,6 +12,9 @@ export type DayPlan = {
   availableMinutes: number;
   overtimeMinutes: number;
   maintenanceMinutes: number;
+  startMaintenanceMinutes: number;
+  midMaintenanceMinutes: number;
+  midMaintenanceStartMinute: number | null;
   maintenanceLabel: string;
   pressStartTime: string | null;
   capacityPressed: number;
@@ -34,6 +37,19 @@ export type DayOverride = {
   shiftStart?: string;
   shiftEnd?: string;
   furnaceStart?: string;
+  dieCoolingMinutes?: number;
+  customGanttItems?: CustomGanttItem[];
+  disabledSegments?: string[];
+  postponeMaleChange?: boolean;
+  postponeFemaleChange?: boolean;
+  moldMaintenanceStart?: string;
+};
+
+export type CustomGanttItem = {
+  id: string;
+  label: string;
+  startTime: string;
+  durationMinutes: number;
 };
 
 export type ScheduleParam = {
@@ -44,3 +60,13 @@ export type ScheduleParam = {
   unit: string | null;
   is_custom: boolean;
 };
+
+export type GanttDependency = {
+  id: string;
+  dayKey: string;
+  predecessorId: string;
+  predecessorLabel: string;
+  successorId: string;
+  successorLabel: string;
+};
+

@@ -119,8 +119,32 @@ Hücreler arası WIP (Work In Progress) stok takibi.
 
 **Unique constraint**: `(tarih, kaynak_hucresi, hedef_hucresi)`.
 
+## manuf_schedule_overrides
+
+Gantt planlama ve simülasyon ekranındaki günlük elle girilen overrides (vardiya saatleri, fazla mesai, zorunlu çalışma günleri) ve Gantt bağımlılık (oklar) verileri.
+
+| Kolon | Tip | Açıklama |
+|-------|-----|----------|
+| id | uuid | PK |
+| tarih | date | Tarih |
+| bolum | text | Hücre adı |
+| pressed | integer | Manuel girilen pres/üretim adeti |
+| overtime_minutes | integer | Fazla mesai süresi (dakika) |
+| force_workday | boolean | Tatil gününü çalışma günü yap/yapma |
+| shift_start | text | Vardiya başlangıç saati (Format: "HH:MM") |
+| shift_end | text | Vardiya bitiş saati (Format: "HH:MM") |
+| furnace_start | text | Fırın ısıtma başlangıç saati (Format: "HH:MM") |
+| die_cooling_minutes | integer | Kalıp soğutma süresi (dakika) |
+| custom_gantt_items | jsonb | Gün bazlı eklenen özel Gantt maddeleri listesi |
+| dependencies | jsonb | Gün bazlı kurulan Gantt öncül-ardıl bağlantıları |
+| created_at | timestamptz | — |
+| updated_at | timestamptz | — |
+
+**Unique constraint**: `(tarih, bolum)`.
+
 ## İlgili Sayfalar
 
 - [Hücreler](hucreler.md) — hücre listesi ve akışı
 - [WIP Hesabı](../systems/wip-hesabi.md) — simülasyon ve parametre kullanımı
 - [Duruşlar](../systems/duruslar.md) — duruş kolon kodları
+

@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { CalendarDays, Factory, Hammer, TimerReset, Layers } from "lucide-react";
+import { CalendarDays, Factory, Hammer, TimerReset, Layers, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+
 
 import {
   loadCellActuals,
@@ -14,6 +15,9 @@ import {
   loadScheduleParams,
   loadCellWipStock,
   loadBottleneckData,
+  loadScheduleOverrides,
+  saveScheduleOverride,
+  deleteScheduleOverride,
   type MoldChange,
   type ScheduleParamRow,
   type WipStockItem,
@@ -22,7 +26,8 @@ import {
 import { CELLS, CELL_FLOWS, type CellName } from "./overview/constants";
 import { loadCellParams, type CellParam } from "./overview/actions";
 import { SHIFT_START, SHIFT_END, FURNACE_START } from "./constants";
-import type { DayOverride } from "./types";
+import type { DayOverride, GanttDependency } from "./types";
+
 import {
   buildSchedule,
   formatNumber,
@@ -63,6 +68,23 @@ export default function SchedulePage() {
 
   // ── Override / senaryo durumu ────────────────────────────────────────────
   const [overrides, setOverrides] = useState<Record<string, DayOverride>>({});
+  const [dependencies, setDependencies] = useState<GanttDependency[]>([]);
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (dirtyKeys.size > 0) {
+        e.preventDefault();
+        e.returnValue = "Kaydedilmemiş değişiklikleriniz var!";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [dirtyKeys]);
+
+
 
   // ── Supabase gerçekleşen verisi ──────────────────────────────────────────
   const [actuals, setActuals] = useState<Record<string, number>>({});
@@ -117,11 +139,12 @@ export default function SchedulePage() {
     });
 
     const loadWipAndBreakdowns = async () => {
-      const [wipResult, breakdownResult, paramsResult, bResult] = await Promise.all([
+      const [wipResult, breakdownResult, paramsResult, bResult, overridesResult] = await Promise.all([
         loadCellWipStock(selectedCell, startDate, endDate),
         loadCellBreakdowns(selectedCell, startDate, endDate),
         loadCellParams(),
         loadBottleneckData(startDate, endDate),
+        loadScheduleOverrides(selectedCell, startDate, endDate),
       ]);
       if (cancelled) return;
       setWipData(wipResult);
@@ -131,6 +154,10 @@ export default function SchedulePage() {
       setAllCellParams(paramsResult);
       if (bResult.success) {
         setBottlenecks(bResult.data ?? []);
+      }
+      if (overridesResult.success) {
+        setOverrides(overridesResult.overrides ?? {});
+        setDependencies(overridesResult.dependencies ?? []);
       }
     };
     loadWipAndBreakdowns();
@@ -263,24 +290,92 @@ export default function SchedulePage() {
     setOverrides((cur) => {
       const next = { ...cur, [key]: { ...(cur[key] ?? {}), ...patch } };
       const item = next[key];
-      if (
-        item.pressed === undefined &&
-        item.overtimeMinutes === undefined &&
-        item.forceWorkday === undefined &&
-        item.shiftStart === undefined &&
-        item.shiftEnd === undefined &&
-        item.furnaceStart === undefined
-      ) {
+      const hasAnyValue =
+        item.pressed !== undefined ||
+        item.overtimeMinutes !== undefined ||
+        item.forceWorkday !== undefined ||
+        item.shiftStart !== undefined ||
+        item.shiftEnd !== undefined ||
+        item.furnaceStart !== undefined ||
+        item.dieCoolingMinutes !== undefined ||
+        item.moldMaintenanceStart !== undefined ||
+        item.postponeMaleChange !== undefined ||
+        item.postponeFemaleChange !== undefined ||
+        (item.customGanttItems !== undefined && item.customGanttItems.length > 0) ||
+        (item.disabledSegments !== undefined && item.disabledSegments.length > 0);
+
+      if (!hasAnyValue) {
         delete next[key];
       }
       return next;
     });
+
+    setDirtyKeys((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
   };
 
-  const clearDayOverride = (key: string) =>
-    setOverrides((cur) => { const next = { ...cur }; delete next[key]; return next; });
+  const updateDayDependencies = async (key: string, nextDeps: GanttDependency[]) => {
+    setDependencies((current) => [
+      ...current.filter((d) => d.dayKey !== key),
+      ...nextDeps,
+    ]);
 
-  const clearAllOverrides = () => setOverrides({});
+    setDirtyKeys((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  const clearDayOverride = (key: string) => {
+    setOverrides((cur) => { const next = { ...cur }; delete next[key]; return next; });
+    setDependencies((current) => current.filter((d) => d.dayKey !== key));
+    setDirtyKeys((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  const clearAllOverrides = () => {
+    const keys = Object.keys(overrides);
+    setOverrides({});
+    setDependencies([]);
+    setDirtyKeys((prev) => {
+      const next = new Set(prev);
+      keys.forEach(k => next.add(k));
+      return next;
+    });
+  };
+
+  const handleSaveAllChanges = async () => {
+    if (dirtyKeys.size === 0) return;
+    setIsSaving(true);
+    try {
+      const promises = Array.from(dirtyKeys).map((key) => {
+        const override = overrides[key];
+        const dayDeps = dependencies.filter((d) => d.dayKey === key);
+        if (!override) {
+          return deleteScheduleOverride(key, selectedCell);
+        } else {
+          return saveScheduleOverride(key, selectedCell, override, dayDeps);
+        }
+      });
+      await Promise.all(promises);
+      setDirtyKeys(new Set());
+      toast.success("Tüm planlama değişiklikleri başarıyla Supabase'e kaydedildi!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Değişiklikler kaydedilirken bir hata oluştu.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -307,7 +402,12 @@ export default function SchedulePage() {
                 id="cell-select"
                 className="text-xs font-bold text-zinc-700 bg-white border border-zinc-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                 value={selectedCell}
-                onChange={(e) => setSelectedCell(e.target.value as CellName)}
+                onChange={(e) => {
+                  if (dirtyKeys.size > 0 && !window.confirm("Kaydedilmemiş planlama değişiklikleriniz var! Hücreyi değiştirirseniz bu değişiklikler kaybolacaktır. Devam etmek istiyor musunuz?")) {
+                    return;
+                  }
+                  setSelectedCell(e.target.value as CellName);
+                }}
               >
                 {CELLS.map((cell) => (
                   <option key={cell} value={cell}>
@@ -325,7 +425,18 @@ export default function SchedulePage() {
                   : `${formatNumber(Object.keys(actuals).length)} gün için Supabase gerçekleşen verisi yüklendi.`}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            {dirtyKeys.size > 0 && (
+              <Button
+                type="button"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all shadow-md flex items-center gap-2 animate-pulse cursor-pointer"
+                onClick={handleSaveAllChanges}
+                disabled={isSaving}
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? "Kaydediliyor..." : `Değişiklikleri Kaydet (${dirtyKeys.size})`}
+              </Button>
+            )}
             <Link href="/schedule/overview"><Button type="button" variant="outline">Hat Görünümü</Button></Link>
             <Link href="/dashboard"><Button type="button" variant="outline">Dashboard</Button></Link>
             <Link href="/"><Button type="button" variant="outline">Forma dön</Button></Link>
@@ -506,6 +617,10 @@ export default function SchedulePage() {
               updateOverride={updateOverride}
               clearDayOverride={clearDayOverride}
               cellName={selectedCell}
+              moldChanges={moldChanges}
+              setMoldChanges={setMoldChanges}
+              dependencies={dependencies}
+              updateDayDependencies={updateDayDependencies}
             />
           </div>
         </div>

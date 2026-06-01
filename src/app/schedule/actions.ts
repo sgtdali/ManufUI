@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { isWeekday } from "./utils";
+import type { DayOverride, GanttDependency } from "./types";
+
 
 type ProductionRow = {
   uretim_adeti: number | null;
@@ -401,6 +403,111 @@ export async function loadBottleneckData(startDate: string, endDate: string) {
 
   return { success: true, data: statsList };
 }
+
+// ── Planlama Overrides (Günlük Elle Girişler ve Gantt Ayarları) ────────────────
+
+export async function loadScheduleOverrides(cellName: string, startDate: string, endDate: string) {
+  if (!isDateValue(startDate) || !isDateValue(endDate) || startDate > endDate) {
+    return { success: false, error: "Geçersiz tarih aralığı.", overrides: {}, dependencies: [] };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_schedule_overrides")
+    .select("*")
+    .eq("bolum", cellName)
+    .gte("tarih", startDate)
+    .lte("tarih", endDate);
+
+  if (error) {
+    return { success: false, error: error.message, overrides: {}, dependencies: [] };
+  }
+
+  const overrides: Record<string, DayOverride> = {};
+  let dependencies: GanttDependency[] = [];
+
+  for (const row of (data ?? [])) {
+    const dayKey = row.tarih;
+    overrides[dayKey] = {
+      pressed: row.pressed !== null ? row.pressed : undefined,
+      overtimeMinutes: row.overtime_minutes !== null ? row.overtime_minutes : undefined,
+      forceWorkday: row.force_workday !== null ? row.force_workday : undefined,
+      shiftStart: row.shift_start || undefined,
+      shiftEnd: row.shift_end || undefined,
+      furnaceStart: row.furnace_start || undefined,
+      dieCoolingMinutes: row.die_cooling_minutes !== null ? row.die_cooling_minutes : undefined,
+      customGanttItems: Array.isArray(row.custom_gantt_items) ? row.custom_gantt_items : [],
+      disabledSegments: Array.isArray(row.disabled_segments) ? row.disabled_segments : [],
+      moldMaintenanceStart: row.mold_maintenance_start || undefined,
+    };
+
+    if (Array.isArray(row.dependencies)) {
+      dependencies = [...dependencies, ...row.dependencies];
+    }
+  }
+
+  return { success: true, overrides, dependencies };
+}
+
+export async function saveScheduleOverride(
+  tarih: string,
+  bolum: string,
+  override: DayOverride,
+  dayDependencies: GanttDependency[]
+) {
+  if (!isDateValue(tarih)) {
+    return { success: false, error: "Geçersiz tarih." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("manuf_schedule_overrides")
+    .upsert(
+      {
+        tarih,
+        bolum,
+        pressed: override.pressed !== undefined ? override.pressed : null,
+        overtime_minutes: override.overtimeMinutes !== undefined ? override.overtimeMinutes : null,
+        force_workday: override.forceWorkday !== undefined ? override.forceWorkday : null,
+        shift_start: override.shiftStart || null,
+        shift_end: override.shiftEnd || null,
+        furnace_start: override.furnaceStart || null,
+        die_cooling_minutes: override.dieCoolingMinutes !== undefined ? override.dieCoolingMinutes : null,
+        custom_gantt_items: override.customGanttItems || [],
+        disabled_segments: override.disabledSegments || [],
+        dependencies: dayDependencies || [],
+        mold_maintenance_start: override.moldMaintenanceStart || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "tarih,bolum" }
+    );
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+export async function deleteScheduleOverride(tarih: string, bolum: string) {
+  if (!isDateValue(tarih)) {
+    return { success: false, error: "Geçersiz tarih." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("manuf_schedule_overrides")
+    .delete()
+    .eq("tarih", tarih)
+    .eq("bolum", bolum);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
 
 
 
