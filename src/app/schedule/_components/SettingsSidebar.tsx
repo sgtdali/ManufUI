@@ -24,6 +24,8 @@ type Props = {
   setInitialMaleRemaining: (v: string) => void;
   initialFemaleRemaining: string;
   setInitialFemaleRemaining: (v: string) => void;
+  initialRingRemaining: string;
+  setInitialRingRemaining: (v: string) => void;
   holidayWorkEnabled: boolean;
   setHolidayWorkEnabled: (v: boolean) => void;
   clearAllOverrides: () => void;
@@ -44,6 +46,7 @@ export function SettingsSidebar({
   overtimeMinutes, setOvertimeMinutes,
   initialMaleRemaining, setInitialMaleRemaining,
   initialFemaleRemaining, setInitialFemaleRemaining,
+  initialRingRemaining, setInitialRingRemaining,
   holidayWorkEnabled, setHolidayWorkEnabled,
   clearAllOverrides,
   normalizationWarmupMinutes,
@@ -66,20 +69,8 @@ export function SettingsSidebar({
           <Input id="daily-target" min={0} type="number" value={dailyTarget} onChange={(e) => setDailyTarget(e.target.value)} />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="shift-start" className={labelCls}>Vardiya başlangıç</Label>
-          <Input id="shift-start" type="time" value={defaultShiftStart} onChange={(e) => setDefaultShiftStart(e.target.value)} />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="shift-end" className={labelCls}>Vardiya bitiş</Label>
-          <Input id="shift-end" type="time" value={defaultShiftEnd} onChange={(e) => setDefaultShiftEnd(e.target.value)} />
-        </div>
-        <div className="space-y-1">
           <Label htmlFor="furnace-start" className={labelCls}>Fırın başlangıç</Label>
           <Input id="furnace-start" type="time" value={defaultFurnaceStart} onChange={(e) => setDefaultFurnaceStart(e.target.value)} />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="overtime" className={labelCls}>Günlük fazla mesai (dk)</Label>
-          <Input id="overtime" min={0} step={15} type="number" value={overtimeMinutes} onChange={(e) => setOvertimeMinutes(e.target.value)} />
         </div>
         <div className="space-y-1">
           <Label htmlFor="male-remaining" className={labelCls}>Erkek kalıp kalan adet</Label>
@@ -89,17 +80,11 @@ export function SettingsSidebar({
           <Label htmlFor="female-remaining" className={labelCls}>Dişi kalıp kalan adet</Label>
           <Input id="female-remaining" min={0} type="number" value={initialFemaleRemaining} onChange={(e) => setInitialFemaleRemaining(e.target.value)} />
         </div>
+        <div className="space-y-1">
+          <Label htmlFor="ring-remaining" className={labelCls}>HIP Ring kalan adet</Label>
+          <Input id="ring-remaining" min={0} type="number" value={initialRingRemaining} onChange={(e) => setInitialRingRemaining(e.target.value)} />
+        </div>
       </div>
-
-      <label className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm cursor-pointer hover:bg-zinc-50 transition-colors">
-        <input
-          checked={holidayWorkEnabled}
-          className="h-4 w-4 accent-blue-700 cursor-pointer"
-          type="checkbox"
-          onChange={(e) => setHolidayWorkEnabled(e.target.checked)}
-        />
-        <span className="text-zinc-700 font-medium">Cuma/Cumartesi çalışılsın</span>
-      </label>
 
       <Card className="rounded-lg border-blue-100 bg-blue-50">
         <CardContent className="p-3 text-xs text-blue-900 leading-relaxed">

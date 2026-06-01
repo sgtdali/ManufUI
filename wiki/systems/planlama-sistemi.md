@@ -1,6 +1,6 @@
 ---
-updated: 2026-05-28
-sources: [src/app/schedule/page.tsx, src/app/schedule/utils.ts]
+updated: 2026-06-01
+sources: [src/app/schedule/page.tsx, src/app/schedule/utils.ts, src/app/schedule/_components/ScheduleTable.tsx, src/app/schedule/_components/MoldChangesSidebar.tsx]
 ---
 
 # Planlama Sistemi
@@ -23,7 +23,8 @@ sources: [src/app/schedule/page.tsx, src/app/schedule/utils.ts]
 Sadece **Pres hücresi** için simülasyon motoru var:
 
 - Günlük hedef vs gerçekleşen karşılaştırması
-- Kalıp ömrü ve değişim planlaması
+- Kalıp ömrü ve değişim planlaması (Erkek Kalıp Değişimi, Dişi Kalıp Değişimi, HIP Ring Değişimi olarak 3 ayrı satır halinde Gantt şemasında ve planlama listesinde takip edilir)
+- Her kalıp türü için duruşlar ve engelleme/gizleme (disabled segments) kararları bağımsız olarak yönetilebilir (`mold-maintenance-male`, `mold-maintenance-female`, `mold-maintenance-ring`)
 - Fazla mesai etkisi hesabı
 - WIP → ETM geçişi
 - Kurtarma senaryosu: açığı kapatmak için kaç gün fazla mesai gerektiği

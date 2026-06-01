@@ -17,6 +17,9 @@ export type DayPlan = {
   midMaintenanceStartMinute: number | null;
   midMaintenanceComplete: boolean;
   maintenanceLabel: string;
+  femaleMaintMinutes?: number;
+  maleMaintMinutes?: number;
+  ringMaintMinutes?: number;
   pressStartTime: string | null;
   capacityPressed: number;
   pressed: number;
@@ -26,6 +29,7 @@ export type DayPlan = {
   targetGap: number;
   maleRemainingEnd: number;
   femaleRemainingEnd: number;
+  ringRemainingEnd: number;
   lastFurnaceExitTime: string | null;
   breakdownMinutes: number;
   breakdownDetails: string[];
@@ -44,10 +48,14 @@ export type DayOverride = {
   disabledOperations?: string[];
   postponeMaleChange?: boolean;
   postponeFemaleChange?: boolean;
+  postponeRingChange?: boolean;
   moldMaintenanceStart?: string;
   moldChangeMode?: "auto" | "postpone" | "manual";
-  manualMoldType?: "male" | "female";
+  manualMoldType?: "male" | "female" | "ring" | "male+ring" | "female+ring";
   manualMoldChangeAfterPieces?: number;
+  femaleChangeMinutes?: number;
+  maleChangeMinutes?: number;
+  ringChangeMinutes?: number;
 };
 
 export type CustomGanttItem = {

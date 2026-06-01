@@ -75,12 +75,6 @@ Repodaki en eski migration `20260413` tarihlidir ve sadece `ALTER TABLE` içerir
 
 **Yapılacak**: Dashboard sayfasını oku, hangi metrikleri gösterdiğini belgele.
 
-## Cuma/Cumartesi Zaman Dilimi Tutarsızlığı
+## Cuma/Cumartesi Zaman Dilimi Tutarsızlığı [ÇÖZÜLDÜ]
 
-**Öncelik: Düşük**
-
-- Vardiya sonu: Hafta içi 17:15, Cuma/Cumartesi 17:00 (15 dk fark)
-- Schedule simülasyonunda Cuma/Cumartesi için ayrı zaman dilimi yoktur; simülasyon tek vardiya kalıbıyla çalışır.
-- Üretim formunda Cuma/Cumartesi günleri için `CUMA_CUMARTESI_ZAMAN_DILIMLERI` kullanılır ama saat farklıdır.
-
-**Yapılacak**: Bu tutarsızlığın kasıtlı mı yoksa hata mı olduğunu kullanıcıyla netleştir.
+- Cuma ve Cumartesi günleri standart vardiya saatleri simülasyon motorunda 09:00-17:00 olarak eşitlendi (formlardaki `CUMA_CUMARTESI_ZAMAN_DILIMLERI` ile tam uyumlu hale getirildi).

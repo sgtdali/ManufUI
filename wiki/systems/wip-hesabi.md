@@ -1,11 +1,11 @@
 ---
-updated: 2026-05-28
-sources: [src/app/schedule/constants.ts, src/app/schedule/utils.ts, src/app/schedule/types.ts, src/app/schedule/overview/constants.ts]
+updated: 2026-06-01
+sources: [src/app/schedule/constants.ts, src/app/schedule/utils.ts, src/app/schedule/types.ts, src/app/schedule/overview/constants.ts, src/app/schedule/overview/actions.ts]
 ---
 
 # WIP Hesabı ve Üretim Simülasyonu
 
-`/schedule` sayfasının arkasındaki `buildSchedule` simülasyon motoru. Pres hücresinin günlük kapasitesini, kalıp ömürlerini ve WIP akışını hesaplar.
+`/schedule` sayfasının arkasındaki `buildSchedule` simülasyon motoru. Pres hücresinin günlük kapasitesini, kalıp ömürlerini ve WIP akışını hesaplar. Ayrıca Genel Hat Görünümü üzerinden tüm 12 hücre arasındaki WIP (Work-in-Progress) stok geçişleri kronolojik kümülatif üretim farkları üzerinden hesaplanır.
 
 ## Varsayılan Parametreler
 
@@ -42,20 +42,26 @@ Her gün için sırayla:
 4. **Kapasite hesaplanır**:
    ```
    pressMinutes = shiftEnd - pressStart
-   capacityPressed = floor(pressMinutes / pressCycleMinutes)
    ```
-5. **Aynı gün ETM'ye geçiş**:
-   ```
-   sameDayReadyMinutes = shiftEnd - pressStart - normalizationProcess
-   sameDayCapacity = floor(sameDayReadyMinutes / pressCycleMinutes)
-   sameDayEtmReady = min(pressed, sameDayCapacity)
-   ```
-6. **Pressed değeri seçilir** (öncelik sırası):
+5. **Pressed değeri seçilir** (öncelik sırası):
    - `override.pressed` → senaryo
    - `actuals[key]` → gerçekleşen (Supabase'den)
    - `capacityPressed` → plan
+6. **Kalıp ömürleri güncellenir**: `maleRemaining`, `femaleRemaining` her gün basılan adet kadar azalır.
 
-7. **Kalıp ömürleri güncellenir**: `maleRemaining`, `femaleRemaining` her gün basılan adet kadar azalır.
+## Genel Hat WIP Stok Hesabı (`calculateAndSaveWip`)
+
+Tüm hat boyunca hücreler arası WIP seviyeleri kronolojik kümülatif üretim farkları üzerinden hesaplanır:
+
+1. **Kümülatif Üretim Sayacı**: Seçili tarih aralığında her gün için tüm hücrelerin kümülatif gerçekleşen üretimleri (`actuals`) güncellenir.
+2. **Hücreler Arası Fark**: Hücre $A$ (kaynak) ile Hücre $B$ (hedef) arasındaki WIP stoğu:
+   $$\text{WIP}_{A \to B} = \text{Kümülatif Üretim}_A - \text{Kümülatif Üretim}_B$$
+3. **Özel Birleşik Hatlar**:
+   - **ROB104 → N602 / N603**: ROB104 hücresinden çıkan parçalar N602 ve N603 fırınlarına paralel beslenebildiği için birleşik hesaplanır:
+     $$\text{WIP}_{\text{ROB104} \to \text{N602}} = \text{Kümülatif}_{\text{ROB104}} - (\text{Kümülatif}_{\text{N602}} + \text{Kümülatif}_{\text{N603}})$$
+   - **N602 / N603 → ROB109**: N602 ve N603 fırınlarından çıkan parçalar ROB109 robot hücresinde birleştiği için:
+     $$\text{WIP}_{\text{N602} \to \text{ROB109}} = (\text{Kümülatif}_{\text{N602}} + \text{Kümülatif}_{\text{N603}}) - \text{Kümülatif}_{\text{ROB109}}$$
+4. **Manuel Override Koruma**: Kullanıcıların `manuf_wip_stock` tablosunda manuel olarak güncellediği (`override_edildi = true`) değerler otomatik hesaplama sırasında ezilmez.
 
 ## Hücre Akış Sırası (CELL_FLOWS)
 

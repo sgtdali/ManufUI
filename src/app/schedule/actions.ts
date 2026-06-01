@@ -53,7 +53,7 @@ export async function loadPressActuals(startDate: string, endDate: string) {
 export type MoldChange = {
   id: string;
   tarih: string;
-  mold_type: "male" | "female";
+  mold_type: "male" | "female" | "ring";
   description: string | null;
   created_at: string;
 };
@@ -78,7 +78,7 @@ export async function loadMoldChanges(startDate: string, endDate: string) {
   return { success: true, data: data as MoldChange[] };
 }
 
-export async function saveMoldChange(tarih: string, moldType: "male" | "female", description?: string) {
+export async function saveMoldChange(tarih: string, moldType: "male" | "female" | "ring", description?: string) {
   if (!isDateValue(tarih)) {
     return { success: false, error: "Geçersiz tarih." };
   }
@@ -450,6 +450,9 @@ export async function loadScheduleOverrides(cellName: string, startDate: string,
         row.mold_change_mode || (row.postpone_male_change === true || row.postpone_female_change === true ? "postpone" : undefined),
       manualMoldType: row.manual_mold_type || undefined,
       manualMoldChangeAfterPieces: row.manual_mold_change_after_pieces !== null ? row.manual_mold_change_after_pieces : undefined,
+      femaleChangeMinutes: row.female_change_minutes !== null ? row.female_change_minutes : undefined,
+      maleChangeMinutes: row.male_change_minutes !== null ? row.male_change_minutes : undefined,
+      ringChangeMinutes: row.ring_change_minutes !== null ? row.ring_change_minutes : undefined,
     };
 
     if (Array.isArray(row.dependencies)) {
@@ -495,6 +498,9 @@ export async function saveScheduleOverride(
         manual_mold_type: override.manualMoldType || null,
         manual_mold_change_after_pieces:
           override.manualMoldChangeAfterPieces !== undefined ? override.manualMoldChangeAfterPieces : null,
+        female_change_minutes: override.femaleChangeMinutes !== undefined ? override.femaleChangeMinutes : null,
+        male_change_minutes: override.maleChangeMinutes !== undefined ? override.maleChangeMinutes : null,
+        ring_change_minutes: override.ringChangeMinutes !== undefined ? override.ringChangeMinutes : null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "tarih,bolum" }

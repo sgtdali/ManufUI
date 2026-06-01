@@ -65,6 +65,7 @@ export default function SchedulePage() {
   const [overtimeMinutes, setOvertimeMinutes] = useState("0");
   const [initialMaleRemaining, setInitialMaleRemaining] = useState("500");
   const [initialFemaleRemaining, setInitialFemaleRemaining] = useState("1300");
+  const [initialRingRemaining, setInitialRingRemaining] = useState("1300");
   const [holidayWorkEnabled, setHolidayWorkEnabled] = useState(false);
 
   // ── Override / senaryo durumu ────────────────────────────────────────────
@@ -176,7 +177,7 @@ export default function SchedulePage() {
 
   // ── Kalıp değişim haritası ────────────────────────────────────────────────
   const moldChangesByDate = useMemo(() => {
-    const map: Record<string, ("male" | "female")[]> = {};
+    const map: Record<string, ("male" | "female" | "ring")[]> = {};
     for (const mc of moldChanges) {
       if (!map[mc.tarih]) map[mc.tarih] = [];
       map[mc.tarih].push(mc.mold_type);
@@ -197,6 +198,8 @@ export default function SchedulePage() {
       femaleDieInterval: map["female_die_interval"] ?? DEFAULT_PROCESS_PARAMS.femaleDieInterval,
       maleDieChangeMinutes: map["male_die_change_minutes"] ?? DEFAULT_PROCESS_PARAMS.maleDieChangeMinutes,
       femaleDieChangeMinutes: map["female_die_change_minutes"] ?? DEFAULT_PROCESS_PARAMS.femaleDieChangeMinutes,
+      ringInterval: map["ring_interval"] ?? DEFAULT_PROCESS_PARAMS.ringInterval,
+      ringChangeMinutes: map["ring_change_minutes"] ?? DEFAULT_PROCESS_PARAMS.ringChangeMinutes,
     };
   }, [scheduleParams]);
 
@@ -214,6 +217,7 @@ export default function SchedulePage() {
         holidayWorkEnabled,
         initialMaleRemaining: Math.max(numberInput(initialMaleRemaining), 0),
         initialFemaleRemaining: Math.max(numberInput(initialFemaleRemaining), 0),
+        initialRingRemaining: Math.max(numberInput(initialRingRemaining), 0),
         overrides,
         actuals,
         moldChangesByDate,
@@ -224,7 +228,7 @@ export default function SchedulePage() {
       }),
     [
       actuals, dailyTarget, defaultFurnaceStart, defaultShiftEnd, defaultShiftStart,
-      endDate, holidayWorkEnabled, initialFemaleRemaining, initialMaleRemaining,
+      endDate, holidayWorkEnabled, initialFemaleRemaining, initialMaleRemaining, initialRingRemaining,
       moldChangesByDate, overtimeMinutes, overrides, processParams, startDate,
       breakdownsByDate, selectedCell, allCellParams,
     ]
@@ -302,6 +306,10 @@ export default function SchedulePage() {
         item.moldMaintenanceStart !== undefined ||
         item.postponeMaleChange !== undefined ||
         item.postponeFemaleChange !== undefined ||
+        item.postponeRingChange !== undefined ||
+        item.femaleChangeMinutes !== undefined ||
+        item.maleChangeMinutes !== undefined ||
+        item.ringChangeMinutes !== undefined ||
         item.moldChangeMode !== undefined ||
         item.manualMoldType !== undefined ||
         item.manualMoldChangeAfterPieces !== undefined ||
@@ -511,6 +519,7 @@ export default function SchedulePage() {
                     overtimeMinutes={overtimeMinutes} setOvertimeMinutes={setOvertimeMinutes}
                     initialMaleRemaining={initialMaleRemaining} setInitialMaleRemaining={setInitialMaleRemaining}
                     initialFemaleRemaining={initialFemaleRemaining} setInitialFemaleRemaining={setInitialFemaleRemaining}
+                    initialRingRemaining={initialRingRemaining} setInitialRingRemaining={setInitialRingRemaining}
                     holidayWorkEnabled={holidayWorkEnabled} setHolidayWorkEnabled={setHolidayWorkEnabled}
                     clearAllOverrides={clearAllOverrides}
                     normalizationWarmupMinutes={processParams.normalizationWarmupMinutes}
@@ -523,6 +532,7 @@ export default function SchedulePage() {
                     startDate={startDate}
                     moldChanges={moldChanges}
                     setMoldChanges={setMoldChanges}
+                    schedule={schedule}
                   />
                 )}
                 {activeSidebarTab === "params" && (

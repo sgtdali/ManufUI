@@ -34,17 +34,18 @@ type GanttSegment = {
   end: number;
   className: string;
   note?: string;
-  editable?: "furnace" | "press" | "shift" | "mold-maintenance" | "die-cooling";
+  editable?: "furnace" | "press" | "shift" | "mold-maintenance" | "mold-maintenance-male" | "mold-maintenance-female" | "mold-maintenance-ring" | "die-cooling";
 };
 
 
 const GANTT_ROWS = [
-
   "Vardiya",
   "Fırın Isıtma",
   "Kalıp Isıtma",
   "İndüksiyon Başlangıç",
-  "Planlı Duruş / Kalıp Değişimi",
+  "Erkek Kalıp Değişimi",
+  "Dişi Kalıp Değişimi",
+  "HIP Ring Değişimi",
   "Pres Proses",
   "Kalıp Soğutma",
   "Arıza / Duruş",
@@ -56,7 +57,9 @@ const ROW_LABEL_TO_SEGMENT_ID: Record<string, string> = {
   "Fırın Isıtma": "furnace-warmup",
   "Kalıp Isıtma": "die-heat",
   "İndüksiyon Başlangıç": "induction-start",
-  "Planlı Duruş / Kalıp Değişimi": "mold-maintenance",
+  "Erkek Kalıp Değişimi": "mold-maintenance-male",
+  "Dişi Kalıp Değişimi": "mold-maintenance-female",
+  "HIP Ring Değişimi": "mold-maintenance-ring",
   "Pres Proses": "press-process",
   "Kalıp Soğutma": "die-cooling",
 };
@@ -157,7 +160,7 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
       : null;
 
   const coolingMinutes = Math.max(dayOverride?.dieCoolingMinutes ?? DEFAULT_DIE_COOLING_MINUTES, 0);
-  const coolEnd = productionEnd !== null ? productionEnd + coolingMinutes : baseShiftEnd;
+  const coolEnd = (productionEnd !== null && day.pressed > 0) ? productionEnd + coolingMinutes : null;
 
   const customItems = dayOverride?.customGanttItems ?? [];
 
@@ -183,7 +186,7 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
     }
     shiftEnd = Math.max(shiftEnd, productionEnd);
   }
-  if (!disabledList.includes("die-cooling") && isPress && coolingMinutes > 0) {
+  if (!disabledList.includes("die-cooling") && isPress && coolingMinutes > 0 && coolEnd !== null) {
     shiftEnd = Math.max(shiftEnd, coolEnd);
   }
   for (const item of customItems) {
@@ -264,38 +267,87 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
     }
   }
 
-  if (isPress && !disabledList.includes("mold-maintenance")) {
-    const moldLabels = moldChangesForDay.map((change) => change.mold_type === "male" ? "Erkek" : "Dişi");
+  if (isPress) {
+    const moldLabels = moldChangesForDay.map((change) => change.mold_type === "male" ? "Erkek" : change.mold_type === "female" ? "Dişi" : "Ring");
     
-    // 1. Start-of-day maintenance segment
+    // 1. Start-of-day maintenance segments
     if (startMaintDuration > 0) {
-      segments.push({
-        id: "mold-maintenance-start",
-        label: "Planlı Duruş / Kalıp Değişimi",
-        start: maintenanceStart,
-        end: maintenanceEnd,
-        className: moldChangesForDay.some((change) => change.mold_type === "female") ? "bg-purple-500" : "bg-sky-500",
-        note: [
-          day.maintenanceLabel !== "-" && startMaintMinutes > 0 ? day.maintenanceLabel : null,
-          moldLabels.length > 0 ? `Kayıt: ${moldLabels.join(" + ")}` : null,
-          startMaintMinutes > 0 ? `${startMaintMinutes} dk` : "Kayıtlı değişim",
-        ].filter(Boolean).join(" · "),
-        editable: "mold-maintenance",
-      });
+      const femaleDuration = day.femaleMaintMinutes ?? 0;
+      const maleDuration = day.maleMaintMinutes ?? 0;
+      const ringDuration = day.ringMaintMinutes ?? 0;
+
+      // Female Segment
+      if (femaleDuration > 0 && !disabledList.includes("mold-maintenance-female") && !disabledList.includes("mold-maintenance")) {
+        const segEnd = Math.min(maintenanceStart + femaleDuration, shiftEnd);
+        segments.push({
+          id: "mold-maintenance-start-female",
+          label: "Dişi Kalıp Değişimi",
+          start: maintenanceStart,
+          end: segEnd,
+          className: "bg-purple-500",
+          note: `Dişi Kalıp Değişimi · ${femaleDuration} dk`,
+          editable: "mold-maintenance-female",
+        });
+      }
+
+      // Male Segment (starts after female completes because they are sequential)
+      if (maleDuration > 0 && !disabledList.includes("mold-maintenance-male") && !disabledList.includes("mold-maintenance")) {
+        const maleStart = maintenanceStart + femaleDuration;
+        const segEnd = Math.min(maleStart + maleDuration, shiftEnd);
+        segments.push({
+          id: "mold-maintenance-start-male",
+          label: "Erkek Kalıp Değişimi",
+          start: maleStart,
+          end: segEnd,
+          className: "bg-sky-500",
+          note: `Erkek Kalıp Değişimi · ${maleDuration} dk`,
+          editable: "mold-maintenance-male",
+        });
+      }
+
+      // Ring Segment (runs in parallel with the female + male sequence)
+      if (ringDuration > 0 && !disabledList.includes("mold-maintenance-ring") && !disabledList.includes("mold-maintenance")) {
+        const segEnd = Math.min(maintenanceStart + ringDuration, shiftEnd);
+        segments.push({
+          id: "mold-maintenance-start-ring",
+          label: "HIP Ring Değişimi",
+          start: maintenanceStart,
+          end: segEnd,
+          className: "bg-amber-500",
+          note: `HIP Ring Değişimi · ${ringDuration} dk`,
+          editable: "mold-maintenance-ring",
+        });
+      }
     }
 
     // 2. Mid-day maintenance segment
     if (midMaintMinutes > 0 && midMaintStart !== null) {
       const endMaint = Math.min(midMaintStart + midMaintMinutes, shiftEnd);
-      segments.push({
-        id: "mold-maintenance-mid",
-        label: "Planlı Duruş / Kalıp Değişimi",
-        start: midMaintStart,
-        end: endMaint,
-        className: "bg-sky-500",
-        note: `Ara Kalıp Değişimi · ${midMaintMinutes} dk`,
-        editable: "mold-maintenance",
-      });
+      let midType: "male" | "female" | "ring" = "male";
+      if (day.maintenanceLabel.includes("Ring") && !day.maintenanceLabel.startsWith("HIP Ring")) {
+        midType = "ring";
+      } else if (day.maintenanceLabel.includes("Dişi") && day.maintenanceLabel.includes("Erkek")) {
+        midType = "male";
+      } else if (day.maintenanceLabel.endsWith("Dişi kalıp değişimi")) {
+        midType = "female";
+      } else if (day.maintenanceLabel.endsWith("HIP Ring değişimi")) {
+        midType = "ring";
+      } else if (day.maintenanceLabel.endsWith("Erkek kalıp değişimi")) {
+        midType = "male";
+      }
+
+      const segId = `mold-maintenance-${midType}`;
+      if (!disabledList.includes(segId) && !disabledList.includes("mold-maintenance")) {
+        segments.push({
+          id: `mold-maintenance-mid-${midType}`,
+          label: midType === "female" ? "Dişi Kalıp Değişimi" : midType === "male" ? "Erkek Kalıp Değişimi" : "HIP Ring Değişimi",
+          start: midMaintStart,
+          end: endMaint,
+          className: midType === "female" ? "bg-purple-500" : midType === "ring" ? "bg-amber-500" : "bg-sky-500",
+          note: `Ara ${midType === "female" ? "Dişi" : midType === "male" ? "Erkek" : "Ring"} Değişimi · ${midMaintMinutes} dk`,
+          editable: `mold-maintenance-${midType}` as any,
+        });
+      }
     }
   }
 
@@ -323,8 +375,8 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
     }
   }
 
-  const coolStart = productionEnd !== null ? productionEnd : Math.max(shiftEnd - coolingMinutes, shiftStart);
-  if (isPress && coolingMinutes > 0 && coolEnd > coolStart && !disabledList.includes("die-cooling")) {
+  const coolStart = (productionEnd !== null && day.pressed > 0) ? productionEnd : null;
+  if (isPress && coolStart !== null && coolEnd !== null && coolingMinutes > 0 && coolEnd > coolStart && !disabledList.includes("die-cooling")) {
     segments.push({
       id: "die-cooling",
       label: "Kalıp Soğutma",
@@ -526,8 +578,15 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
     event.preventDefault();
     event.stopPropagation();
 
-    const track = event.currentTarget.parentElement;
+    const track = event.currentTarget.closest(".relative.min-h-7");
     if (!track) return;
+
+    const targetEl = event.currentTarget;
+    try {
+      targetEl.setPointerCapture(event.pointerId);
+    } catch (err) {
+      console.error("Failed to set pointer capture", err);
+    }
 
     const rect = track.getBoundingClientRect();
     const minutesPerPixel = (gantt.endMinute - gantt.startMinute) / Math.max(rect.width, 1);
@@ -567,15 +626,38 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
         return;
       }
 
-      if (segment.editable === "mold-maintenance") {
-        const nextStart = clamp(originalStart + delta, gantt.startMinute, shiftEnd - originalDuration);
-        const patch: DayOverride = { moldMaintenanceStart: formatTimeFromMinutes(nextStart) };
-        if ((overrides[day.key]?.moldChangeMode ?? "auto") === "manual") {
-          const pressStart = unwrapTime(day.pressStartTime, shiftStart);
-          const coolingMinutes = Math.max(overrides[day.key]?.dieCoolingMinutes ?? DEFAULT_DIE_COOLING_MINUTES, 0);
-          if (pressStart !== null) {
-            patch.manualMoldChangeAfterPieces = Math.max(Math.floor((nextStart - coolingMinutes - pressStart) / 3), 0);
+      if (segment.editable?.startsWith("mold-maintenance")) {
+        if (mode === "resize-end") {
+          const nextEnd = clamp(originalEnd + delta, originalStart + 15, MAX_MINUTE);
+          const newDuration = Math.round(nextEnd - originalStart);
+          const type = segment.id.includes("female")
+            ? "female"
+            : segment.id.includes("male")
+              ? "male"
+              : "ring";
+          
+          if (type === "female") {
+            updateOverride(day.key, { femaleChangeMinutes: newDuration });
+          } else if (type === "male") {
+            updateOverride(day.key, { maleChangeMinutes: newDuration });
+          } else {
+            updateOverride(day.key, { ringChangeMinutes: newDuration });
           }
+          return;
+        }
+
+        const nextStart = clamp(originalStart + delta, gantt.startMinute, shiftEnd - originalDuration);
+        const patch: DayOverride = {};
+        if (segment.id.includes("-mid-")) {
+          if ((overrides[day.key]?.moldChangeMode ?? "auto") === "manual") {
+            const pressStart = unwrapTime(day.pressStartTime, shiftStart);
+            const coolingMinutes = Math.max(overrides[day.key]?.dieCoolingMinutes ?? DEFAULT_DIE_COOLING_MINUTES, 0);
+            if (pressStart !== null) {
+              patch.manualMoldChangeAfterPieces = Math.max(Math.floor((nextStart - coolingMinutes - pressStart) / 3), 0);
+            }
+          }
+        } else {
+          patch.moldMaintenanceStart = formatTimeFromMinutes(nextStart);
         }
         updateOverride(day.key, patch);
         return;
@@ -616,12 +698,26 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
     };
 
     const onPointerUp = () => {
+      try {
+        targetEl.releasePointerCapture(event.pointerId);
+      } catch (err) {}
       document.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerCancel);
+    };
+
+    const onPointerCancel = () => {
+      try {
+        targetEl.releasePointerCapture(event.pointerId);
+      } catch (err) {}
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerCancel);
     };
 
     document.addEventListener("pointermove", onPointerMove);
-    document.addEventListener("pointerup", onPointerUp, { once: true });
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerCancel, { once: true });
   };
 
   return (
@@ -798,6 +894,14 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                           >
                             D {formatNumber(day.femaleRemainingEnd)}
                           </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              day.ringRemainingEnd <= 300 ? "bg-rose-100 text-rose-700" : "bg-zinc-100 text-zinc-600"
+                            }`}
+                            title="HIP Ring kalan"
+                          >
+                            R {formatNumber(day.ringRemainingEnd)}
+                          </span>
                         </div>
                       </td>
                     )}
@@ -881,6 +985,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                       moldChangeMode: mode === "auto" ? undefined : mode,
                                       postponeMaleChange: mode === "postpone" ? true : undefined,
                                       postponeFemaleChange: mode === "postpone" ? true : undefined,
+                                      postponeRingChange: mode === "postpone" ? true : undefined,
                                       manualMoldType: mode === "manual" ? (overrides[day.key]?.manualMoldType ?? "male") : undefined,
                                       manualMoldChangeAfterPieces:
                                         mode === "manual"
@@ -903,10 +1008,13 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                       className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs font-semibold text-zinc-700"
                                       disabled={isRowDisabled}
                                       value={overrides[day.key]?.manualMoldType ?? "male"}
-                                      onChange={(e) => updateOverride(day.key, { manualMoldType: e.target.value as "male" | "female" })}
+                                      onChange={(e) => updateOverride(day.key, { manualMoldType: e.target.value as any })}
                                     >
                                       <option value="male">Erkek</option>
-                                      <option value="female">Disi</option>
+                                      <option value="female">Dişi</option>
+                                      <option value="ring">HIP Ring</option>
+                                      <option value="male+ring">Erkek + HIP Ring</option>
+                                      <option value="female+ring">Dişi + HIP Ring</option>
                                     </select>
                                   </div>
 
@@ -963,69 +1071,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                           </div>
 
 
-                          {isPress && (
-                            <div className="mb-3 rounded-md border border-zinc-200 bg-white p-2">
-                              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                                  Kalıp Değişimi
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  <Button
-                                    type="button"
-                                    variant={hasMaleMoldChange ? "secondary" : "outline"}
-                                    size="sm"
-                                    className="h-7 px-2 text-[11px]"
-                                    disabled={hasMaleMoldChange || pendingMoldKey === `${day.key}-male`}
-                                    onClick={() => addMoldChange(day, "male")}
-                                  >
-                                    <Plus className="mr-1 h-3 w-3" />
-                                    Erkek kalıp ekle
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant={hasFemaleMoldChange ? "secondary" : "outline"}
-                                    size="sm"
-                                    className="h-7 px-2 text-[11px]"
-                                    disabled={hasFemaleMoldChange || pendingMoldKey === `${day.key}-female`}
-                                    onClick={() => addMoldChange(day, "female")}
-                                  >
-                                    <Plus className="mr-1 h-3 w-3" />
-                                    Dişi kalıp ekle
-                                  </Button>
-                                </div>
-                              </div>
 
-                              {moldChangesForDay.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {moldChangesForDay.map((change) => (
-                                    <span
-                                      key={change.id}
-                                      className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-bold ${
-                                        change.mold_type === "male"
-                                          ? "border-sky-200 bg-sky-50 text-sky-700"
-                                          : "border-purple-200 bg-purple-50 text-purple-700"
-                                      }`}
-                                    >
-                                      {change.mold_type === "male" ? "Erkek kalıp" : "Dişi kalıp"}
-                                      <button
-                                        type="button"
-                                        className="rounded p-0.5 text-zinc-400 hover:bg-white hover:text-rose-600"
-                                        disabled={pendingMoldKey === change.id}
-                                        onClick={() => removeMoldChange(change)}
-                                        title="Kalıp değişimini kaldır"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-[11px] text-zinc-500">
-                                  Bu güne kayıtlı kalıp değişimi yok. Eklediğinde simülasyon tekrar hesaplanır ve Gantt üzerinde blok olarak görünür.
-                                </p>
-                              )}
-                            </div>
-                          )}
 
                           <div className="mb-3 rounded-md border border-zinc-200 bg-white p-2">
                             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -1103,6 +1149,9 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                   else if (segId === "die-heat") label = "Kalıp Isıtma";
                                   else if (segId === "induction-start") label = "İndüksiyon Başlangıç";
                                   else if (segId === "mold-maintenance") label = "Planlı Duruş / Kalıp Değişimi";
+                                  else if (segId === "mold-maintenance-male") label = "Erkek Kalıp Değişimi";
+                                  else if (segId === "mold-maintenance-female") label = "Dişi Kalıp Değişimi";
+                                  else if (segId === "mold-maintenance-ring") label = "HIP Ring Değişimi";
                                   else if (segId === "press-process") label = "Pres Proses";
                                   else if (segId === "die-cooling") label = "Kalıp Soğutma";
                                   else if (segId === "breakdown") label = "Arıza / Duruş";
@@ -1257,14 +1306,21 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                                 const currentDisabled = overrides[day.key]?.disabledSegments ?? [];
                                                 const disabledId = segment.id.startsWith("press-process")
                                                   ? "press-process"
-                                                  : segment.id.startsWith("mold-maintenance")
-                                                    ? "mold-maintenance"
-                                                    : segment.id;
+                                                  : segment.id.includes("female")
+                                                    ? "mold-maintenance-female"
+                                                    : segment.id.includes("male")
+                                                      ? "mold-maintenance-male"
+                                                      : segment.id.includes("ring")
+                                                        ? "mold-maintenance-ring"
+                                                        : segment.id.startsWith("mold-maintenance")
+                                                          ? "mold-maintenance"
+                                                          : segment.id;
                                                 const currentDisabledOperations = overrides[day.key]?.disabledOperations ?? [];
+                                                const isMoldMaint = disabledId.startsWith("mold-maintenance");
                                                 updateOverride(day.key, {
                                                   disabledSegments: [...currentDisabled, disabledId],
                                                   disabledOperations:
-                                                    disabledId === "mold-maintenance"
+                                                    isMoldMaint
                                                       ? [...currentDisabledOperations.filter((id) => id !== disabledId), disabledId]
                                                       : currentDisabledOperations.length > 0 ? currentDisabledOperations : undefined,
                                                 });
@@ -1288,7 +1344,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                     >
                                       {rowSegments.map((segment) => (
                                         <div
-                                          key={`${segment.label}-${segment.start}-${segment.end}`}
+                                          key={segment.id}
                                           className={`absolute top-1 bottom-1 rounded-sm border border-black/10 ${segment.className} ${
                                             segment.editable ? "cursor-grab touch-none ring-1 ring-black/5 active:cursor-grabbing" : ""
                                           } ${
@@ -1331,11 +1387,11 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                               title="Vardiya başlangıcını sürükle"
                                             />
                                           )}
-                                          {(segment.editable === "shift" || segment.editable === "press" || segment.editable === "die-cooling") && (
+                                          {(segment.editable === "shift" || segment.editable === "press" || segment.editable === "die-cooling" || segment.editable?.startsWith("mold-maintenance")) && (
                                             <span
                                               className="absolute right-0 top-0 z-10 h-full w-2 cursor-ew-resize rounded-r-sm bg-black/20"
                                               onPointerDown={(e) => beginSegmentDrag(e, day, segment, gantt, "resize-end")}
-                                              title={segment.editable === "press" ? "Üretim süresini/adedi sürükle" : segment.editable === "die-cooling" ? "Soğutma süresini ayarla" : "Vardiya bitişini sürükle"}
+                                              title={segment.editable === "press" ? "Üretim süresini/adedi sürükle" : segment.editable === "die-cooling" ? "Soğutma süresini ayarla" : segment.editable?.startsWith("mold-maintenance") ? "Kalıp/Ring değişim süresini sürükleyerek ayarla" : "Vardiya bitişini sürükle"}
                                             />
                                           )}
                                         </div>
