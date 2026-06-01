@@ -340,7 +340,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
   } | null>(null);
   const [ganttRowOrder, setGanttRowOrder] = useState<string[]>(DEFAULT_MOVABLE_GANTT_ROWS);
   const [draggedRowLabel, setDraggedRowLabel] = useState<string | null>(null);
-  const visibleColumnCount = isPress ? 17 : 11;
+  const visibleColumnCount = isPress ? 7 : 6;
 
   const addMoldChange = async (day: DayPlan, moldType: "male" | "female") => {
     setPendingMoldKey(`${day.key}-${moldType}`);
@@ -598,21 +598,11 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
             <thead>
               <tr className="border-b border-zinc-200 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-50/70">
                 <th className="py-2.5 pl-3 pr-1.5 font-semibold">Gün</th>
-                <th className="px-1.5 py-2.5 font-semibold">Vardiya</th>
-                {isPress && <th className="px-1.5 py-2.5 font-semibold">Fırın</th>}
-                <th className="px-1.5 py-2.5 text-right font-semibold">F.Mesai</th>
-                <th className="px-1.5 py-2.5 text-right font-semibold">Manuel</th>
-                <th className="px-1.5 py-2.5 text-center font-semibold">Çalış</th>
-                <th className="px-1.5 py-2.5 font-semibold">Planlı Duruş</th>
-                <th className="px-1.5 py-2.5 font-semibold text-rose-600">Arıza</th>
-                {isPress && <th className="px-1.5 py-2.5 font-semibold">İlk Pres</th>}
-                <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">Hedef</th>
-                <th className="px-1.5 py-2.5 text-right font-semibold">Üretim</th>
-                {isPress && <th className="px-1.5 py-2.5 text-right font-semibold">ETM</th>}
-                {isPress && <th className="px-1.5 py-2.5 text-right font-semibold text-zinc-500">ETM Stok</th>}
-                <th className="px-1.5 py-2.5 text-right font-semibold">Fark</th>
-                {isPress && <th className="px-1.5 py-2.5 text-right font-semibold">Erkek</th>}
-                {isPress && <th className="px-1.5 py-2.5 text-right font-semibold">Dişi</th>}
+                <th className="px-3 py-2.5 font-semibold">Üretim / Hedef</th>
+                <th className="px-3 py-2.5 text-right font-semibold">Fark</th>
+                <th className="px-3 py-2.5 text-right font-semibold">F.Mesai</th>
+                {isPress && <th className="px-3 py-2.5 text-center font-semibold">Kalıp</th>}
+                <th className="px-3 py-2.5 font-semibold text-rose-500">Arıza</th>
                 <th className="py-2.5 pr-3 text-right font-semibold">Sıfırla</th>
               </tr>
             </thead>
@@ -694,174 +684,93 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                         </span>
                       </button>
                     </td>
-                    {/* Vardiya */}
-                    <td className="px-1.5 py-2">
-                      <div className="flex items-center gap-1">
-                        <Input
-                          aria-label={`${day.label} vardiya başlangıç`}
-                          className={`h-7 w-[68px] text-center p-0 ${inputCls}`}
-                          type="time"
-                          disabled={isRowDisabled}
-                          value={overrides[day.key]?.shiftStart ?? day.shiftStart ?? ""}
-                          onChange={(e) => updateOverride(day.key, { shiftStart: e.target.value || undefined })}
-                        />
-                        <span className="text-zinc-300">-</span>
-                        <span className="text-xs font-semibold text-zinc-700">{displayShiftEnd}</span>
-                      </div>
-                    </td>
-                    {/* Fırın */}
-                    {isPress && (
-                      <td className="px-1.5 py-2">
-                        <Input
-                          aria-label={`${day.label} fırın başlangıç`}
-                          className={`h-7 w-[68px] text-center p-0 ${inputCls}`}
-                          type="time"
-                          disabled={isRowDisabled}
-                          value={overrides[day.key]?.furnaceStart ?? day.furnaceStart ?? ""}
-                          onChange={(e) => updateOverride(day.key, { furnaceStart: e.target.value || undefined })}
-                        />
-                      </td>
-                    )}
-                    {/* Fazla mesai - Gantt shift segment'ten okunan otomatik hesap */}
-                    <td className="px-1.5 py-2">
-                      <span className={`text-xs font-semibold ${ displayOvertime > 0 ? "text-amber-600" : "text-zinc-400" }`}>
-                        {displayOvertime > 0 ? `+${displayOvertime}` : "-"}
-                      </span>
-                    </td>
-                    {/* Manuel üretim */}
-                    <td className="px-1.5 py-2">
-                      <Input
-                        aria-label={`${day.label} gerçekleşen pres adedi`}
-                        className={`ml-auto h-7 w-[68px] text-right px-1 ${inputCls}`}
-                        min={0}
-                        type="number"
-                        disabled={isRowDisabled}
-                        value={overrides[day.key]?.pressed ?? actuals[day.key] ?? ""}
-                        placeholder={String(day.capacityPressed)}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          updateOverride(day.key, {
-                            pressed: v === "" ? undefined : Math.max(Math.floor(numberInput(v)), 0),
-                          });
-                        }}
-                      />
-                    </td>
-                    {/* Çalış checkbox */}
-                    <td className="px-1.5 py-2 text-center">
-                      <input
-                        aria-label={`${day.label} çalışma günü yap`}
-                        checked={day.isWorkday}
-                        className="h-3.5 w-3.5 accent-blue-700 cursor-pointer disabled:opacity-50"
-                        disabled={day.isBaseWorkday}
-                        type="checkbox"
-                        onChange={(e) =>
-                          updateOverride(day.key, { forceWorkday: e.target.checked ? true : undefined })
-                        }
-                      />
-                    </td>
-                    {/* Planlı duruş */}
-                    <td className="px-1.5 py-2">
-                      <span
-                        className={
-                          isPress && day.maintenanceMinutes > 0
-                            ? "inline-flex items-center rounded bg-amber-50 border border-amber-200 px-1 py-0.5 text-[9px] font-semibold text-amber-800"
-                            : "text-zinc-400 text-xs"
-                        }
-                      >
-                        {isPress ? day.maintenanceLabel : "-"}
-                      </span>
-                    </td>
-                    {/* Arıza */}
-                    <td className="px-1.5 py-2">
-                      {day.breakdownMinutes > 0 ? (
-                        <div
-                          className="inline-flex items-center gap-1 rounded bg-rose-50 border border-rose-200 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 cursor-help"
-                          title={day.breakdownDetails.join("\n")}
-                        >
-                          <span>{day.breakdownMinutes} dk</span>
+                    {/* ── Üretim / Hedef progress cell ── */}
+                    <td className="px-3 py-2">
+                      {day.isWorkday ? (
+                        <div className="flex flex-col gap-0.5 min-w-[120px]">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className={`text-xs font-bold ${
+                              day.source === "scenario" ? "text-blue-700" :
+                              day.source === "actual" ? "text-emerald-700" : "text-zinc-800"
+                            }`}>{formatNumber(day.pressed)}</span>
+                            <span className="text-[10px] text-zinc-400 font-medium">/ {formatNumber(day.target)}</span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                day.pressed >= day.target ? "bg-emerald-500" :
+                                day.pressed >= day.target * 0.85 ? "bg-amber-400" : "bg-rose-400"
+                              }`}
+                              style={{ width: `${Math.min(100, day.target > 0 ? (day.pressed / day.target) * 100 : 0)}%` }}
+                            />
+                          </div>
                         </div>
                       ) : (
-                        <span className="text-zinc-400 text-xs">-</span>
+                        <span className="text-zinc-300 text-xs">Tatil</span>
                       )}
                     </td>
-                    {/* İlk pres */}
-                    {isPress && (
-                      <td className="px-1.5 py-2 text-zinc-500 text-xs">{day.pressStartTime ?? "-"}</td>
-                    )}
-                    {/* Hedef */}
-                    <td className="px-1.5 py-2 text-right font-medium text-zinc-400 text-xs">
-                      {formatNumber(day.target)}
+
+                    {/* ── Fark ── */}
+                    <td className="px-3 py-2 text-right">
+                      {day.isWorkday ? (
+                        <span className={`text-xs font-bold ${
+                          day.targetGap > 0 ? "text-rose-600" : "text-emerald-600"
+                        }`}>
+                          {day.targetGap > 0 ? `-${formatNumber(day.targetGap)}` : `+${formatNumber(Math.abs(day.targetGap))}`}
+                        </span>
+                      ) : <span className="text-zinc-300">—</span>}
                     </td>
-                    {/* Preslenen / Üretim */}
-                    <td className="px-1.5 py-2 text-right">
-                      <span
-                        className={
-                          day.source === "scenario"
-                            ? "inline-flex items-center rounded bg-blue-50 border border-blue-100 px-1.5 py-0.5 text-xs font-bold text-blue-700"
-                            : day.source === "actual"
-                              ? "inline-flex items-center rounded bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 text-xs font-bold text-emerald-700"
-                              : "text-zinc-700 text-xs font-semibold"
-                        }
-                        title={
-                          day.source === "scenario"
-                            ? "Senaryo değeri"
-                            : day.source === "actual"
-                              ? "Supabase gerçekleşen değeri"
-                              : "Planlanan kapasite"
-                        }
-                      >
-                        {formatNumber(day.pressed)}
-                      </span>
+
+                    {/* ── Fazla Mesai ── */}
+                    <td className="px-3 py-2 text-right">
+                      {displayOvertime > 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                          +{displayOvertime} dk
+                        </span>
+                      ) : (
+                        <span className="text-zinc-300 text-xs">—</span>
+                      )}
                     </td>
-                    {/* ETM hazır */}
+
+                    {/* ── Kalıp ömrü (sadece Pres) ── */}
                     {isPress && (
-                      <td className="px-1.5 py-2 text-right text-zinc-500 text-xs">
-                        {formatNumber(day.sameDayEtmReady)}
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-center gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              maleRisk ? "bg-rose-100 text-rose-700" : "bg-zinc-100 text-zinc-600"
+                            }`}
+                            title="Erkek kalıp kalan"
+                          >
+                            E {formatNumber(day.maleRemainingEnd)}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              femaleRisk ? "bg-rose-100 text-rose-700" : "bg-zinc-100 text-zinc-600"
+                            }`}
+                            title="Dişi kalıp kalan"
+                          >
+                            D {formatNumber(day.femaleRemainingEnd)}
+                          </span>
+                        </div>
                       </td>
                     )}
-                    {/* ETM Stok */}
-                    {isPress && (
-                      <td className="px-1.5 py-2 text-right text-zinc-500 font-medium text-xs">
-                        {wipOutgoing[day.key] !== undefined && wipOutgoing[day.key] !== null
-                          ? formatNumber(wipOutgoing[day.key]!)
-                          : "—"}
-                      </td>
-                    )}
-                    {/* Fark */}
-                    <td className="px-1.5 py-2 text-right">
-                      <span
-                        className={
-                          day.targetGap > 0
-                            ? "font-bold text-rose-600 text-xs"
-                            : "font-medium text-emerald-600 text-xs"
-                        }
-                      >
-                        {day.targetGap > 0
-                          ? `-${formatNumber(day.targetGap)}`
-                          : `+${formatNumber(Math.abs(day.targetGap))}`}
-                      </span>
+
+                    {/* ── Arıza ── */}
+                    <td className="px-3 py-2">
+                      {day.breakdownMinutes > 0 ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-700 cursor-help"
+                          title={day.breakdownDetails.join("\n")}
+                        >
+                          {day.breakdownMinutes} dk
+                        </span>
+                      ) : (
+                        <span className="text-zinc-300 text-xs">—</span>
+                      )}
                     </td>
-                    {/* Erkek kalan */}
-                    {isPress && (
-                      <td
-                        className={`px-1.5 py-2 text-right text-xs font-semibold transition-all ${
-                          maleRisk ? "text-rose-600 font-bold bg-rose-50 rounded px-1" : "text-zinc-600"
-                        }`}
-                      >
-                        {formatNumber(day.maleRemainingEnd)}
-                      </td>
-                    )}
-                    {/* Dişi kalan */}
-                    {isPress && (
-                      <td
-                        className={`px-1.5 py-2 text-right text-xs font-semibold transition-all ${
-                          femaleRisk ? "text-rose-600 font-bold bg-rose-50 rounded px-1" : "text-zinc-600"
-                        }`}
-                      >
-                        {formatNumber(day.femaleRemainingEnd)}
-                      </td>
-                    )}
-                    {/* Sıfırla */}
+
+                    {/* ── Sıfırla ── */}
                     <td className="py-2 pr-3 text-right">
                       <Button
                         type="button"

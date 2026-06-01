@@ -282,3 +282,15 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - **Kalıp Soğutma Drag Desteği Eklendi:** `GanttSegment.editable` union tipine `"die-cooling"` eklendi. Kalıp Soğutma barının sağ kenarı sürüklenince `dieCoolingMinutes` override'ı güncelleniyor.
 - **Kalan Kontroller:** Sadece Erkek/Dişi Kalıp Değişimini Ertele checkbox'ları ve Çalış/Sıfırla butonları bırakıldı.
 - **Kod Doğrulaması:** Proje `npx tsc --noEmit` kontrolünden hatasız geçti.
+
+## [2026-06-01] update | Arayüz Sadeleştirmesi ve Odak Kolonları
+
+**Yapılanlar:**
+- **Tablo Sütun Sayısının Azaltılması:** Tablodaki 17/11 kolonluk aşırı kalabalık görünüm, kullanıcının en çok önem verdiği 4 soruya yanıt veren 6-7 kolona düşürüldü.
+- **Odak Kolonları:**
+  - `Üretim / Hedef` ve `Fark` (Kümülatif/günlük hedefin yakalanıp yakalanmadığını hızlıca gösteren progress-bar'lı hücreler)
+  - `F.Mesai` (Fazla mesai yapılması gereken günleri gösteren rozetler)
+  - `Kalıp` (Erkek/Dişi kalan ömür durumunu ve kritik seviyeye yaklaşıldığını renklendiren rozetler)
+  - `Arıza` (Duruş sürelerini ve detaylarını tooltips ile gösteren rozetler)
+- **Hizalama ve Sayfa Yapısı:** Kaldırılan tüm sütunlar (`visibleColumnCount` dahil) ve Gantt detay satırı yeni kolon sayısıyla (7 pres, 6 pres dışı) tam hizalandı.
+- **Kod Doğrulaması:** `npm run build` ile TypeScript derlemesi ve statik sayfa oluşturma başarıyla doğrulandı.
