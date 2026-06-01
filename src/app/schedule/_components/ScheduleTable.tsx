@@ -33,7 +33,7 @@ type GanttSegment = {
   end: number;
   className: string;
   note?: string;
-  editable?: "furnace" | "press" | "shift" | "mold-maintenance";
+  editable?: "furnace" | "press" | "shift" | "mold-maintenance" | "die-cooling";
 };
 
 
@@ -42,12 +42,10 @@ const GANTT_ROWS = [
   "Vardiya",
   "Fırın Isıtma",
   "Kalıp Isıtma",
-  "Ön Kontrol",
   "İndüksiyon Başlangıç",
   "Planlı Duruş / Kalıp Değişimi",
   "Pres Proses",
   "Kalıp Soğutma",
-  "Temizlik",
   "Arıza / Duruş",
 ];
 
@@ -58,12 +56,10 @@ const DEFAULT_DIE_COOLING_MINUTES = 90;
 const ROW_LABEL_TO_SEGMENT_ID: Record<string, string> = {
   "Fırın Isıtma": "furnace-warmup",
   "Kalıp Isıtma": "die-heat",
-  "Ön Kontrol": "pre-check",
   "İndüksiyon Başlangıç": "induction-start",
   "Planlı Duruş / Kalıp Değişimi": "mold-maintenance",
   "Pres Proses": "press-process",
   "Kalıp Soğutma": "die-cooling",
-  "Temizlik": "cleaning",
 };
 
 function unwrapTime(value: string | null, afterMinute?: number) {
@@ -107,8 +103,7 @@ function snapToQuarter(minutes: number) {
 function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: MoldChange[], dayOverride?: DayOverride): { startMinute: number; endMinute: number; segments: GanttSegment[] } {
   const disabledList = dayOverride?.disabledSegments ?? [];
   const baseShiftStart = unwrapTime(day.shiftStart) ?? 465;
-  let baseShiftEnd = unwrapTime(day.shiftEnd, baseShiftStart) ?? baseShiftStart + Math.max(day.availableMinutes, 570);
-  baseShiftEnd += day.overtimeMinutes;
+  const baseShiftEnd = unwrapTime(day.shiftEnd, baseShiftStart) ?? baseShiftStart + Math.max(day.availableMinutes, 570);
 
   const furnaceStart = unwrapTime(day.furnaceStart, baseShiftStart - 180) ?? baseShiftStart;
   const rawPressStart = unwrapTime(day.pressStartTime, baseShiftStart);
@@ -156,7 +151,7 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
   }
   if (!disabledList.includes("press-process") && productionEnd !== null) {
     if (isPress && pressStart !== null) {
-      shiftStart = Math.min(shiftStart, pressStart - 60); // pre-check & induction
+      shiftStart = Math.min(shiftStart, pressStart - 30);
     }
     shiftEnd = Math.max(shiftEnd, productionEnd);
   }
@@ -173,7 +168,7 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
 
   // 2. Pass: Now compute final segment locations using the expanded shift boundaries
   const startMinute = Math.floor(Math.min(furnaceStart, shiftStart) / 60) * 60;
-  const endMinute = Math.ceil(shiftEnd / 60) * 60;
+  const endMinute = Math.max(Math.ceil(shiftEnd / 60) * 60, 1380); // En az 23:00'e kadar çizilsin ki sürükleme alanı olsun
 
   const segments: GanttSegment[] = [];
   const hasMoldMaintenance = isPress && (day.maintenanceMinutes > 0 || moldChangesForDay.length > 0);
@@ -225,19 +220,6 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
     }
 
     if (pressStart !== null && !disabledList.includes("press-process")) {
-      const preCheckEnd = Math.max(pressStart - 30, shiftStart);
-      const preCheckStart = Math.max(preCheckEnd - 30, shiftStart);
-      if (preCheckEnd > preCheckStart && !disabledList.includes("pre-check")) {
-        segments.push({
-          id: "pre-check",
-          label: "Ön Kontrol",
-          start: preCheckStart,
-          end: preCheckEnd,
-          className: "bg-stone-500",
-          note: `${formatTimeFromMinutes(preCheckStart)} - ${formatTimeFromMinutes(preCheckEnd)}`,
-        });
-      }
-
       const inductionEnd = pressStart;
       const inductionStart = Math.max(inductionEnd - 30, shiftStart);
       if (inductionEnd > inductionStart && !disabledList.includes("induction-start")) {
@@ -309,6 +291,7 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
       start: coolStart,
       end: coolEnd,
       className: "bg-blue-500",
+      editable: "die-cooling" as const,
       note: `${formatTimeFromMinutes(coolStart)} - ${formatTimeFromMinutes(coolEnd)} (${coolingMinutes} dk)`,
     });
   }
@@ -328,18 +311,7 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
     });
   }
 
-  const cleaningEnd = shiftEnd;
-  const cleaningStart = Math.max(cleaningEnd - 45, shiftStart);
-  if (cleaningEnd > cleaningStart && !disabledList.includes("cleaning")) {
-    segments.push({
-      id: "cleaning",
-      label: "Temizlik",
-      start: cleaningStart,
-      end: cleaningEnd,
-      className: "bg-orange-200",
-      note: `${formatTimeFromMinutes(cleaningStart)} - ${formatTimeFromMinutes(cleaningEnd)}`,
-    });
-  }
+
 
   if (day.breakdownMinutes > 0) {
     const breakdownStart = Math.max(shiftStart, Math.min(shiftEnd - day.breakdownMinutes, productionStart ?? shiftStart));
@@ -523,9 +495,12 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
     const originalStart = segment.start;
     const originalEnd = segment.end;
     const originalDuration = Math.max(originalEnd - originalStart, 15);
+    // Capture configured (not dynamic) shift bounds at drag start
     const shiftStart = unwrapTime(overrides[day.key]?.shiftStart ?? day.shiftStart) ?? gantt.startMinute;
     const shiftEnd = unwrapTime(overrides[day.key]?.shiftEnd ?? day.shiftEnd, shiftStart) ?? gantt.endMinute;
     const furnaceStart = unwrapTime(overrides[day.key]?.furnaceStart ?? day.furnaceStart, shiftStart - 180) ?? shiftStart;
+    // Use a fixed late-night ceiling so stale gantt.endMinute doesn't cap drags
+    const MAX_MINUTE = 1439; // 23:59
 
     const applyDrag = (clientX: number) => {
       const delta = snapToQuarter((clientX - originX) * minutesPerPixel);
@@ -538,12 +513,15 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
 
       if (segment.editable === "press") {
         if (mode === "resize-end") {
-          const nextEnd = clamp(originalEnd + delta, originalStart + 15, shiftEnd);
+          // Allow dragging well past shift end for overtime — ceiling is midnight
+          const nextEnd = clamp(originalEnd + delta, originalStart + 15, MAX_MINUTE);
           updateOverride(day.key, { pressed: Math.max(Math.floor((nextEnd - originalStart) / 3), 0) });
           return;
         }
 
-        const nextStart = clamp(originalStart + delta, gantt.startMinute, shiftEnd - originalDuration);
+        // Move: shift the whole press block (and furnace along with it)
+        // Clamp to gantt area so overtime is possible
+        const nextStart = clamp(originalStart + delta, gantt.startMinute, MAX_MINUTE - originalDuration);
         const pressDelta = nextStart - originalStart;
         updateOverride(day.key, { furnaceStart: formatTimeFromMinutes(furnaceStart + pressDelta) });
         return;
@@ -552,6 +530,14 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
       if (segment.editable === "mold-maintenance") {
         const nextStart = clamp(originalStart + delta, gantt.startMinute, shiftEnd - originalDuration);
         updateOverride(day.key, { moldMaintenanceStart: formatTimeFromMinutes(nextStart) });
+        return;
+      }
+
+      if (segment.editable === "die-cooling") {
+        if (mode === "resize-end") {
+          const nextEnd = clamp(originalEnd + delta, originalStart + 15, MAX_MINUTE);
+          updateOverride(day.key, { dieCoolingMinutes: Math.round(nextEnd - originalStart) });
+        }
         return;
       }
 
@@ -665,6 +651,23 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                 const inputCls =
                   "bg-transparent border-transparent hover:bg-zinc-100/80 hover:border-zinc-200 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all rounded shadow-none text-xs font-medium disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-transparent";
 
+                // Derive displayed shift times from the Gantt shift segment (single source of truth)
+                const shiftSegment = gantt.segments.find((s) => s.id === "shift");
+                const displayShiftStart = shiftSegment
+                  ? formatTimeFromMinutes(shiftSegment.start)
+                  : (overrides[day.key]?.shiftStart ?? day.shiftStart ?? "");
+                const displayShiftEnd = shiftSegment
+                  ? formatTimeFromMinutes(shiftSegment.end)
+                  : (overrides[day.key]?.shiftEnd ?? day.shiftEnd ?? "");
+                // Overtime = how much shift exceeds the override/default configured end
+                const configuredShiftEnd = parseTime(overrides[day.key]?.shiftEnd ?? day.shiftEnd ?? "") ?? 0;
+                const configuredShiftStart = parseTime(overrides[day.key]?.shiftStart ?? day.shiftStart ?? "") ?? 0;
+                const configuredDuration = Math.max(configuredShiftEnd - configuredShiftStart, 0);
+                const actualDuration = shiftSegment ? Math.max(shiftSegment.end - shiftSegment.start, 0) : configuredDuration;
+                const displayOvertime = overrides[day.key]?.overtimeMinutes !== undefined
+                  ? overrides[day.key].overtimeMinutes!
+                  : Math.max(actualDuration - configuredDuration, 0);
+
                 return (
                   <Fragment key={day.key}>
                   <tr
@@ -699,18 +702,11 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                           className={`h-7 w-[68px] text-center p-0 ${inputCls}`}
                           type="time"
                           disabled={isRowDisabled}
-                          value={overrides[day.key]?.shiftStart ?? day.shiftStart}
+                          value={overrides[day.key]?.shiftStart ?? day.shiftStart ?? ""}
                           onChange={(e) => updateOverride(day.key, { shiftStart: e.target.value || undefined })}
                         />
                         <span className="text-zinc-300">-</span>
-                        <Input
-                          aria-label={`${day.label} vardiya bitiş`}
-                          className={`h-7 w-[68px] text-center p-0 ${inputCls}`}
-                          type="time"
-                          disabled={isRowDisabled}
-                          value={overrides[day.key]?.shiftEnd ?? day.shiftEnd}
-                          onChange={(e) => updateOverride(day.key, { shiftEnd: e.target.value || undefined })}
-                        />
+                        <span className="text-xs font-semibold text-zinc-700">{displayShiftEnd}</span>
                       </div>
                     </td>
                     {/* Fırın */}
@@ -721,29 +717,16 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                           className={`h-7 w-[68px] text-center p-0 ${inputCls}`}
                           type="time"
                           disabled={isRowDisabled}
-                          value={overrides[day.key]?.furnaceStart ?? day.furnaceStart}
+                          value={overrides[day.key]?.furnaceStart ?? day.furnaceStart ?? ""}
                           onChange={(e) => updateOverride(day.key, { furnaceStart: e.target.value || undefined })}
                         />
                       </td>
                     )}
-                    {/* Fazla mesai */}
+                    {/* Fazla mesai - Gantt shift segment'ten okunan otomatik hesap */}
                     <td className="px-1.5 py-2">
-                      <Input
-                        aria-label={`${day.label} fazla mesai`}
-                        className={`ml-auto h-7 w-[56px] text-right px-1 ${inputCls}`}
-                        min={0}
-                        step={15}
-                        type="number"
-                        disabled={isRowDisabled}
-                        value={overrides[day.key]?.overtimeMinutes ?? ""}
-                        placeholder={String(day.overtimeMinutes)}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          updateOverride(day.key, {
-                            overtimeMinutes: v === "" ? undefined : Math.max(numberInput(v), 0),
-                          });
-                        }}
-                      />
+                      <span className={`text-xs font-semibold ${ displayOvertime > 0 ? "text-amber-600" : "text-zinc-400" }`}>
+                        {displayOvertime > 0 ? `+${displayOvertime}` : "-"}
+                      </span>
                     </td>
                     {/* Manuel üretim */}
                     <td className="px-1.5 py-2">
@@ -895,7 +878,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                   </tr>
                   {isExpanded && (
                     <tr className="border-b border-zinc-200 bg-zinc-50/80">
-                      <td colSpan={visibleColumnCount} className="px-3 py-3">
+                      <td colSpan={visibleColumnCount} className="px-3 py-3 max-w-0">
                         <div id={`gantt-${day.key}`} className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
                           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                             <div>
@@ -927,163 +910,63 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                             </div>
                           </div>
 
-                          <div className="mb-3 grid gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-2 md:grid-cols-2 xl:grid-cols-8">
-                            <label className="space-y-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                              Vardiya Başlangıç
-                              <Input
-                                className="h-8 bg-white text-xs font-semibold normal-case tracking-normal"
-                                type="time"
-                                disabled={isRowDisabled}
-                                value={overrides[day.key]?.shiftStart ?? day.shiftStart}
-                                onChange={(e) => updateOverride(day.key, { shiftStart: e.target.value || undefined })}
-                              />
-                            </label>
-                            <label className="space-y-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                              Vardiya Bitiş
-                              <Input
-                                className="h-8 bg-white text-xs font-semibold normal-case tracking-normal"
-                                type="time"
-                                disabled={isRowDisabled}
-                                value={overrides[day.key]?.shiftEnd ?? day.shiftEnd}
-                                onChange={(e) => updateOverride(day.key, { shiftEnd: e.target.value || undefined })}
-                              />
-                            </label>
-                            {isPress && (
-                              <>
-                                <label className="space-y-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                                  Fırın Başlangıç
-                                  <Input
-                                    className="h-8 bg-white text-xs font-semibold normal-case tracking-normal"
-                                    type="time"
-                                    disabled={isRowDisabled}
-                                    value={overrides[day.key]?.furnaceStart ?? day.furnaceStart}
-                                    onChange={(e) => updateOverride(day.key, { furnaceStart: e.target.value || undefined })}
-                                  />
-                                </label>
-                                <label className="space-y-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                                  Kalıp Değişimi Başlangıç
-                                  <Input
-                                    className="h-8 bg-white text-xs font-semibold normal-case tracking-normal"
-                                    type="time"
-                                    disabled={isRowDisabled}
-                                    value={overrides[day.key]?.moldMaintenanceStart ?? day.shiftStart ?? "07:45"}
-                                    onChange={(e) => updateOverride(day.key, { moldMaintenanceStart: e.target.value || undefined })}
-                                  />
-                                </label>
-                              </>
-                            )}
-                            <label className="space-y-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                              Fazla Mesai
-                              <Input
-                                className="h-8 bg-white text-xs font-semibold normal-case tracking-normal"
-                                min={0}
-                                step={15}
-                                type="number"
-                                disabled={isRowDisabled}
-                                value={overrides[day.key]?.overtimeMinutes ?? ""}
-                                placeholder={String(day.overtimeMinutes)}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  updateOverride(day.key, {
-                                    overtimeMinutes: v === "" ? undefined : Math.max(numberInput(v), 0),
-                                  });
-                                }}
-                              />
-                            </label>
-                            <label className="space-y-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                              Üretim Adedi
-                              <Input
-                                className="h-8 bg-white text-xs font-semibold normal-case tracking-normal"
-                                min={0}
-                                type="number"
-                                disabled={isRowDisabled}
-                                value={overrides[day.key]?.pressed ?? actuals[day.key] ?? ""}
-                                placeholder={String(day.capacityPressed)}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  updateOverride(day.key, {
-                                    pressed: v === "" ? undefined : Math.max(Math.floor(numberInput(v)), 0),
-                                  });
-                                }}
-                              />
-                            </label>
-                            {isPress && (
-                              <>
-                                <label className="space-y-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                                  Kalıp Soğutma
-                                  <Input
-                                    className="h-8 bg-white text-xs font-semibold normal-case tracking-normal"
-                                    min={0}
-                                    step={15}
-                                    type="number"
-                                    disabled={isRowDisabled}
-                                    value={overrides[day.key]?.dieCoolingMinutes ?? ""}
-                                    placeholder={String(DEFAULT_DIE_COOLING_MINUTES)}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      updateOverride(day.key, {
-                                        dieCoolingMinutes: v === "" ? undefined : Math.max(numberInput(v), 0),
-                                      });
-                                    }}
-                                  />
-                                </label>
-                                <div className="flex flex-col gap-2.5 pt-4 col-span-2">
-                                  <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 cursor-pointer select-none">
-                                    <input
-                                      checked={overrides[day.key]?.postponeMaleChange === true}
-                                      className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 accent-blue-700"
-                                      disabled={isRowDisabled}
-                                      type="checkbox"
-                                      onChange={(e) => {
-                                        updateOverride(day.key, {
-                                          postponeMaleChange: e.target.checked ? true : undefined,
-                                        });
-                                      }}
-                                    />
-                                    Erkek Kalıp Değişimini Ertele
-                                  </label>
-                                  <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 cursor-pointer select-none">
-                                    <input
-                                      checked={overrides[day.key]?.postponeFemaleChange === true}
-                                      className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 accent-blue-700"
-                                      disabled={isRowDisabled}
-                                      type="checkbox"
-                                      onChange={(e) => {
-                                        updateOverride(day.key, {
-                                          postponeFemaleChange: e.target.checked ? true : undefined,
-                                        });
-                                      }}
-                                    />
-                                    Dişi Kalıp Değişimini Ertele
-                                  </label>
-                                </div>
-                              </>
-                            )}
-                            <div className="flex items-end gap-2">
-                              <label className="flex h-8 flex-1 items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-2 text-xs font-semibold text-zinc-700">
+                          {isPress && (
+                            <div className="mb-3 flex flex-wrap items-center gap-4 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
+                              <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 cursor-pointer select-none">
                                 <input
-                                  checked={day.isWorkday}
-                                  className="h-3.5 w-3.5 accent-blue-700 disabled:opacity-50"
-                                  disabled={day.isBaseWorkday}
+                                  checked={overrides[day.key]?.postponeMaleChange === true}
+                                  className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 accent-blue-700"
+                                  disabled={isRowDisabled}
                                   type="checkbox"
-                                  onChange={(e) =>
-                                    updateOverride(day.key, { forceWorkday: e.target.checked ? true : undefined })
-                                  }
+                                  onChange={(e) => {
+                                    updateOverride(day.key, {
+                                      postponeMaleChange: e.target.checked ? true : undefined,
+                                    });
+                                  }}
                                 />
-                                Çalış
+                                Erkek Kalıp Değişimini Ertele
                               </label>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-2 text-xs"
-                                disabled={!overrides[day.key]}
-                                onClick={() => clearDayOverride(day.key)}
-                              >
-                                Sıfırla
-                              </Button>
+                              <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 cursor-pointer select-none">
+                                <input
+                                  checked={overrides[day.key]?.postponeFemaleChange === true}
+                                  className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 accent-blue-700"
+                                  disabled={isRowDisabled}
+                                  type="checkbox"
+                                  onChange={(e) => {
+                                    updateOverride(day.key, {
+                                      postponeFemaleChange: e.target.checked ? true : undefined,
+                                    });
+                                  }}
+                                />
+                                Dişi Kalıp Değişimini Ertele
+                              </label>
                             </div>
+                          )}
+                          <div className="mb-3 flex items-center gap-2">
+                            <label className="flex h-8 items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 cursor-pointer select-none">
+                              <input
+                                checked={day.isWorkday}
+                                className="h-3.5 w-3.5 accent-blue-700 disabled:opacity-50"
+                                disabled={day.isBaseWorkday}
+                                type="checkbox"
+                                onChange={(e) =>
+                                  updateOverride(day.key, { forceWorkday: e.target.checked ? true : undefined })
+                                }
+                              />
+                              Çalış
+                            </label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2 text-xs"
+                              disabled={!overrides[day.key]}
+                              onClick={() => clearDayOverride(day.key)}
+                            >
+                              Sıfırla
+                            </Button>
                           </div>
+
 
                           {isPress && (
                             <div className="mb-3 rounded-md border border-zinc-200 bg-white p-2">
@@ -1173,6 +1056,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                 disabled={isRowDisabled}
                               />
                               <Input
+                                key={day.shiftStart}
                                 className="h-8 text-xs"
                                 name="startTime"
                                 type="time"
@@ -1222,12 +1106,10 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                   let label = segId;
                                   if (segId === "furnace-warmup") label = "Fırın Isıtma";
                                   else if (segId === "die-heat") label = "Kalıp Isıtma";
-                                  else if (segId === "pre-check") label = "Ön Kontrol";
                                   else if (segId === "induction-start") label = "İndüksiyon Başlangıç";
                                   else if (segId === "mold-maintenance") label = "Planlı Duruş / Kalıp Değişimi";
                                   else if (segId === "press-process") label = "Pres Proses";
                                   else if (segId === "die-cooling") label = "Kalıp Soğutma";
-                                  else if (segId === "cleaning") label = "Temizlik";
                                   else if (segId === "breakdown") label = "Arıza / Duruş";
 
                                   return (
@@ -1304,7 +1186,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                           </div>
 
                           <div className="overflow-x-auto">
-                            <div className="min-w-[780px]">
+                            <div style={{ width: `${160 + (timeSlots.length - 1) * 72}px` }} className="min-w-full">
                               <div className="grid grid-cols-[160px_1fr] border border-zinc-900 text-[10px] font-bold">
                                 <div className="border-r border-zinc-900 bg-zinc-50" />
                                 <div
@@ -1392,7 +1274,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                       style={{
                                         backgroundImage:
                                           "linear-gradient(to right, rgba(24,24,27,0.16) 1px, transparent 1px)",
-                                        backgroundSize: `${100 / Math.max(timeSlots.length - 1, 1)}% 100%`,
+                                        backgroundSize: "72px 100%",
                                       }}
                                     >
                                       {rowSegments.map((segment) => (
@@ -1440,11 +1322,11 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                               title="Vardiya başlangıcını sürükle"
                                             />
                                           )}
-                                          {(segment.editable === "shift" || segment.editable === "press") && (
+                                          {(segment.editable === "shift" || segment.editable === "press" || segment.editable === "die-cooling") && (
                                             <span
                                               className="absolute right-0 top-0 z-10 h-full w-2 cursor-ew-resize rounded-r-sm bg-black/20"
                                               onPointerDown={(e) => beginSegmentDrag(e, day, segment, gantt, "resize-end")}
-                                              title={segment.editable === "press" ? "Üretim süresini/adedi sürükle" : "Vardiya bitişini sürükle"}
+                                              title={segment.editable === "press" ? "Üretim süresini/adedi sürükle" : segment.editable === "die-cooling" ? "Soğutma süresini ayarla" : "Vardiya bitişini sürükle"}
                                             />
                                           )}
                                         </div>

@@ -428,77 +428,17 @@ export function buildSchedule({
     maleRemaining = plannedMaleRemainingEnd;
     femaleRemaining = plannedFemaleRemainingEnd;
 
-    // Calculate actual shift bounds after accounting for all preparation, production, cooling, and custom segments
-    const baseShiftStartM = shift ? shift.startMinute : 465;
-    const baseShiftEndM = shift ? shift.endMinute : 1035;
-
-    let actualShiftStart = baseShiftStartM;
-    let actualShiftEnd = baseShiftEndM;
-
-    const disabledList = override?.disabledSegments ?? [];
-    const customItems = override?.customGanttItems ?? [];
-    const coolingMinutes = override?.dieCoolingMinutes ?? 90;
-
-    if (isWorkday) {
-      if (isPress) {
-        if (!disabledList.includes("furnace-warmup") && furnaceStartMinute !== null) {
-          actualShiftStart = Math.min(actualShiftStart, furnaceStartMinute);
-          actualShiftEnd = Math.max(actualShiftEnd, furnaceStartMinute + 60);
-        }
-        if (!disabledList.includes("mold-maintenance") && (startMaintenanceMinutes > 0 || manualChanges.length > 0)) {
-          actualShiftStart = Math.min(actualShiftStart, maintStartMinute);
-          const maintEnd = maintStartMinute + (startMaintenanceMinutes > 0 ? startMaintenanceMinutes : 30);
-          actualShiftEnd = Math.max(actualShiftEnd, maintEnd);
-        }
-        if (!disabledList.includes("press-process") && pressStartAbsoluteMinute !== null && pressedVal > 0) {
-          actualShiftStart = Math.min(actualShiftStart, pressStartAbsoluteMinute - 60);
-          const prodEnd = pressStartAbsoluteMinute + pressedVal * pressCycleMinutes;
-          actualShiftEnd = Math.max(actualShiftEnd, prodEnd);
-
-          if (!disabledList.includes("die-cooling") && coolingMinutes > 0) {
-            actualShiftEnd = Math.max(actualShiftEnd, prodEnd + coolingMinutes);
-          }
-        }
-      }
-
-      for (const item of customItems) {
-        const itemStart = item.startTime ? parseTime(item.startTime) : null;
-        if (itemStart !== null) {
-          actualShiftStart = Math.min(actualShiftStart, itemStart);
-          actualShiftEnd = Math.max(actualShiftEnd, itemStart + Math.max(item.durationMinutes, 0));
-        }
-      }
-    }
-
-    const finalShiftStartStr = formatTimeFromMinutes(actualShiftStart);
-    const finalShiftEndStr = formatTimeFromMinutes(actualShiftEnd);
-
-    let defaultStart = defaultShiftStart;
-    let defaultEnd = defaultShiftEnd;
-    if ((day === 5 || day === 6) && defaultShiftStart === "07:45") {
-      defaultStart = "09:00";
-    }
-    if ((day === 5 || day === 6) && defaultShiftEnd === "17:15") {
-      defaultEnd = "17:00";
-    }
-    const stdStart = parseTime(defaultStart) ?? 465;
-    const stdEnd = parseTime(defaultEnd) ?? 1035;
-    const standardDuration = stdEnd - stdStart;
-
-    const calcOvertime = isWorkday ? Math.max((actualShiftEnd - actualShiftStart) - standardDuration, 0) : 0;
-    const calcAvailableMinutes = isWorkday ? Math.max((actualShiftEnd - actualShiftStart) - breakdownMinutes, 0) : 0;
-
     result.push({
       date,
       key,
       label: `${formatDate(date)} ${formatWeekday(date)}`,
       isWorkday,
       isBaseWorkday,
-      shiftStart: finalShiftStartStr,
-      shiftEnd: finalShiftEndStr,
+      shiftStart,
+      shiftEnd,
       furnaceStart,
-      availableMinutes: calcAvailableMinutes,
-      overtimeMinutes: calcOvertime,
+      availableMinutes,
+      overtimeMinutes: dayOvertimeMinutes,
       maintenanceMinutes,
       startMaintenanceMinutes,
       midMaintenanceMinutes,

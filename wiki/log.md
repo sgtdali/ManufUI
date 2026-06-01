@@ -227,3 +227,58 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 **Yapılanlar:**
 - **Satır Gizleme Mantığı:** Standart hazırlık/temizlik segmentleri silinip (`disabledSegments` listesine eklendiğinde) sadece üzerlerindeki barın silinmesi yerine, satır başlığı ve boş çizelge satırının da Gantt tablosundan tamamen kalkması sağlandı. `ROW_LABEL_TO_SEGMENT_ID` eşleştirmesi ile pasifleşen segmentlerin satırları `visibleGanttRows` üzerinden tamamen filtrelenmektedir.
 - **Kod Doğrulaması:** `npx tsc --noEmit` ile TypeScript derleme kontrolü başarılı olarak doğrulandı.
+
+## [2026-06-01] fix | Base UI Uncontrolled FieldControl Konsol Hatası
+
+**Yapılanlar:**
+- **Uncontrolled-to-Controlled Hatası Giderildi:** Form inputlarının boş state'ten değer almaya geçerken (`undefined` -> `string`) konsolda oluşturduğu Base UI uncontrolled FieldControl uyarısı, `value` değerlerine `?? ""` (boş string fallbacks) eklenerek çözüldü.
+- **Dinamik Uncontrolled Varsayılan Değer Güncellemesi:** Yeni madde ekleme formundaki `defaultValue={day.shiftStart}` kullanan uncontrolled input'un, vardiya başlangıcı değiştikçe uyarı vermesini önlemek amacıyla ilgili bileşene `key={day.shiftStart}` prop'u eklendi. Bu sayede React, default değer değiştiğinde ilgili input'u uyarı vermeden temiz bir şekilde yeniden oluşturur.
+- **Kod Doğrulaması:** Proje `npx tsc --noEmit` kontrolünden hatasız geçti.
+
+## [2026-06-01] delete | Ön Kontrol ve Temizlik Maddelerinin Kaldırılması
+
+**Yapılanlar:**
+- **Kod ve Görünümden Tamamen Temizleme:** `Ön Kontrol` (pre-check) ve `Temizlik` (cleaning) maddeleri, Gantt satır tanımlarından (`GANTT_ROWS`), veri eşleşme listesinden (`ROW_LABEL_TO_SEGMENT_ID`) ve devre dışı bırakılanlar eşleşme listesinden tamamen silindi.
+- **Süre ve Hazırlık Ofseti Güncellemesi:** Ön kontrolün (30 dk) kalkmasıyla birlikte, pres prosesi başlamadan önceki hazırlık süresi sadece İndüksiyon Başlangıç (30 dk) olarak güncellendi. `buildSchedule` simülasyonu ve `buildGanttSegments` üzerindeki pres başlangıç ofseti `60` dakikadan `30` dakikaya düşürüldü.
+- **Kod Doğrulaması:** Proje `npx tsc --noEmit` kontrolünden hatasız geçti.
+
+## [2026-06-01] fix | Gantt Vardiya Bitişinin Çift Eklenme Hatası
+
+**Yapılanlar:**
+- **Mükerrer Süre Eklemesi Kaldırıldı:** `buildSchedule` simülasyon motoru artık dinamik olarak genişletilmiş (overtime dahil) vardiya başlangıç ve bitiş saatlerini döndürdüğü için, `buildGanttSegments` (`ScheduleTable.tsx`) fonksiyonunda `baseShiftEnd` değişkenine `day.overtimeMinutes` süresinin tekrar eklenmesi (çift ekleme/double-addition) engellendi. Bu sayede vardiya çubuğunun son işlemden sonra gereksiz yere akşam saatlerine doğru sarkması/uzaması sorunu çözüldü.
+- **Kod Doğrulaması:** Proje `npx tsc --noEmit` kontrolünden hatasız geçti.
+
+## [2026-06-01] update | Gantt Zaman Çizelgesi Sınırının En Az 23:00'e Uzatılması
+
+**Yapılanlar:**
+- **Zaman Çizelgesi Genişletme:** Kullanıcıların vardiya çubuğunun bitiş kenarını sürükleyerek vardiya saatlerini serbestçe genişletebilmesi için Gantt çizelgesinin sağ sınır (`endMinute`) değeri en az `23:00` (`1380` dakika) olarak sınırlandırıldı. Böylece çizelge üzerinde her zaman saat `23:00`'e kadar boş sütunlar yer alarak sürükle-bırak için yeterli visual track alanı sağlandı.
+- **Kod Doğrulaması:** Proje `npx tsc --noEmit` kontrolünden hatasız geçti.
+
+## [2026-06-01] fix | Gantt Tablosunun Sayfayı Yana Doğru Genişletme Hatası
+
+**Yapılanlar:**
+- **Tablo Esneme Sınırlandırması:** Gantt zaman çizelgesi genişledikçe tüm tablonun ve ana sayfa düzeninin yana doğru esnemesini önlemek için detay satırını içeren `<td>` hücresine `max-w-0` CSS sınıfı eklendi. Böylece ana tablo sayfa sınırlarında sabit kalırken, genişleyen Gantt çizelgesi kendi içindeki `overflow-x-auto` container'ı sayesinde sadece kendi alanında yatay scroll (kaydırma çubuğu) ile gezilebilir hale getirildi.
+- **Kod Doğrulaması:** Proje `npx tsc --noEmit` kontrolünden hatasız geçti.
+
+## [2026-06-01] fix | Gantt Saat Başlıkları ve Satırlarının Hizalanma Hatası
+
+**Yapılanlar:**
+- **Matematiksel Genişlik Hesaplama:** Saatlerin bulunduğu üst header grid'i (minmax 72px) ile altındaki satırların (mutlak konumlandırılmış Gantt barları barındıran relative div'ler) genişliklerinin senkronize kalabilmesi için Gantt iç kapsayıcı div'ine `style={{ width: 160 + (timeSlots.length - 1) * 72 }}` şeklinde dinamik genişlik atandı. Böylelikle başlıklar ile barların birbirini tam takip etmesi ve kaydırma esnasında kopukluk oluşmaması sağlandı.
+- **Kod Doğrulaması:** Proje `npx tsc --noEmit` kontrolünden hatasız geçti.
+
+## [2026-06-01] fix | Vardiya Bitiş ve F.Mesai Tutarsızlığı — Tek Kaynak Mimarisi
+
+**Yapılanlar:**
+- **Çift Hesap Kaldırıldı:** `buildSchedule` (utils.ts) içindeki `actualShiftStart/End` karmaşık hesabı kaldırıldı. Simülasyon motoru yeniden basit override/varsayılan vardiya saatlerini döndürmeye başladı.
+- **Tek Kaynak (Single Source of Truth):** Tablo satırındaki vardiya bitiş saati ve F.Mesai artık `buildSchedule`'dan değil, her günün render sırasında zaten hesaplanan `buildGanttSegments` çıktısındaki `shift` segmentinin (`shiftSegment.start`, `shiftSegment.end`) gerçek değerlerinden okunuyor. Böylelikle Gantt'taki gri vardiya çubuğu ile tablodaki satır değerleri kesinlikle aynı veri kaynağından besleniyor.
+- **Vardiya Bitiş Gösterimi:** Tablodaki `Vardiya` kolonunun bitiş kısmı, düzenlenebilir `<Input>` olmaktan çıkarılarak, Gantt shift segmentini doğrudan yansıtan sadece okunur bir `<span>` olarak güncellendi.
+- **F.Mesai Gösterimi:** F.Mesai kolonundaki `<Input>` kaldırıldı. Değer artık otomatik hesaplı (Gantt shift süresi − konfigürasyon süresi) olarak gösteriliyor; override ile kilitlenmiş bir değer varsa o öncelik kazanıyor.
+- **Kod Doğrulaması:** Proje `npx tsc --noEmit` kontrolünden hatasız geçti.
+
+## [2026-06-01] refactor | Input Paneli Kaldırıldı — Tüm Ayarlar Gantt Üzerinden
+
+**Yapılanlar:**
+- **Input Grid Paneli Silindi:** Gantt detay panelindeki tüm override input alanları (Vardiya Başlangıç/Bitiş, Fırın Başlangıç, Kalıp Değişimi Başlangıç, Fazla Mesai, Üretim Adedi, Kalıp Soğutma) tamamen kaldırıldı.
+- **Kalıp Soğutma Drag Desteği Eklendi:** `GanttSegment.editable` union tipine `"die-cooling"` eklendi. Kalıp Soğutma barının sağ kenarı sürüklenince `dieCoolingMinutes` override'ı güncelleniyor.
+- **Kalan Kontroller:** Sadece Erkek/Dişi Kalıp Değişimini Ertele checkbox'ları ve Çalış/Sıfırla butonları bırakıldı.
+- **Kod Doğrulaması:** Proje `npx tsc --noEmit` kontrolünden hatasız geçti.
