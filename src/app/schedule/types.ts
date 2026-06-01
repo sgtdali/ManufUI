@@ -15,6 +15,7 @@ export type DayPlan = {
   startMaintenanceMinutes: number;
   midMaintenanceMinutes: number;
   midMaintenanceStartMinute: number | null;
+  midMaintenanceComplete: boolean;
   maintenanceLabel: string;
   pressStartTime: string | null;
   capacityPressed: number;
@@ -40,9 +41,13 @@ export type DayOverride = {
   dieCoolingMinutes?: number;
   customGanttItems?: CustomGanttItem[];
   disabledSegments?: string[];
+  disabledOperations?: string[];
   postponeMaleChange?: boolean;
   postponeFemaleChange?: boolean;
   moldMaintenanceStart?: string;
+  moldChangeMode?: "auto" | "postpone" | "manual";
+  manualMoldType?: "male" | "female";
+  manualMoldChangeAfterPieces?: number;
 };
 
 export type CustomGanttItem = {
@@ -69,4 +74,3 @@ export type GanttDependency = {
   successorId: string;
   successorLabel: string;
 };
-

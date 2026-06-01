@@ -9,6 +9,7 @@ import {
   FEMALE_DIE_INTERVAL,
   MALE_DIE_CHANGE_MINUTES,
   FEMALE_DIE_CHANGE_MINUTES,
+  DEFAULT_DIE_COOLING_MINUTES,
 } from "./constants";
 
 export type ProcessParams = {
@@ -214,6 +215,7 @@ export function buildSchedule({
     }
     const furnaceStartMinute = parseTime(furnaceStart);
     const dayOvertimeMinutes = override?.overtimeMinutes ?? overtimeMinutes;
+    const dieCoolingMinutes = Math.max(override?.dieCoolingMinutes ?? DEFAULT_DIE_COOLING_MINUTES, 0);
     
     const rawAvailableMinutes = isWorkday && shift ? shift.minutes + dayOvertimeMinutes : 0;
     const availableMinutes = Math.max(rawAvailableMinutes - breakdownMinutes, 0);
@@ -226,11 +228,13 @@ export function buildSchedule({
     let startMaintenanceMinutes = 0;
     let midMaintenanceMinutes = 0;
     let midMaintenanceStartMinute: number | null = null;
+    let midMaintenanceComplete = true;
     const maintenanceParts: string[] = [];
 
     const manualChanges = moldChangesByDate[key] || [];
     const hasManualMale = manualChanges.includes("male");
     const hasManualFemale = manualChanges.includes("female");
+    const isMoldMaintenanceDisabled = override?.disabledOperations?.includes("mold-maintenance") === true;
 
     if (isPress) {
       if (hasManualFemale) {
@@ -246,15 +250,17 @@ export function buildSchedule({
       if (hasManualMale) {
         if (isWorkday) {
           maleRemaining = 0;
+          maleChangeCarryover = 0;
         } else {
           maleRemaining = maleDieInterval;
+          maleChangeCarryover = 0;
         }
       }
 
       const availableForMaint = Math.max(shiftEndMinute - maintStartMinute, 0);
 
       if (isWorkday && femaleChangeCarryover > 0) {
-        if (override?.postponeFemaleChange === true) {
+        if (override?.postponeFemaleChange === true || isMoldMaintenanceDisabled) {
           // Postponed: do not add morning/carryover maintenance
         } else {
           const used = Math.min(Math.max(availableForMaint - maintenanceMinutes, 0), femaleChangeCarryover);
@@ -265,7 +271,7 @@ export function buildSchedule({
       }
 
       if (isWorkday && femaleChangeCarryover <= 0 && femaleRemaining <= 0) {
-        if (override?.postponeFemaleChange === true) {
+        if (override?.postponeFemaleChange === true || isMoldMaintenanceDisabled) {
           // Postponed
         } else {
           const used = Math.min(Math.max(availableForMaint - maintenanceMinutes, 0), femaleDieChangeMinutes);
@@ -276,13 +282,28 @@ export function buildSchedule({
         }
       }
 
+      if (isWorkday && femaleChangeCarryover <= 0 && maleChangeCarryover > 0) {
+        if (override?.postponeMaleChange === true || isMoldMaintenanceDisabled) {
+          // Postponed: do not add morning/carryover maintenance
+        } else {
+          const used = Math.min(Math.max(availableForMaint - maintenanceMinutes, 0), maleChangeCarryover);
+          maintenanceMinutes += used;
+          maleChangeCarryover -= used;
+          if (maleChangeCarryover <= 0) {
+            maleRemaining = maleDieInterval;
+          }
+          maintenanceParts.push("Erkek kalıp değişimi");
+        }
+      }
+
       if (
         isWorkday &&
         femaleChangeCarryover <= 0 &&
+        maleChangeCarryover <= 0 &&
         maleRemaining <= 0 &&
         maintenanceMinutes < availableMinutes
       ) {
-        if (override?.postponeMaleChange === true) {
+        if (override?.postponeMaleChange === true || isMoldMaintenanceDisabled) {
           // Postponed
         } else {
           const used = Math.min(Math.max(availableForMaint - maintenanceMinutes, 0), maleDieChangeMinutes);
@@ -333,6 +354,12 @@ export function buildSchedule({
     const hasScenario = override?.pressed !== undefined;
     const hasActual = actuals[key] !== undefined;
     const isRecoveryWorkday = override?.forceWorkday === true && !isBaseWorkday;
+    const moldChangeMode = override?.moldChangeMode ?? "auto";
+    const manualMoldType = override?.manualMoldType;
+    const manualMoldChangeAfterPieces =
+      override?.manualMoldChangeAfterPieces !== undefined
+        ? Math.max(Math.floor(override.manualMoldChangeAfterPieces), 0)
+        : null;
     const inputPressed = hasScenario
       ? Math.max(Math.floor(override?.pressed ?? 0), 0)
       : hasActual
@@ -359,44 +386,87 @@ export function buildSchedule({
       plannedCapacityPressed = capacityPressed;
       plannedSameDayCapacity = sameDayCapacity;
 
-      const dieSimulationDemand = inputPressed >= 0 ? Math.min(capacityPressed, inputPressed) : capacityPressed;
+      const productionDemand = inputPressed >= 0 ? Math.min(capacityPressed, inputPressed) : capacityPressed;
 
-      if (pressStartAbsoluteMinute !== null && dieSimulationDemand > 0) {
-        const effectiveMaleRemaining = override?.postponeMaleChange ? Infinity : maleRemaining;
-        const effectiveFemaleRemaining = override?.postponeFemaleChange ? Infinity : femaleRemaining;
+      if (pressStartAbsoluteMinute !== null && capacityPressed > 0) {
+        const postponeMale = override?.postponeMaleChange === true || moldChangeMode === "postpone" || isMoldMaintenanceDisabled;
+        const postponeFemale = override?.postponeFemaleChange === true || moldChangeMode === "postpone" || isMoldMaintenanceDisabled;
+        const manualMaleLimit =
+          moldChangeMode === "manual" && manualMoldType === "male" && manualMoldChangeAfterPieces !== null
+            ? manualMoldChangeAfterPieces
+            : null;
+        const manualFemaleLimit =
+          moldChangeMode === "manual" && manualMoldType === "female" && manualMoldChangeAfterPieces !== null
+            ? manualMoldChangeAfterPieces
+            : null;
+        const effectiveMaleRemaining = postponeMale ? Infinity : (manualMaleLimit ?? maleRemaining);
+        const effectiveFemaleRemaining = postponeFemale ? Infinity : (manualFemaleLimit ?? femaleRemaining);
         const dieLimitedCapacity = Math.min(
-          dieSimulationDemand,
+          capacityPressed,
           Math.max(effectiveMaleRemaining, 0),
           Math.max(effectiveFemaleRemaining, 0)
         );
+        const producedBeforeChange = Math.min(productionDemand, dieLimitedCapacity);
 
-        if (dieLimitedCapacity < dieSimulationDemand) {
+        plannedCapacityPressed = dieLimitedCapacity;
+        plannedSameDayCapacity = Math.min(sameDayCapacity, dieLimitedCapacity);
+
+        if (producedBeforeChange < productionDemand) {
           plannedCapacityPressed = dieLimitedCapacity;
           plannedSameDayCapacity = Math.min(sameDayCapacity, dieLimitedCapacity);
 
-          if (maleRemaining > 0 && maleRemaining <= dieLimitedCapacity && override?.postponeMaleChange !== true) {
-            const changeStartMinute =
-              pressStartAbsoluteMinute + maleRemaining * pressCycleMinutes;
+          const limitingMale =
+            !postponeMale &&
+            (manualMaleLimit !== null
+              ? manualMaleLimit <= producedBeforeChange
+              : maleRemaining > 0 && maleRemaining <= producedBeforeChange);
+          const limitingFemale =
+            !postponeFemale &&
+            (manualFemaleLimit !== null
+              ? manualFemaleLimit <= producedBeforeChange
+              : femaleRemaining > 0 && femaleRemaining <= producedBeforeChange);
+          const limitingRemaining = Math.min(
+            limitingMale ? (manualMaleLimit ?? maleRemaining) : Infinity,
+            limitingFemale ? (manualFemaleLimit ?? femaleRemaining) : Infinity
+          );
+          const changeStartMinute =
+            Number.isFinite(limitingRemaining)
+              ? pressStartAbsoluteMinute + limitingRemaining * pressCycleMinutes + dieCoolingMinutes
+              : null;
+
+          if (limitingFemale && changeStartMinute !== null) {
+            const availableChangeMinutes = Math.max(shiftEndMinute - changeStartMinute, 0);
+            const used = Math.min(availableChangeMinutes, femaleDieChangeMinutes);
+            if (used > 0) {
+              maintenanceMinutes += used;
+              midMaintenanceMinutes = used;
+              midMaintenanceStartMinute = changeStartMinute;
+              midMaintenanceComplete = used >= femaleDieChangeMinutes;
+              maintenanceParts.push("Dişi kalıp değişimi");
+            }
+            femaleChangeCarryover = femaleDieChangeMinutes - used;
+            plannedFemaleRemainingEnd = femaleChangeCarryover <= 0 ? femaleDieInterval : 0;
+            plannedMaleRemainingEnd = maleRemaining - producedBeforeChange;
+          } else if (limitingMale && changeStartMinute !== null) {
             const availableChangeMinutes = Math.max(shiftEndMinute - changeStartMinute, 0);
             const used = Math.min(availableChangeMinutes, maleDieChangeMinutes);
             if (used > 0) {
               maintenanceMinutes += used;
               midMaintenanceMinutes = used;
               midMaintenanceStartMinute = changeStartMinute;
+              midMaintenanceComplete = used >= maleDieChangeMinutes;
               maintenanceParts.push("Erkek kalıp değişimi");
             }
             maleChangeCarryover = maleDieChangeMinutes - used;
             plannedMaleRemainingEnd = maleChangeCarryover <= 0 ? maleDieInterval : 0;
+            plannedFemaleRemainingEnd = femaleRemaining - producedBeforeChange;
           } else {
-            plannedMaleRemainingEnd = maleRemaining - dieLimitedCapacity;
+            plannedMaleRemainingEnd = maleRemaining - producedBeforeChange;
+            plannedFemaleRemainingEnd = femaleRemaining - producedBeforeChange;
           }
-
-          plannedFemaleRemainingEnd = femaleRemaining - dieLimitedCapacity;
         } else {
-          plannedCapacityPressed = dieLimitedCapacity;
-          plannedSameDayCapacity = Math.min(sameDayCapacity, dieLimitedCapacity);
-          plannedMaleRemainingEnd = maleRemaining - dieLimitedCapacity;
-          plannedFemaleRemainingEnd = femaleRemaining - dieLimitedCapacity;
+          plannedMaleRemainingEnd = maleRemaining - producedBeforeChange;
+          plannedFemaleRemainingEnd = femaleRemaining - producedBeforeChange;
         }
       }
     } else {
@@ -443,6 +513,7 @@ export function buildSchedule({
       startMaintenanceMinutes,
       midMaintenanceMinutes,
       midMaintenanceStartMinute,
+      midMaintenanceComplete,
       maintenanceLabel: maintenanceParts.length > 0 ? maintenanceParts.join(" + ") : "-",
       pressStartTime,
       capacityPressed: plannedCapacityPressed,
@@ -461,4 +532,3 @@ export function buildSchedule({
 
   return result;
 }
-

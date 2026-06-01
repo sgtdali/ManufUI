@@ -49,6 +49,7 @@ import { MoldChangesSidebar } from "./_components/MoldChangesSidebar";
 import { ParamsSidebar } from "./_components/ParamsSidebar";
 import { LossAnalysisPanel } from "./_components/LossAnalysisPanel";
 import { CampaignOptimizer } from "./_components/CampaignOptimizer";
+import { OperationsActionPanel } from "./_components/OperationsActionPanel";
 
 
 export default function SchedulePage() {
@@ -301,8 +302,12 @@ export default function SchedulePage() {
         item.moldMaintenanceStart !== undefined ||
         item.postponeMaleChange !== undefined ||
         item.postponeFemaleChange !== undefined ||
+        item.moldChangeMode !== undefined ||
+        item.manualMoldType !== undefined ||
+        item.manualMoldChangeAfterPieces !== undefined ||
         (item.customGanttItems !== undefined && item.customGanttItems.length > 0) ||
-        (item.disabledSegments !== undefined && item.disabledSegments.length > 0);
+        (item.disabledSegments !== undefined && item.disabledSegments.length > 0) ||
+        (item.disabledOperations !== undefined && item.disabledOperations.length > 0);
 
       if (!hasAnyValue) {
         delete next[key];
@@ -532,8 +537,41 @@ export default function SchedulePage() {
 
           {/* Sağ – Metrikler + içerik */}
           <div className="flex flex-col gap-6">
-            {/* Metrik kartları */}
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5 items-start">
+            <OperationsActionPanel
+              schedule={schedule}
+              cellName={selectedCell}
+              periodGap={periodGap}
+              neededPerRecoveryDay={neededPerRecoveryDay}
+              extraMinutesPerRecoveryDay={extraMinutesPerRecoveryDay}
+              requiredHolidayDays={requiredHolidayDays}
+              overrides={overrides}
+              moldChanges={moldChanges}
+            />
+
+            {/* Günlük simülasyon tablosu */}
+            <ScheduleTable
+              schedule={schedule}
+              overrides={overrides}
+              actuals={actuals}
+              wipOutgoing={wipOutgoing}
+              updateOverride={updateOverride}
+              clearDayOverride={clearDayOverride}
+              cellName={selectedCell}
+              moldChanges={moldChanges}
+              setMoldChanges={setMoldChanges}
+              dependencies={dependencies}
+              updateDayDependencies={updateDayDependencies}
+            />
+
+            <details className="group rounded-lg border border-zinc-200 bg-white shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-zinc-900">
+                <span>Planlama ve analiz araçları</span>
+                <span className="text-xs font-semibold text-zinc-500 group-open:hidden">Aç</span>
+                <span className="hidden text-xs font-semibold text-zinc-500 group-open:inline">Kapat</span>
+              </summary>
+              <div className="flex flex-col gap-6 border-t border-zinc-100 p-4">
+                {/* Metrik kartları */}
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5 items-start">
               <MetricCard
                 icon={<CalendarDays />}
                 label="Hedef günü"
@@ -573,7 +611,7 @@ export default function SchedulePage() {
                 note="Kümülatif birikmiş stok"
                 color={wipMetricValue !== null && wipMetricValue > 0 ? "blue" : "amber"}
               />
-            </div>
+                </div>
 
             {/* Kurtarma senaryosu */}
             <RecoveryCard
@@ -606,22 +644,10 @@ export default function SchedulePage() {
 
             {/* Bilgi paneli */}
             <InfoPanel />
+              </div>
+            </details>
 
 
-            {/* Günlük simülasyon tablosu */}
-            <ScheduleTable
-              schedule={schedule}
-              overrides={overrides}
-              actuals={actuals}
-              wipOutgoing={wipOutgoing}
-              updateOverride={updateOverride}
-              clearDayOverride={clearDayOverride}
-              cellName={selectedCell}
-              moldChanges={moldChanges}
-              setMoldChanges={setMoldChanges}
-              dependencies={dependencies}
-              updateDayDependencies={updateDayDependencies}
-            />
           </div>
         </div>
       </div>

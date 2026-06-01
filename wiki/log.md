@@ -294,3 +294,100 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
   - `Arıza` (Duruş sürelerini ve detaylarını tooltips ile gösteren rozetler)
 - **Hizalama ve Sayfa Yapısı:** Kaldırılan tüm sütunlar (`visibleColumnCount` dahil) ve Gantt detay satırı yeni kolon sayısıyla (7 pres, 6 pres dışı) tam hizalandı.
 - **Kod Doğrulaması:** `npm run build` ile TypeScript derlemesi ve statik sayfa oluşturma başarıyla doğrulandı.
+
+## [2026-06-01] update | Schedule Operasyon Öncelikli Yerleşim
+
+**Yapılanlar:**
+- **Operasyon Aksiyonları Paneli:** `/schedule` ana akışına otomatik hesaplanan öneri kartları eklendi. Panel; dönem açığı, ilk kritik gün, kalıp riski, arıza/duruş ve fazla mesai ihtiyacını mevcut `DayPlan` verilerinden çıkarır.
+- **Sayfa Öncelik Sırası Güncellendi:** Ana içerik sırası operasyon önceliğine göre `Operasyon aksiyonları → Günlük tablo/Gantt → Planlama ve analiz araçları` şeklinde düzenlendi.
+- **Analiz Yoğunluğu Azaltıldı:** Metrik kartları, kurtarma senaryosu, kayıp analizi, kampanya optimizasyonu ve bilgi paneli “Planlama ve analiz araçları” adlı katlanır bölümün içine taşındı.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Ara Kalıp Değişimi ve Pres Proses Çakışması
+
+**Yapılanlar:**
+- **Fiziksel Çakışma Giderildi:** Gantt görselinde ara kalıp değişimi (`midMaintenanceMinutes`) pres prosesinin ortasına denk geldiğinde yeşil `Pres Proses` çubuğu artık mavi kalıp değişimi bloğunun üzerinden geçmez. Pres prosesi kalıp değişimi öncesi ve sonrası olarak iki parçaya bölünür.
+- **Vardiya Kapsamı Güncellendi:** Dinamik vardiya sınırı ara kalıp değişimi bloğunu da kapsayacak şekilde genişletildi.
+- **Satır Gizleme Uyumu:** Bölünmüş pres prosesinde satır silme/gizleme davranışı hâlâ tek `press-process` mantığıyla çalışacak şekilde korundu.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Tamamlanmayan Kalıp Değişimi Sonrası Presin Başlamaması
+
+**Yapılanlar:**
+- **Tamamlanma Bilgisi Eklendi:** `DayPlan` yapısına `midMaintenanceComplete` alanı eklendi. Simülasyon motoru ara erkek kalıp değişiminde gün içinde kullanılan sürenin tam erkek kalıp değişim süresini karşılayıp karşılamadığını artık açıkça döndürür.
+- **Gantt Devam Kuralı Sıkılaştırıldı:** Ara kalıp değişimi vardiya içinde tamamlanmıyorsa, `Pres Proses` ikinci parçaya bölünüp kalıp değişimi sonrasına devam etmez. Pres görseli kalıp değişiminin başladığı noktada biter.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Ara Kalıp Değişiminin Pres Başlangıcını Yanlış Ötelemesi
+
+**Yapılanlar:**
+- **Kök Neden:** Gantt hazırlık hesabında `day.maintenanceMinutes` toplamı kullanıldığı için gün ortasındaki ara kalıp değişimi, yanlışlıkla gün başındaki kalıp değişimi gibi kabul ediliyor ve pres/indüksiyon başlangıcını ileri itiyordu.
+- **Düzeltme:** Pres öncesi kalıp ısıtma ve başlangıç koruması artık yalnızca `startMaintenanceMinutes` (gün başı bakım) değerini dikkate alır. Ara kalıp değişimi sabah hazırlık akışını bekletmez.
+- **Beklenen Akış:** Bu tip günde kalıp ısıtma bittiğinde indüksiyon 30 dk başlar, ardından pres prosesi kalıp ömrü bitene kadar devam eder; ara kalıp değişimi başladığında pres durur.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Erkek Kalıp Değişimi Carryover Süresi
+
+**Yapılanlar:**
+- **Kök Neden:** Dişi kalıp değişimi için gün başı carryover tüketimi vardı; erkek kalıp değişiminde ise önceki günden kalan süre (`maleChangeCarryover`) ertesi gün tüketilmiyor, bunun yerine `maleRemaining <= 0` olduğu için yeni 285 dk erkek kalıp değişimi başlatılıyordu.
+- **Düzeltme:** Erkek kalıp değişimi carryover mantığı eklendi. Önceki günden 15 dk kaldıysa ertesi gün sadece 15 dk planlanır; tamamlanınca erkek kalıp ömrü `maleDieInterval` değerine sıfırlanır.
+- **Manuel Değişim Uyumu:** Manuel erkek kalıp kaydı girildiğinde bekleyen erkek carryover temizlenir.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Proses Sonrası Kalıp Değişimi İçin Soğutma Ön Koşulu
+
+**Yapılanlar:**
+- **Ortak Soğutma Sabiti:** Kalıp soğutma varsayılanı `DEFAULT_DIE_COOLING_MINUTES = 90` olarak `constants.ts` içine taşındı; simülasyon ve Gantt aynı sabiti kullanır.
+- **Male/Female Kuralı:** Proses sonrası yapılacak erkek veya dişi kalıp değişimi, kalıp ömrünün bittiği proses noktasından hemen sonra başlamaz. Başlangıç zamanı artık `kalıp ömrü bitiş zamanı + kalıp soğutma süresi` olarak hesaplanır.
+- **Carryover Etkisi:** Soğutma süresi vardiya içinde yer tükettiği için gün içinde yapılabilen kalıp değişimi süresi azalır; kalan süre ertesi güne carryover olarak taşınır.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Gantt Vardiya Yazısı ve F.Mesai Tek Kaynak
+
+**Yapılanlar:**
+- **Vardiya Yazısı Eşitlendi:** Gantt detay başlığındaki `Vardiya ...` metni artık ham `day.shiftStart/day.shiftEnd` yerine Gantt üzerindeki `shift` segmentinden (`displayShiftStart/displayShiftEnd`) okunur.
+- **F.Mesai Hesabı Eşitlendi:** F.Mesai rozeti override değerine kilitlenmek yerine Gantt shift barının gerçek süresi ile konfigüre vardiya süresi arasındaki farktan hesaplanır.
+- **Sonuç:** Gantt barı 07:45-18:45 ise detay yazısı da 07:45-18:45 ve 660 dk gösterir; Gantt normal vardiya aralığına dönerse F.Mesai otomatik 0 olur.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Vardiya Sürükleyince Eski F.Mesai Override'ının Kalması
+
+**Yapılanlar:**
+- **Kök Neden:** Vardiya barı 17:15'e geri çekildiğinde `shiftEnd` güncelleniyor fakat eski `overtimeMinutes: 90` override'ı veya global fazla mesai etkisi simülasyonda kalabiliyordu.
+- **Düzeltme:** Vardiya başlangıç/bitiş sürükleme işlemleri artık o gün için `overtimeMinutes: 0` override'ı da yazar. Böylece manuel vardiya saati seçimi eski/global fazla mesaiyi ezer.
+- **Rozet Hesabı:** F.Mesai rozeti artık override değerinden değil, Gantt vardiya barının gerçek süresi ile standart vardiya süresi arasındaki farktan hesaplanır.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] update | Kalıp Değişim Modu
+
+**Yapılanlar:**
+- **Mod Alanları:** Günlük schedule override modeline `moldChangeMode`, `manualMoldType` ve `manualMoldChangeAfterPieces` alanları eklendi. Supabase için ilgili migration oluşturuldu.
+- **UI Kontrolü:** Gantt detay panelindeki eski erkek/dişi ertele checkbox'ları yerine `Otomatik`, `Ertele / Zorla`, `Elle Planla` mod seçici eklendi. Elle plan modunda kalıp tipi ve kaç parçadan sonra değişim yapılacağı girilebilir.
+- **Simülasyon Mantığı:** Elle plan modunda seçilen kalıp için otomatik ömür limiti yerine kullanıcının girdiği parça eşiği kullanılır. Bu eşik kalıp ömrünün altında da üstünde de olabilir.
+- **Kalıcı Kayıt:** Ertele ve manuel plan alanları `manuf_schedule_overrides` üzerinden yüklenip kaydedilir.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Manuel Kalıp Eşiğinde Kapasite ve Üretim Ayrımı
+
+**Yapılanlar:**
+- **Kök Neden:** Manuel kalıp değişim eşiği girildiğinde kapasite hesabı senaryo/gerçekleşen üretim adedine kilitleniyordu. Örneğin eşik 100, üretim 85 iken kapasite de 85 görünüyordu.
+- **Düzeltme:** `buildSchedule` içinde teorik kalıp limitli kapasite (`capacityPressed`) ile gerçekten üretilecek adet (`productionDemand`) ayrıldı. Kapasite artık kalıp eşiğine göre hesaplanır; kalıp değişimi ise yalnızca üretim bu eşiğe gerçekten ulaşıyorsa başlar.
+- **Sonuç:** Elle plan `100`, üretim `85` ise kalıp değişimi o günden kalkar, kapasite 100'e kadar çıkar, kalan kalıp ömrü üretime göre negatif/pozitif güncellenir.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Gizlenen Kalıp Değişiminin Carryover'a Geri Yansıması
+
+**Yapılanlar:**
+- **Kök Neden:** Gantt'ta kalıp değişimi satırı çöp ikonuyla gizlenince görsel blok kalkıyor, fakat simülasyon motoru o gün kalıp değişimi süresi kullanılmış gibi carryover'ı azaltmaya devam ediyordu.
+- **Düzeltme:** `disabledSegments` içinde `mold-maintenance` varsa `buildSchedule` bunu “bu gün kalıp değişimi yapılmayacak” kuralı olarak yorumlar. Gün başı carryover tüketimi, otomatik kalıp değişimi ve gün ortası kalıp değişimi bu gün için ertelenir.
+- **Sonuç:** Örneğin 30 dk gün sonu kalıp değişimi silinirse, ertesi güne aktarılacak kalan süre o 30 dk düşülmeden yeniden hesaplanır.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.
+
+## [2026-06-01] fix | Schedule Veri/UI Senkron Riskleri
+
+**Yapılanlar:**
+- **Görsel ve Operasyon Ayrımı:** `DayOverride` modeline `disabledOperations` eklendi. `disabledSegments` artık görsel satır gizleme, `disabledOperations` ise simülasyonda gerçekten yapılmayacak operasyonları temsil eder. Supabase için migration oluşturuldu.
+- **Kalıp Değişimi Silme:** Gantt'ta kalıp değişimi satırı silindiğinde hem görsel satır gizlenir hem `disabledOperations: ["mold-maintenance"]` yazılır. Geri getirildiğinde iki alan da temizlenir.
+- **F.Mesai Öneri Senkronu:** `OperationsActionPanel` fazla mesai önerisini artık `day.overtimeMinutes` yerine Gantt `shift` segmentinin gerçek süresinden hesaplar.
+- **Manuel Kalıp/Gantt Senkronu:** Manuel kalıp değişim modunda kalıp değişimi bloğu sürüklenirse `manualMoldChangeAfterPieces` de yeni zamana göre güncellenir. Ara kalıp değişimi bloğu da sürüklenebilir hale getirildi.
+- **Kod Doğrulaması:** `npx tsc --noEmit` kontrolü hatasız geçti.

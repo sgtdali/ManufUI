@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { deleteMoldChange, saveMoldChange, type MoldChange } from "../actions";
+import { DEFAULT_DIE_COOLING_MINUTES, SHIFT_MINUTES } from "../constants";
 import type { CustomGanttItem, DayPlan, DayOverride, GanttDependency } from "../types";
 import { formatNumber, formatTimeFromMinutes, numberInput, parseTime } from "../utils";
 
@@ -51,8 +52,6 @@ const GANTT_ROWS = [
 
 const FIXED_GANTT_ROW = "Vardiya";
 const DEFAULT_MOVABLE_GANTT_ROWS = GANTT_ROWS.filter((rowLabel) => rowLabel !== FIXED_GANTT_ROW);
-const DEFAULT_DIE_COOLING_MINUTES = 90;
-
 const ROW_LABEL_TO_SEGMENT_ID: Record<string, string> = {
   "Fırın Isıtma": "furnace-warmup",
   "Kalıp Isıtma": "die-heat",
@@ -100,7 +99,7 @@ function snapToQuarter(minutes: number) {
   return Math.round(minutes / 15) * 15;
 }
 
-function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: MoldChange[], dayOverride?: DayOverride): { startMinute: number; endMinute: number; segments: GanttSegment[] } {
+export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: MoldChange[], dayOverride?: DayOverride): { startMinute: number; endMinute: number; segments: GanttSegment[] } {
   const disabledList = dayOverride?.disabledSegments ?? [];
   const baseShiftStart = unwrapTime(day.shiftStart) ?? 465;
   const baseShiftEnd = unwrapTime(day.shiftEnd, baseShiftStart) ?? baseShiftStart + Math.max(day.availableMinutes, 570);
@@ -109,11 +108,12 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
   const rawPressStart = unwrapTime(day.pressStartTime, baseShiftStart);
 
   const initMaintenanceStart = unwrapTime(dayOverride?.moldMaintenanceStart ?? null) ?? baseShiftStart;
-  const initHasMoldMaintenance = isPress && (day.maintenanceMinutes > 0 || moldChangesForDay.length > 0);
+  const initStartMaintenanceMinutes = day.startMaintenanceMinutes ?? 0;
+  const initHasMoldMaintenance = isPress && (initStartMaintenanceMinutes > 0 || moldChangesForDay.length > 0);
   const initFallbackMaintenanceEnd = Math.min(initMaintenanceStart + 30, baseShiftEnd);
   const initMaintenanceEnd =
-    initHasMoldMaintenance && day.maintenanceMinutes > 0
-      ? Math.min(initMaintenanceStart + day.maintenanceMinutes, baseShiftEnd)
+    initHasMoldMaintenance && initStartMaintenanceMinutes > 0
+      ? Math.min(initMaintenanceStart + initStartMaintenanceMinutes, baseShiftEnd)
       : initFallbackMaintenanceEnd;
 
   const initDieHeatStart = Math.min(
@@ -128,9 +128,33 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
   }
   
   const productionStart = isPress ? pressStart : baseShiftStart;
+  const midMaintMinutes = day.midMaintenanceMinutes ?? 0;
+  const midMaintStart = day.midMaintenanceStartMinute ?? null;
+  const midMaintEnd =
+    midMaintStart !== null && midMaintMinutes > 0
+      ? midMaintStart + midMaintMinutes
+      : null;
   const productionMinutes = isPress ? day.pressed * 3 : Math.min(day.availableMinutes, baseShiftEnd - baseShiftStart);
-  const productionEnd =
+  const uninterruptedProductionEnd =
     productionStart !== null ? productionStart + Math.max(productionMinutes, 0) : null;
+  const productionCrossesMidMaintenance =
+    isPress &&
+    productionStart !== null &&
+    uninterruptedProductionEnd !== null &&
+    midMaintStart !== null &&
+    midMaintEnd !== null &&
+    midMaintStart > productionStart &&
+    midMaintStart < uninterruptedProductionEnd &&
+    !disabledList.includes("mold-maintenance");
+  const canResumeAfterMidMaintenance = productionCrossesMidMaintenance && day.midMaintenanceComplete;
+  const productionEnd =
+    uninterruptedProductionEnd !== null
+      ? productionCrossesMidMaintenance
+        ? canResumeAfterMidMaintenance
+          ? uninterruptedProductionEnd + midMaintMinutes
+          : midMaintStart
+        : uninterruptedProductionEnd
+      : null;
 
   const coolingMinutes = Math.max(dayOverride?.dieCoolingMinutes ?? DEFAULT_DIE_COOLING_MINUTES, 0);
   const coolEnd = productionEnd !== null ? productionEnd + coolingMinutes : baseShiftEnd;
@@ -148,6 +172,10 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
   if (!disabledList.includes("mold-maintenance") && initHasMoldMaintenance) {
     shiftStart = Math.min(shiftStart, initMaintenanceStart);
     shiftEnd = Math.max(shiftEnd, initMaintenanceEnd);
+  }
+  if (!disabledList.includes("mold-maintenance") && midMaintStart !== null && midMaintEnd !== null) {
+    shiftStart = Math.min(shiftStart, midMaintStart);
+    shiftEnd = Math.max(shiftEnd, midMaintEnd);
   }
   if (!disabledList.includes("press-process") && productionEnd !== null) {
     if (isPress && pressStart !== null) {
@@ -175,6 +203,7 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
   const maintenanceStart = unwrapTime(dayOverride?.moldMaintenanceStart ?? null) ?? baseShiftStart;
   const startMaintMinutes = day.startMaintenanceMinutes ?? 0;
   const startMaintDuration = startMaintMinutes > 0 ? startMaintMinutes : (moldChangesForDay.length > 0 ? 30 : 0);
+  const hasStartMoldMaintenance = startMaintDuration > 0;
   const maintenanceEnd = Math.min(maintenanceStart + startMaintDuration, shiftEnd);
 
   segments.push({
@@ -202,7 +231,7 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
     }
 
     const dieHeatStart = Math.min(
-      Math.max(furnaceStart + 60, hasMoldMaintenance && !disabledList.includes("mold-maintenance") ? maintenanceEnd : shiftStart),
+      Math.max(furnaceStart + 60, hasStartMoldMaintenance && !disabledList.includes("mold-maintenance") ? maintenanceEnd : shiftStart),
       shiftEnd
     );
     const dieHeatEnd = Math.min(dieHeatStart + 60, shiftEnd);
@@ -213,7 +242,7 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
         start: dieHeatStart,
         end: dieHeatEnd,
         className: "bg-red-500",
-        note: hasMoldMaintenance
+        note: hasStartMoldMaintenance
           ? `Kalıp değişimi bitince: ${formatTimeFromMinutes(dieHeatStart)} - ${formatTimeFromMinutes(dieHeatEnd)}`
           : `${formatTimeFromMinutes(dieHeatStart)} - ${formatTimeFromMinutes(dieHeatEnd)}`,
       });
@@ -256,8 +285,6 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
     }
 
     // 2. Mid-day maintenance segment
-    const midMaintMinutes = day.midMaintenanceMinutes ?? 0;
-    const midMaintStart = day.midMaintenanceStartMinute ?? null;
     if (midMaintMinutes > 0 && midMaintStart !== null) {
       const endMaint = Math.min(midMaintStart + midMaintMinutes, shiftEnd);
       segments.push({
@@ -267,20 +294,33 @@ function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: M
         end: endMaint,
         className: "bg-sky-500",
         note: `Ara Kalıp Değişimi · ${midMaintMinutes} dk`,
+        editable: "mold-maintenance",
       });
     }
   }
 
   if (productionStart !== null && productionEnd !== null && productionEnd > productionStart && !disabledList.includes("press-process")) {
-    segments.push({
-      id: "press-process",
-      label: "Pres Proses",
-      start: productionStart,
-      end: productionEnd,
-      className: "bg-lime-500",
-      note: `${formatNumber(day.pressed)} adet`,
-      editable: "press",
-    });
+    const productionSegments =
+      productionCrossesMidMaintenance && midMaintStart !== null && midMaintEnd !== null
+        ? canResumeAfterMidMaintenance
+          ? [
+              { id: "press-process-before-maintenance", start: productionStart, end: midMaintStart },
+              { id: "press-process-after-maintenance", start: midMaintEnd, end: productionEnd },
+            ].filter((segment) => segment.end > segment.start)
+          : [{ id: "press-process-before-maintenance", start: productionStart, end: midMaintStart }]
+        : [{ id: "press-process", start: productionStart, end: productionEnd }];
+
+    for (const segment of productionSegments) {
+      segments.push({
+        id: segment.id,
+        label: "Pres Proses",
+        start: segment.start,
+        end: segment.end,
+        className: "bg-lime-500",
+        note: `${formatNumber(day.pressed)} adet`,
+        editable: segment.id === "press-process" ? "press" : undefined,
+      });
+    }
   }
 
   const coolStart = productionEnd !== null ? productionEnd : Math.max(shiftEnd - coolingMinutes, shiftStart);
@@ -529,7 +569,15 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
 
       if (segment.editable === "mold-maintenance") {
         const nextStart = clamp(originalStart + delta, gantt.startMinute, shiftEnd - originalDuration);
-        updateOverride(day.key, { moldMaintenanceStart: formatTimeFromMinutes(nextStart) });
+        const patch: DayOverride = { moldMaintenanceStart: formatTimeFromMinutes(nextStart) };
+        if ((overrides[day.key]?.moldChangeMode ?? "auto") === "manual") {
+          const pressStart = unwrapTime(day.pressStartTime, shiftStart);
+          const coolingMinutes = Math.max(overrides[day.key]?.dieCoolingMinutes ?? DEFAULT_DIE_COOLING_MINUTES, 0);
+          if (pressStart !== null) {
+            patch.manualMoldChangeAfterPieces = Math.max(Math.floor((nextStart - coolingMinutes - pressStart) / 3), 0);
+          }
+        }
+        updateOverride(day.key, patch);
         return;
       }
 
@@ -544,13 +592,13 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
       if (segment.editable === "shift") {
         if (mode === "resize-start") {
           const nextStart = clamp(originalStart + delta, gantt.startMinute, originalEnd - 15);
-          updateOverride(day.key, { shiftStart: formatTimeFromMinutes(nextStart) });
+          updateOverride(day.key, { shiftStart: formatTimeFromMinutes(nextStart), overtimeMinutes: 0 });
           return;
         }
 
         if (mode === "resize-end") {
           const nextEnd = Math.max(originalEnd + delta, originalStart + 15);
-          updateOverride(day.key, { shiftEnd: formatTimeFromMinutes(nextEnd) });
+          updateOverride(day.key, { shiftEnd: formatTimeFromMinutes(nextEnd), overtimeMinutes: 0 });
           return;
         }
 
@@ -558,6 +606,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
         updateOverride(day.key, {
           shiftStart: formatTimeFromMinutes(nextStart),
           shiftEnd: formatTimeFromMinutes(nextStart + originalDuration),
+          overtimeMinutes: 0,
         });
       }
     };
@@ -650,13 +699,10 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                   ? formatTimeFromMinutes(shiftSegment.end)
                   : (overrides[day.key]?.shiftEnd ?? day.shiftEnd ?? "");
                 // Overtime = how much shift exceeds the override/default configured end
-                const configuredShiftEnd = parseTime(overrides[day.key]?.shiftEnd ?? day.shiftEnd ?? "") ?? 0;
-                const configuredShiftStart = parseTime(overrides[day.key]?.shiftStart ?? day.shiftStart ?? "") ?? 0;
-                const configuredDuration = Math.max(configuredShiftEnd - configuredShiftStart, 0);
-                const actualDuration = shiftSegment ? Math.max(shiftSegment.end - shiftSegment.start, 0) : configuredDuration;
-                const displayOvertime = overrides[day.key]?.overtimeMinutes !== undefined
-                  ? overrides[day.key].overtimeMinutes!
-                  : Math.max(actualDuration - configuredDuration, 0);
+                const standardShiftDuration = day.isBaseWorkday ? SHIFT_MINUTES : 480;
+                const actualDuration = shiftSegment ? Math.max(shiftSegment.end - shiftSegment.start, 0) : day.availableMinutes;
+                const displayOvertime = Math.max(actualDuration - standardShiftDuration, 0);
+                const displayShiftDuration = shiftSegment ? actualDuration : day.availableMinutes;
 
                 return (
                   <Fragment key={day.key}>
@@ -795,8 +841,8 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                 {day.label} Gantt Detayı
                               </p>
                               <p className="text-[11px] text-zinc-500">
-                                Vardiya {day.shiftStart} - {day.shiftEnd} ({day.availableMinutes} dk kullanılabilir süre)
-                                {day.overtimeMinutes > 0 ? ` + ${day.overtimeMinutes} dk fazla mesai` : ""}
+                                Vardiya {displayShiftStart} - {displayShiftEnd} ({displayShiftDuration} dk kullanılabilir süre)
+                                {displayOvertime > 0 ? ` + ${displayOvertime} dk fazla mesai` : ""}
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold text-zinc-600">
@@ -820,35 +866,75 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                           </div>
 
                           {isPress && (
-                            <div className="mb-3 flex flex-wrap items-center gap-4 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
-                              <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 cursor-pointer select-none">
-                                <input
-                                  checked={overrides[day.key]?.postponeMaleChange === true}
-                                  className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 accent-blue-700"
+                            <div className="mb-3 flex flex-wrap items-end gap-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                                  Kalip Degisim Modu
+                                </label>
+                                <select
+                                  className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs font-semibold text-zinc-700"
                                   disabled={isRowDisabled}
-                                  type="checkbox"
+                                  value={overrides[day.key]?.moldChangeMode ?? "auto"}
                                   onChange={(e) => {
+                                    const mode = e.target.value as DayOverride["moldChangeMode"];
                                     updateOverride(day.key, {
-                                      postponeMaleChange: e.target.checked ? true : undefined,
+                                      moldChangeMode: mode === "auto" ? undefined : mode,
+                                      postponeMaleChange: mode === "postpone" ? true : undefined,
+                                      postponeFemaleChange: mode === "postpone" ? true : undefined,
+                                      manualMoldType: mode === "manual" ? (overrides[day.key]?.manualMoldType ?? "male") : undefined,
+                                      manualMoldChangeAfterPieces:
+                                        mode === "manual"
+                                          ? (overrides[day.key]?.manualMoldChangeAfterPieces ?? Math.max(day.pressed, 0))
+                                          : undefined,
                                     });
                                   }}
-                                />
-                                Erkek Kalıp Değişimini Ertele
-                              </label>
-                              <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 cursor-pointer select-none">
-                                <input
-                                  checked={overrides[day.key]?.postponeFemaleChange === true}
-                                  className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 accent-blue-700"
-                                  disabled={isRowDisabled}
-                                  type="checkbox"
-                                  onChange={(e) => {
-                                    updateOverride(day.key, {
-                                      postponeFemaleChange: e.target.checked ? true : undefined,
-                                    });
-                                  }}
-                                />
-                                Dişi Kalıp Değişimini Ertele
-                              </label>
+                                >
+                                  <option value="auto">Otomatik</option>
+                                  <option value="postpone">Ertele / Zorla</option>
+                                  <option value="manual">Elle Planla</option>
+                                </select>
+                              </div>
+
+                              {(overrides[day.key]?.moldChangeMode ?? "auto") === "manual" && (
+                                <>
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Kalip</label>
+                                    <select
+                                      className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs font-semibold text-zinc-700"
+                                      disabled={isRowDisabled}
+                                      value={overrides[day.key]?.manualMoldType ?? "male"}
+                                      onChange={(e) => updateOverride(day.key, { manualMoldType: e.target.value as "male" | "female" })}
+                                    >
+                                      <option value="male">Erkek</option>
+                                      <option value="female">Disi</option>
+                                    </select>
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Kac parcadan sonra</label>
+                                    <Input
+                                      className="h-8 w-28 bg-white text-right text-xs font-semibold"
+                                      disabled={isRowDisabled}
+                                      min={0}
+                                      type="number"
+                                      value={overrides[day.key]?.manualMoldChangeAfterPieces ?? ""}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        updateOverride(day.key, {
+                                          manualMoldChangeAfterPieces:
+                                            value === "" ? undefined : Math.max(Math.floor(numberInput(value)), 0),
+                                        });
+                                      }}
+                                    />
+                                  </div>
+                                </>
+                              )}
+
+                              {(overrides[day.key]?.moldChangeMode ?? "auto") === "postpone" && (
+                                <p className="pb-1 text-[11px] font-semibold text-amber-700">
+                                  Kalip omru asilabilir; kalan omur negatif gosterilir.
+                                </p>
+                              )}
                             </div>
                           )}
                           <div className="mb-3 flex items-center gap-2">
@@ -1034,8 +1120,12 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                           const nextDisabled = (overrides[day.key]?.disabledSegments ?? []).filter(
                                             (id) => id !== segId
                                           );
+                                          const nextDisabledOperations = (overrides[day.key]?.disabledOperations ?? []).filter(
+                                            (id) => id !== segId
+                                          );
                                           updateOverride(day.key, {
                                             disabledSegments: nextDisabled.length > 0 ? nextDisabled : undefined,
+                                            disabledOperations: nextDisabledOperations.length > 0 ? nextDisabledOperations : undefined,
                                           });
                                           toast.success(`${label} geri getirildi.`);
                                         }}
@@ -1165,8 +1255,18 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                                 });
                                               } else {
                                                 const currentDisabled = overrides[day.key]?.disabledSegments ?? [];
+                                                const disabledId = segment.id.startsWith("press-process")
+                                                  ? "press-process"
+                                                  : segment.id.startsWith("mold-maintenance")
+                                                    ? "mold-maintenance"
+                                                    : segment.id;
+                                                const currentDisabledOperations = overrides[day.key]?.disabledOperations ?? [];
                                                 updateOverride(day.key, {
-                                                  disabledSegments: [...currentDisabled, segment.id],
+                                                  disabledSegments: [...currentDisabled, disabledId],
+                                                  disabledOperations:
+                                                    disabledId === "mold-maintenance"
+                                                      ? [...currentDisabledOperations.filter((id) => id !== disabledId), disabledId]
+                                                      : currentDisabledOperations.length > 0 ? currentDisabledOperations : undefined,
                                                 });
                                               }
                                               toast.success(`${rowLabel} satırı kaldırıldı.`);

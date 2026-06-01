@@ -438,7 +438,18 @@ export async function loadScheduleOverrides(cellName: string, startDate: string,
       dieCoolingMinutes: row.die_cooling_minutes !== null ? row.die_cooling_minutes : undefined,
       customGanttItems: Array.isArray(row.custom_gantt_items) ? row.custom_gantt_items : [],
       disabledSegments: Array.isArray(row.disabled_segments) ? row.disabled_segments : [],
+      disabledOperations: Array.isArray(row.disabled_operations)
+        ? row.disabled_operations
+        : Array.isArray(row.disabled_segments)
+          ? row.disabled_segments.filter((id: string) => id === "mold-maintenance")
+          : [],
       moldMaintenanceStart: row.mold_maintenance_start || undefined,
+      postponeMaleChange: row.postpone_male_change !== null ? row.postpone_male_change : undefined,
+      postponeFemaleChange: row.postpone_female_change !== null ? row.postpone_female_change : undefined,
+      moldChangeMode:
+        row.mold_change_mode || (row.postpone_male_change === true || row.postpone_female_change === true ? "postpone" : undefined),
+      manualMoldType: row.manual_mold_type || undefined,
+      manualMoldChangeAfterPieces: row.manual_mold_change_after_pieces !== null ? row.manual_mold_change_after_pieces : undefined,
     };
 
     if (Array.isArray(row.dependencies)) {
@@ -475,8 +486,15 @@ export async function saveScheduleOverride(
         die_cooling_minutes: override.dieCoolingMinutes !== undefined ? override.dieCoolingMinutes : null,
         custom_gantt_items: override.customGanttItems || [],
         disabled_segments: override.disabledSegments || [],
+        disabled_operations: override.disabledOperations || [],
         dependencies: dayDependencies || [],
         mold_maintenance_start: override.moldMaintenanceStart || null,
+        postpone_male_change: override.postponeMaleChange !== undefined ? override.postponeMaleChange : null,
+        postpone_female_change: override.postponeFemaleChange !== undefined ? override.postponeFemaleChange : null,
+        mold_change_mode: override.moldChangeMode || null,
+        manual_mold_type: override.manualMoldType || null,
+        manual_mold_change_after_pieces:
+          override.manualMoldChangeAfterPieces !== undefined ? override.manualMoldChangeAfterPieces : null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "tarih,bolum" }
@@ -507,7 +525,4 @@ export async function deleteScheduleOverride(tarih: string, bolum: string) {
 
   return { success: true };
 }
-
-
-
 
