@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { isWeekday } from "./utils";
-import type { DayOverride, GanttDependency } from "./types";
+import type { DayOverride, GanttDependency, ToolChangeItem } from "./types";
 
 
 type ProductionRow = {
@@ -531,4 +531,77 @@ export async function deleteScheduleOverride(tarih: string, bolum: string) {
 
   return { success: true };
 }
+
+// ── ETM Takım Değişimi Eylemleri ─────────────────────────────────────────────
+
+export async function loadEtmToolChanges(startDate: string, endDate: string) {
+  if (!isDateValue(startDate) || !isDateValue(endDate) || startDate > endDate) {
+    return { success: false, error: "Geçersiz tarih aralığı.", data: [] };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_etm_tool_changes")
+    .select("id, tarih, machine, tool_type, description, created_at")
+    .gte("tarih", startDate)
+    .lte("tarih", endDate)
+    .order("tarih", { ascending: true });
+
+  if (error) {
+    console.warn("loadEtmToolChanges error:", error.message);
+    return { success: false, error: error.message, data: [] };
+  }
+
+  return { success: true, data: data as ToolChangeItem[] };
+}
+
+export async function saveEtmToolChange(
+  tarih: string,
+  machine: "ETM-1" | "ETM-2",
+  toolType: "cutting_insert" | "drill_bit",
+  description?: string
+) {
+  if (!isDateValue(tarih)) {
+    return { success: false, error: "Geçersiz tarih." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("manuf_etm_tool_changes")
+    .upsert(
+      {
+        tarih,
+        machine,
+        tool_type: toolType,
+        description: description || null,
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "tarih,machine,tool_type" }
+    );
+
+  if (error) {
+    console.error("saveEtmToolChange error:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+export async function deleteEtmToolChange(tarih: string, machine: "ETM-1" | "ETM-2", toolType: "cutting_insert" | "drill_bit") {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("manuf_etm_tool_changes")
+    .delete()
+    .eq("tarih", tarih)
+    .eq("machine", machine)
+    .eq("tool_type", toolType);
+
+  if (error) {
+    console.error("deleteEtmToolChange error:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
 

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, Wrench } from "lucide-react";
-import { formatDate } from "../../utils";
+import { formatDate } from "../utils";
 import type { ToolChangeItem } from "../types";
 
 type Props = {
@@ -43,7 +43,7 @@ export function EtmToolsSidebar({ toolChanges, onSaveToolChange, onDeleteToolCha
             id="tools-tarih"
             type="date"
             required
-            className="text-xs border border-zinc-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+            className="text-xs border border-zinc-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-zinc-800"
             value={tarih}
             onChange={(e) => setTarih(e.target.value)}
           />
@@ -54,7 +54,7 @@ export function EtmToolsSidebar({ toolChanges, onSaveToolChange, onDeleteToolCha
             <label htmlFor="tools-machine" className="text-[10px] font-bold text-zinc-500">Makine</label>
             <select
               id="tools-machine"
-              className="text-xs border border-zinc-200 rounded p-1.5 focus:outline-none bg-white cursor-pointer"
+              className="text-xs border border-zinc-200 rounded p-1.5 focus:outline-none bg-white cursor-pointer text-zinc-800"
               value={machine}
               onChange={(e) => setMachine(e.target.value as "ETM-1" | "ETM-2")}
             >
@@ -66,7 +66,7 @@ export function EtmToolsSidebar({ toolChanges, onSaveToolChange, onDeleteToolCha
             <label htmlFor="tools-type" className="text-[10px] font-bold text-zinc-500">Takım Tipi</label>
             <select
               id="tools-type"
-              className="text-xs border border-zinc-200 rounded p-1.5 focus:outline-none bg-white cursor-pointer"
+              className="text-xs border border-zinc-200 rounded p-1.5 focus:outline-none bg-white cursor-pointer text-zinc-800"
               value={toolType}
               onChange={(e) => setToolType(e.target.value as "cutting_insert" | "drill_bit")}
             >
@@ -82,7 +82,7 @@ export function EtmToolsSidebar({ toolChanges, onSaveToolChange, onDeleteToolCha
             id="tools-description"
             type="text"
             placeholder="Kullanıcı veya sebep notu..."
-            className="text-xs border border-zinc-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+            className="text-xs border border-zinc-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-zinc-800"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -91,7 +91,7 @@ export function EtmToolsSidebar({ toolChanges, onSaveToolChange, onDeleteToolCha
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="w-full text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white flex items-center justify-center gap-1 py-2"
+          className="w-full text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white flex items-center justify-center gap-1 py-2 cursor-pointer"
         >
           <Wrench className="size-3.5" />
           Değişimi Kaydet
@@ -106,7 +106,6 @@ export function EtmToolsSidebar({ toolChanges, onSaveToolChange, onDeleteToolCha
         ) : (
           <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
             {toolChanges.map((change) => {
-              const displayDate = change.tarih;
               const formatted = formatDate(new Date(change.tarih + "T00:00:00"));
               return (
                 <div
@@ -127,7 +126,7 @@ export function EtmToolsSidebar({ toolChanges, onSaveToolChange, onDeleteToolCha
                   <button
                     type="button"
                     onClick={() => onDeleteToolChange(change.tarih, change.machine, change.tool_type)}
-                    className="p-1.5 text-zinc-400 hover:text-rose-600 rounded hover:bg-zinc-200 transition-colors shrink-0"
+                    className="p-1.5 text-zinc-400 hover:text-rose-600 rounded hover:bg-zinc-200 transition-colors shrink-0 cursor-pointer"
                     title="Sil"
                   >
                     <Trash2 className="size-3.5" />

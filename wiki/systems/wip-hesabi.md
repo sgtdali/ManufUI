@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-01
+updated: 2026-06-02
 sources: [src/app/schedule/constants.ts, src/app/schedule/utils.ts, src/app/schedule/types.ts, src/app/schedule/overview/constants.ts, src/app/schedule/overview/actions.ts]
 ---
 
@@ -13,9 +13,9 @@ sources: [src/app/schedule/constants.ts, src/app/schedule/utils.ts, src/app/sche
 |-----------|-------|-------|----------|
 | Vardiya başlangıcı | `SHIFT_START` | 07:45 | — |
 | Vardiya bitişi | `SHIFT_END` | 17:15 | — |
-| Fırın başlangıcı | `FURNACE_START` | 07:45 | — |
+| Fırın başlangıcı | `FURNACE_START` | 07:00 | Standart Gantt şablonunda fırın ısıtma 07:00-08:00 |
 | Toplam vardiya | `SHIFT_MINUTES` | 570 dk | — |
-| Fırın ısınma | `NORMALIZATION_WARMUP_MINUTES` | 120 dk | Fırın hazır olmadan önce beklenecek süre |
+| Fırın ısınma | `NORMALIZATION_WARMUP_MINUTES` | 60 dk | Standart 07:00-08:00 fırın ısıtma bloğu |
 | Pres öncesi ısınma | `PRE_PRESS_HEAT_MINUTES` | 30 dk | Parça fırından çıkınca prese hazır olma süresi |
 | Pres çevrim | `PRESS_CYCLE_MINUTES` | 3 dk | Bir parça preslemek için geçen süre |
 | Normalizasyon işlem | `NORMALIZATION_PROCESS_MINUTES` | 270 dk | Fırında işlem süresi (aynı gün ETM'ye geçiş hesabında kullanılır) |
@@ -43,11 +43,28 @@ Her gün için sırayla:
    ```
    pressMinutes = shiftEnd - pressStart
    ```
+   Kalıp soğutma (`dieCoolingMinutes`) vardiya içi pres kapasitesinden düşülmez; Pres prosesi vardiya sonuna kadar devam edebilir ve "Kalıp Soğutma" Gantt bloğu vardiya sonrasına sarkabilir.
 5. **Pressed değeri seçilir** (öncelik sırası):
    - `override.pressed` → senaryo
    - `actuals[key]` → gerçekleşen (Supabase'den)
    - `capacityPressed` → plan
 6. **Kalıp ömürleri güncellenir**: `maleRemaining`, `femaleRemaining` her gün basılan adet kadar azalır.
+
+## ETM Hücresi WIP Kısıt Simülasyonu
+
+ETM hücresinin günlük üretimi, fiziksel yarı mamul (WIP) stoğu ile sınırlıdır. Bu kısıti simüle etmek için:
+
+1. **Giriş Değerleri**:
+   - `initialWip` (Başlangıç WIP): Planlanan dönemin başlangıcındaki (ilk günden 1 gün önceki) yarı mamul stok adeti. Arayüzde ETM Hücresi seçildiğinde sol menüden el ile girilebilir, varsayılan olarak `startDate - 1 day` tarihindeki `manuf_wip_stock` tablosundan yüklenir.
+   - `upstreamOutput` (Üst Akış Pres Çıkışı): ETM'nin üst akış hücresi olan Pres Hücresi'nin günlük simüle edilen üretim miktarları (`pressed`). Planlama sayfasında ETM Hücresi seçildiğinde, arka planda önce Pres Hücresi simüle edilir ve elde edilen günlük üretim miktarları ETM simülasyonuna aktarılır.
+2. **Kümülatif Takip**:
+   - Her gün $t$ için kullanılabilir WIP miktarı hesaplanır:
+     $$\text{availableWip}_t = \text{cumulativeWip}_{t-1} + \text{upstreamOutput}_t$$
+   - ETM'nin o günkü teorik kapasitesi (`capacityProduced`) ve hedeflenen/senaryo üretimi (`inputProduced`), $\text{availableWip}_t$ ile sınırlanır:
+     $$\text{produced}_t = \min(\text{inputProduced}_t, \text{availableWip}_t)$$
+   - Gün sonundaki kalan WIP miktarı bir sonraki güne aktarılır:
+     $$\text{cumulativeWip}_t = \text{availableWip}_t - \text{produced}_t$$
+   - Gün başı ve gün sonu WIP stokları returned `DayPlan` objesinde `etmWipStart` ve `etmWipEnd` olarak saklanır ve planlama tablosunda (`WIP (Başla → Bitir)`) sütunu altında gösterilir.
 
 ## Genel Hat WIP Stok Hesabı (`calculateAndSaveWip`)
 
@@ -87,6 +104,8 @@ WIP stok takibi `manuf_wip_stock` tablosunda tutulur (kaynak_hucresi → hedef_h
 | `femaleRemainingEnd` | Günün sonunda dişi kalıpta kalan adet |
 | `source` | `"plan"` / `"actual"` / `"scenario"` |
 | `lastFurnaceExitTime` | Son parçanın fırından çıkış saati |
+| `etmWipStart` | Günün başındaki WIP stoğu (ETM hücresi için) |
+| `etmWipEnd` | Günün sonundaki WIP stoğu (ETM hücresi için) |
 
 ## Override Sistemi
 
@@ -95,6 +114,8 @@ WIP stok takibi `manuf_wip_stock` tablosunda tutulur (kaynak_hucresi → hedef_h
 - `overtimeMinutes`: Ekstra mesai süresi
 - `forceWorkday`: Tatil gününü iş günü yap
 - `shiftStart`, `shiftEnd`, `furnaceStart`: O güne özgü saat
+
+`furnaceStart` gün bazlı bağımsız bir override olarak davranır. `/schedule` Gantt detayında Pres hücresi için doğrudan saat alanından girilebilir veya "Fırın Isıtma" bloğu sürüklenerek ayarlanabilir; bu ayar vardiya başlangıç/bitiş penceresine bağlı değildir. Fırın bloğu vardiyadan önceye taşındığında Gantt zaman alanı sola genişler, fakat "Vardiya" çubuğu gerçek vardiya başlangıç/bitiş saatlerinde sabit kalır.
 
 ## İlgili Sayfalar
 

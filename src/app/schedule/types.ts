@@ -33,6 +33,27 @@ export type DayPlan = {
   lastFurnaceExitTime: string | null;
   breakdownMinutes: number;
   breakdownDetails: string[];
+  etm1CuttingRemainingEnd?: number;
+  etm2CuttingRemainingEnd?: number;
+  etm1DrillRemainingEnd?: number;
+  etm2DrillRemainingEnd?: number;
+  etmWarnings?: EtmWarning[];
+  etmCuttingStopsMinutes?: number;
+  etmDrillStopsMinutes?: number;
+  etmPaletStopsMinutes?: number;
+  etm1CuttingStart?: number;
+  etm2CuttingStart?: number;
+  etm1DrillStart?: number;
+  etm2DrillStart?: number;
+  etmWipStart?: number;
+  etmWipEnd?: number;
+};
+
+export type EtmWarning = {
+  type: "cutting_insert" | "drill_bit" | "palet" | "kum" | "filtre" | "bor_yagi" | "talas_kovasi";
+  machine?: "ETM-1" | "ETM-2" | "hucre";
+  message: string;
+  severity: "info" | "warning" | "critical";
 };
 
 export type DayOverride = {
@@ -81,4 +102,12 @@ export type GanttDependency = {
   predecessorLabel: string;
   successorId: string;
   successorLabel: string;
+};
+
+export type ToolChangeItem = {
+  id: string;
+  tarih: string;
+  machine: "ETM-1" | "ETM-2";
+  tool_type: "cutting_insert" | "drill_bit";
+  description: string | null;
 };

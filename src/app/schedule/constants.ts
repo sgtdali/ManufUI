@@ -1,9 +1,9 @@
 // Sabitler – schedule modülüne ait tüm sabit değerler
 export const SHIFT_START = "07:45";
 export const SHIFT_END = "17:15";
-export const FURNACE_START = "07:45";
+export const FURNACE_START = "07:00";
 export const SHIFT_MINUTES = 570;
-export const NORMALIZATION_WARMUP_MINUTES = 120;
+export const NORMALIZATION_WARMUP_MINUTES = 60;
 export const PRE_PRESS_HEAT_MINUTES = 30;
 export const PRESS_CYCLE_MINUTES = 3;
 export const NORMALIZATION_PROCESS_MINUTES = 270;

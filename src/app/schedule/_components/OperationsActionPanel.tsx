@@ -4,19 +4,19 @@ import { AlertTriangle, CalendarClock, CheckCircle2, Clock3, Hammer, TrendingUp,
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MoldChange } from "../actions";
 import { SHIFT_MINUTES } from "../constants";
-import type { DayPlan, DayOverride } from "../types";
+import type { DayPlan, DayOverride, ToolChangeItem } from "../types";
 import { formatNumber } from "../utils";
 import { buildGanttSegments } from "./ScheduleTable";
+import { type ProcessParams } from "../utils";
 
 type Props = {
   schedule: DayPlan[];
   cellName: string;
   periodGap: number;
-  neededPerRecoveryDay: number;
-  extraMinutesPerRecoveryDay: number;
-  requiredHolidayDays: number;
   overrides: Record<string, DayOverride>;
   moldChanges: MoldChange[];
+  processParams?: ProcessParams;
+  etmToolChanges?: ToolChangeItem[];
 };
 
 type ActionTone = "danger" | "warning" | "info" | "success";
@@ -47,11 +47,10 @@ export function OperationsActionPanel({
   schedule,
   cellName,
   periodGap,
-  neededPerRecoveryDay,
-  extraMinutesPerRecoveryDay,
-  requiredHolidayDays,
   overrides,
   moldChanges,
+  processParams,
+  etmToolChanges,
 }: Props) {
   const isPress = cellName === "Pres Hücresi";
   const workdays = schedule.filter((day) => day.isWorkday);
@@ -64,9 +63,11 @@ export function OperationsActionPanel({
     .map((day) => {
       const gantt = buildGanttSegments(
         day,
-        isPress,
+        cellName,
         moldChanges.filter((change) => change.tarih === day.key),
-        overrides[day.key]
+        overrides[day.key],
+        processParams,
+        etmToolChanges?.filter((change) => change.tarih === day.key) ?? []
       );
       const shiftSegment = gantt.segments.find((segment) => segment.id === "shift");
       const standardDuration = day.isBaseWorkday ? SHIFT_MINUTES : 480;
@@ -85,10 +86,7 @@ export function OperationsActionPanel({
     actions.push({
       title: "Açığı kapat",
       value: `${formatNumber(periodGap)} adet açık`,
-      detail:
-        neededPerRecoveryDay > 0
-          ? `Kalan plan günlerine +${formatNumber(neededPerRecoveryDay)} adet/gün yay. Yaklaşık +${formatNumber(extraMinutesPerRecoveryDay)} dk/gün ek süre gerekir.`
-          : `${requiredHolidayDays} tatil günü çalışması senaryosunu değerlendir.`,
+      detail: "Seçili dönemde hedefin gerisinde kalındı. Ek vardiya veya fazla mesai planlamalarını kontrol et.",
       tone: "danger",
       Icon: TrendingUp,
     });

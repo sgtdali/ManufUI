@@ -1,5 +1,5 @@
 ---
-updated: 2026-05-28
+updated: 2026-06-02
 sources: [supabase/migrations/, src/app/actions.ts, src/app/ariza/actions.ts]
 ---
 
@@ -92,7 +92,7 @@ Varsayılan kayıtlar (seed):
 
 | key | label | value | unit |
 |-----|-------|-------|------|
-| normalization_warmup_minutes | Fırın ısınma süresi | 120 | dk |
+| normalization_warmup_minutes | Fırın ısınma süresi | 60 | dk |
 | pre_press_heat_minutes | Pres öncesi parça ısınma | 30 | dk |
 | press_cycle_minutes | Pres çevrim süresi | 3 | dk |
 | normalization_process_minutes | Normalizasyon işlem süresi | 270 | dk |
@@ -100,6 +100,9 @@ Varsayılan kayıtlar (seed):
 | female_die_interval | Dişi kalıp ömrü | 1300 | adet |
 | male_die_change_minutes | Erkek kalıp değişim süresi | 285 | dk |
 | female_die_change_minutes | Dişi kalıp değişim süresi | 1140 | dk |
+| ring_interval | HIP Ring ömrü | 1300 | adet |
+| ring_change_minutes | HIP Ring değişim süresi | 570 | dk |
+
 
 ## manuf_wip_stock
 

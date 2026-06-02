@@ -1,5 +1,5 @@
 // Yardımcı fonksiyonlar ve buildSchedule simülasyon motoru
-import type { DayPlan, DayOverride } from "./types";
+import type { DayPlan, DayOverride, EtmWarning } from "./types";
 import {
   NORMALIZATION_WARMUP_MINUTES,
   PRE_PRESS_HEAT_MINUTES,
@@ -23,6 +23,14 @@ export type ProcessParams = {
   femaleDieChangeMinutes: number;
   ringInterval: number;
   ringChangeMinutes: number;
+  // ETM Parameters:
+  cuttingInsertInterval?: number;
+  cuttingInsertChangeMinutes?: number;
+  drillBitInterval?: number;
+  drillBitChangeMinutes?: number;
+  paletInterval?: number;
+  paletChangeMinutes?: number;
+  hatCycleMinutes?: number;
 };
 
 export const DEFAULT_PROCESS_PARAMS: ProcessParams = {
@@ -36,6 +44,14 @@ export const DEFAULT_PROCESS_PARAMS: ProcessParams = {
   femaleDieChangeMinutes: FEMALE_DIE_CHANGE_MINUTES,
   ringInterval: 1300,
   ringChangeMinutes: 570,
+  // ETM Defaults:
+  cuttingInsertInterval: 10,
+  cuttingInsertChangeMinutes: 5,
+  drillBitInterval: 300,
+  drillBitChangeMinutes: 10,
+  paletInterval: 20,
+  paletChangeMinutes: 10,
+  hatCycleMinutes: 3,
 };
 
 // --- String / Date helpers ---
@@ -131,6 +147,162 @@ export function sum(
   return days.reduce((total, day) => total + day[key], 0);
 }
 
+// ETM Tool change and stops simulation helpers
+export function simulateToolChanges(
+  initialRemaining: number,
+  partsProduced: number,
+  interval: number,
+  changeMinutes: number
+): { changes: number; finalRemaining: number; changeMinutesTotal: number } {
+  if (partsProduced <= 0) {
+    return { changes: 0, finalRemaining: initialRemaining, changeMinutesTotal: 0 };
+  }
+
+  if (partsProduced < initialRemaining) {
+    return {
+      changes: 0,
+      finalRemaining: initialRemaining - partsProduced,
+      changeMinutesTotal: 0,
+    };
+  }
+
+  const rest = partsProduced - initialRemaining;
+  const extraChanges = Math.floor(rest / interval);
+  const totalChanges = 1 + extraChanges;
+  const finalRemaining = interval - (rest % interval);
+
+  return {
+    changes: totalChanges,
+    finalRemaining,
+    changeMinutesTotal: totalChanges * changeMinutes,
+  };
+}
+
+function calculateEtmDayProductionAndStops(
+  availableMinutes: number,
+  params: ProcessParams,
+  state: {
+    etm1Cutting: number;
+    etm2Cutting: number;
+    etm1Drill: number;
+    etm2Drill: number;
+  }
+): {
+  produced: number;
+  cuttingInsertStopsMinutes: number;
+  drillBitStopsMinutes: number;
+  paletStopsMinutes: number;
+  totalStopMinutes: number;
+  finalState: typeof state;
+} {
+  const hatCycleMinutes = params.hatCycleMinutes ?? 3;
+  const cuttingInsertInterval = params.cuttingInsertInterval ?? 10;
+  const cuttingInsertChangeMinutes = params.cuttingInsertChangeMinutes ?? 5;
+  const drillBitInterval = params.drillBitInterval ?? 300;
+  const drillBitChangeMinutes = params.drillBitChangeMinutes ?? 10;
+  const paletInterval = params.paletInterval ?? 20;
+  const paletChangeMinutes = params.paletChangeMinutes ?? 10;
+
+  if (availableMinutes <= 0) {
+    return {
+      produced: 0,
+      cuttingInsertStopsMinutes: 0,
+      drillBitStopsMinutes: 0,
+      paletStopsMinutes: 0,
+      totalStopMinutes: 0,
+      finalState: state,
+    };
+  }
+
+  const theoreticalMax = Math.floor(availableMinutes / hatCycleMinutes);
+  for (let p = theoreticalMax; p >= 0; p--) {
+    const p1 = Math.ceil(p / 2);
+    const p2 = Math.floor(p / 2);
+
+    const etm1CutSim = simulateToolChanges(state.etm1Cutting, p1, cuttingInsertInterval, cuttingInsertChangeMinutes);
+    const etm2CutSim = simulateToolChanges(state.etm2Cutting, p2, cuttingInsertInterval, cuttingInsertChangeMinutes);
+
+    const etm1DrillSim = simulateToolChanges(state.etm1Drill, p1, drillBitInterval, drillBitChangeMinutes);
+    const etm2DrillSim = simulateToolChanges(state.etm2Drill, p2, drillBitInterval, drillBitChangeMinutes);
+
+    const paletStops = Math.floor(p / paletInterval) * paletChangeMinutes;
+    const cuttingInsertStops = etm1CutSim.changeMinutesTotal + etm2CutSim.changeMinutesTotal;
+    const drillBitStops = etm1DrillSim.changeMinutesTotal + etm2DrillSim.changeMinutesTotal;
+    const totalStops = cuttingInsertStops + drillBitStops + paletStops;
+
+    const totalTimeRequired = p * hatCycleMinutes + totalStops;
+    if (totalTimeRequired <= availableMinutes) {
+      return {
+        produced: p,
+        cuttingInsertStopsMinutes: cuttingInsertStops,
+        drillBitStopsMinutes: drillBitStops,
+        paletStopsMinutes: paletStops,
+        totalStopMinutes: totalStops,
+        finalState: {
+          etm1Cutting: etm1CutSim.finalRemaining,
+          etm2Cutting: etm2CutSim.finalRemaining,
+          etm1Drill: etm1DrillSim.finalRemaining,
+          etm2Drill: etm2DrillSim.finalRemaining,
+        },
+      };
+    }
+  }
+
+  return {
+    produced: 0,
+    cuttingInsertStopsMinutes: 0,
+    drillBitStopsMinutes: 0,
+    paletStopsMinutes: 0,
+    totalStopMinutes: 0,
+    finalState: state,
+  };
+}
+
+function calculateEtmStopsForProduced(
+  produced: number,
+  params: ProcessParams,
+  state: {
+    etm1Cutting: number;
+    etm2Cutting: number;
+    etm1Drill: number;
+    etm2Drill: number;
+  }
+) {
+  const cuttingInsertInterval = params.cuttingInsertInterval ?? 10;
+  const cuttingInsertChangeMinutes = params.cuttingInsertChangeMinutes ?? 5;
+  const drillBitInterval = params.drillBitInterval ?? 300;
+  const drillBitChangeMinutes = params.drillBitChangeMinutes ?? 10;
+  const paletInterval = params.paletInterval ?? 20;
+  const paletChangeMinutes = params.paletChangeMinutes ?? 10;
+
+  const p1 = Math.ceil(produced / 2);
+  const p2 = Math.floor(produced / 2);
+
+  const etm1CutSim = simulateToolChanges(state.etm1Cutting, p1, cuttingInsertInterval, cuttingInsertChangeMinutes);
+  const etm2CutSim = simulateToolChanges(state.etm2Cutting, p2, cuttingInsertInterval, cuttingInsertChangeMinutes);
+
+  const etm1DrillSim = simulateToolChanges(state.etm1Drill, p1, drillBitInterval, drillBitChangeMinutes);
+  const etm2DrillSim = simulateToolChanges(state.etm2Drill, p2, drillBitInterval, drillBitChangeMinutes);
+
+  const paletStops = Math.floor(produced / paletInterval) * paletChangeMinutes;
+  const cuttingInsertStops = etm1CutSim.changeMinutesTotal + etm2CutSim.changeMinutesTotal;
+  const drillBitStops = etm1DrillSim.changeMinutesTotal + etm2DrillSim.changeMinutesTotal;
+  const totalStops = cuttingInsertStops + drillBitStops + paletStops;
+
+  return {
+    cuttingInsertStopsMinutes: cuttingInsertStops,
+    drillBitStopsMinutes: drillBitStops,
+    paletStopsMinutes: paletStops,
+    totalStopMinutes: totalStops,
+    finalState: {
+      etm1Cutting: etm1CutSim.finalRemaining,
+      etm2Cutting: etm2CutSim.finalRemaining,
+      etm1Drill: etm1DrillSim.finalRemaining,
+      etm2Drill: etm2DrillSim.finalRemaining,
+    },
+  };
+}
+
 // --- Simülasyon motoru ---
 
 export type BuildScheduleParams = {
@@ -152,6 +324,13 @@ export type BuildScheduleParams = {
   breakdownsByDate?: Record<string, { minutes: number; details: string[] }>;
   cellName?: string;
   cellParams?: Record<string, { gunluk_max_kapasite: number | null; notlar: string | null }>;
+  etm1InitialCutting?: number;
+  etm2InitialCutting?: number;
+  etm1InitialDrill?: number;
+  etm2InitialDrill?: number;
+  toolChangesByDate?: Record<string, { machine: "ETM-1" | "ETM-2"; toolType: "cutting_insert" | "drill_bit" }[]>;
+  upstreamOutput?: Record<string, number>;
+  initialWip?: number;
 };
 
 export function buildSchedule({
@@ -173,6 +352,13 @@ export function buildSchedule({
   breakdownsByDate,
   cellName = "Pres Hücresi",
   cellParams,
+  etm1InitialCutting = 10,
+  etm2InitialCutting = 10,
+  etm1InitialDrill = 300,
+  etm2InitialDrill = 300,
+  toolChangesByDate = {},
+  upstreamOutput,
+  initialWip,
 }: BuildScheduleParams): DayPlan[] {
   const {
     normalizationWarmupMinutes,
@@ -194,6 +380,13 @@ export function buildSchedule({
   let maleChangeCarryover = 0;
   let femaleChangeCarryover = 0;
   let ringChangeCarryover = 0;
+
+  // ETM state variables
+  let etm1Cutting = etm1InitialCutting;
+  let etm2Cutting = etm2InitialCutting;
+  let etm1Drill = etm1InitialDrill;
+  let etm2Drill = etm2InitialDrill;
+  let cumulativeWip = initialWip ?? 0;
 
   const isPress = cellName === "Pres Hücresi";
 
@@ -240,6 +433,180 @@ export function buildSchedule({
 
     const rawAvailableMinutes = isWorkday && shift ? shift.minutes + dayOvertimeMinutes : 0;
     const availableMinutes = Math.max(rawAvailableMinutes - breakdownMinutes, 0);
+
+    if (cellName === "ETM Hücresi") {
+      const manualChanges = toolChangesByDate[key] || [];
+      let manualCuttingStops = 0;
+      let manualDrillStops = 0;
+      for (const change of manualChanges) {
+        if (change.machine === "ETM-1") {
+          if (change.toolType === "cutting_insert") {
+            etm1Cutting = processParams.cuttingInsertInterval ?? 10;
+            manualCuttingStops += processParams.cuttingInsertChangeMinutes ?? 5;
+          }
+          if (change.toolType === "drill_bit") {
+            etm1Drill = processParams.drillBitInterval ?? 300;
+            manualDrillStops += processParams.drillBitChangeMinutes ?? 10;
+          }
+        } else if (change.machine === "ETM-2") {
+          if (change.toolType === "cutting_insert") {
+            etm2Cutting = processParams.cuttingInsertInterval ?? 10;
+            manualCuttingStops += processParams.cuttingInsertChangeMinutes ?? 5;
+          }
+          if (change.toolType === "drill_bit") {
+            etm2Drill = processParams.drillBitInterval ?? 300;
+            manualDrillStops += processParams.drillBitChangeMinutes ?? 10;
+          }
+        }
+      }
+
+      const stateAtStart = { etm1Cutting, etm2Cutting, etm1Drill, etm2Drill };
+      const etmWorkAvailableMinutes = Math.max(availableMinutes - manualCuttingStops - manualDrillStops, 0);
+
+      const capRes = calculateEtmDayProductionAndStops(etmWorkAvailableMinutes, processParams, stateAtStart);
+      const capacityProduced = capRes.produced;
+
+      const etmWipStart = cumulativeWip;
+      const incomingFromPress = upstreamOutput?.[key] ?? 0;
+      const availableWip = etmWipStart + incomingFromPress;
+
+      const capacityProducedCapped = Math.min(capacityProduced, availableWip);
+
+      const hasScenario = override?.pressed !== undefined;
+      const hasActual = actuals[key] !== undefined;
+      const isRecoveryWorkday = override?.forceWorkday === true && !isBaseWorkday;
+
+      const inputProduced = hasScenario
+        ? Math.max(Math.floor(override?.pressed ?? 0), 0)
+        : hasActual
+          ? Math.max(Math.floor(actuals[key]), 0)
+          : isRecoveryWorkday
+            ? 0
+            : capacityProduced;
+
+      const inputProducedCapped = Math.min(inputProduced, availableWip);
+      const produced = isWorkday ? inputProducedCapped : 0;
+      const etmWipEnd = availableWip - produced;
+      cumulativeWip = etmWipEnd;
+
+      const source = hasScenario ? "scenario" : hasActual ? "actual" : "plan";
+      const target = isBaseWorkday ? dailyTarget : 0;
+      const targetGap = Math.max(target - produced, 0);
+
+      const actualRes = calculateEtmStopsForProduced(produced, processParams, stateAtStart);
+      actualRes.cuttingInsertStopsMinutes += manualCuttingStops;
+      actualRes.drillBitStopsMinutes += manualDrillStops;
+      actualRes.totalStopMinutes += (manualCuttingStops + manualDrillStops);
+
+      etm1Cutting = actualRes.finalState.etm1Cutting;
+      etm2Cutting = actualRes.finalState.etm2Cutting;
+      etm1Drill = actualRes.finalState.etm1Drill;
+      etm2Drill = actualRes.finalState.etm2Drill;
+
+      const stopParts: string[] = [];
+      if (actualRes.cuttingInsertStopsMinutes > 0) {
+        const p1 = Math.ceil(produced / 2);
+        const p2 = Math.floor(produced / 2);
+        const changes1 = simulateToolChanges(stateAtStart.etm1Cutting, p1, processParams.cuttingInsertInterval ?? 10, processParams.cuttingInsertChangeMinutes ?? 5).changes;
+        const changes2 = simulateToolChanges(stateAtStart.etm2Cutting, p2, processParams.cuttingInsertInterval ?? 10, processParams.cuttingInsertChangeMinutes ?? 5).changes;
+        let manualCuttingCount = 0;
+        for (const change of manualChanges) {
+          if (change.toolType === "cutting_insert") manualCuttingCount++;
+        }
+        const totalChanges = changes1 + changes2 + manualCuttingCount;
+        stopParts.push(`Kesici uç ×${totalChanges} (${actualRes.cuttingInsertStopsMinutes}dk)`);
+      }
+      if (actualRes.drillBitStopsMinutes > 0) {
+        const p1 = Math.ceil(produced / 2);
+        const p2 = Math.floor(produced / 2);
+        const changes1 = simulateToolChanges(stateAtStart.etm1Drill, p1, processParams.drillBitInterval ?? 300, processParams.drillBitChangeMinutes ?? 10).changes;
+        const changes2 = simulateToolChanges(stateAtStart.etm2Drill, p2, processParams.drillBitInterval ?? 300, processParams.drillBitChangeMinutes ?? 10).changes;
+        let manualDrillCount = 0;
+        for (const change of manualChanges) {
+          if (change.toolType === "drill_bit") manualDrillCount++;
+        }
+        const totalChanges = changes1 + changes2 + manualDrillCount;
+        stopParts.push(`Punta matkabı ×${totalChanges} (${actualRes.drillBitStopsMinutes}dk)`);
+      }
+      if (actualRes.paletStopsMinutes > 0) {
+        const changes = Math.floor(produced / (processParams.paletInterval ?? 20));
+        stopParts.push(`Palet ×${changes} (${actualRes.paletStopsMinutes}dk)`);
+      }
+      const stopLabel = stopParts.length > 0 ? stopParts.join(" · ") : "-";
+
+      const warnings: EtmWarning[] = [];
+      if (etm1Cutting < 5) {
+        warnings.push({ type: "cutting_insert", machine: "ETM-1", message: `ETM-1 Kesici uç kritik seviyede (kalan: ${etm1Cutting} parça)`, severity: "critical" });
+      } else if (etm1Cutting < 20) {
+        warnings.push({ type: "cutting_insert", machine: "ETM-1", message: `ETM-1 Kesici uç ömrü azaldı (kalan: ${etm1Cutting} parça)`, severity: "warning" });
+      }
+      if (etm2Cutting < 5) {
+        warnings.push({ type: "cutting_insert", machine: "ETM-2", message: `ETM-2 Kesici uç kritik seviyede (kalan: ${etm2Cutting} parça)`, severity: "critical" });
+      } else if (etm2Cutting < 20) {
+        warnings.push({ type: "cutting_insert", machine: "ETM-2", message: `ETM-2 Kesici uç ömrü azaldı (kalan: ${etm2Cutting} parça)`, severity: "warning" });
+      }
+      if (etm1Drill < 10) {
+        warnings.push({ type: "drill_bit", machine: "ETM-1", message: `ETM-1 Punta matkabı kritik seviyede (kalan: ${etm1Drill} parça)`, severity: "critical" });
+      } else if (etm1Drill < 50) {
+        warnings.push({ type: "drill_bit", machine: "ETM-1", message: `ETM-1 Punta matkabı ömrü azaldı (kalan: ${etm1Drill} parça)`, severity: "warning" });
+      }
+      if (etm2Drill < 10) {
+        warnings.push({ type: "drill_bit", machine: "ETM-2", message: `ETM-2 Punta matkabı kritik seviyede (kalan: ${etm2Drill} parça)`, severity: "critical" });
+      } else if (etm2Drill < 50) {
+        warnings.push({ type: "drill_bit", machine: "ETM-2", message: `ETM-2 Punta matkabı ömrü azaldı (kalan: ${etm2Drill} parça)`, severity: "warning" });
+      }
+      if (isWorkday) {
+        warnings.push({ type: "talas_kovasi", machine: "hucre", message: "Talaş kovası boşaltma kontrolü yapılmalı (Günde 1-2 kez).", severity: "info" });
+      }
+
+      result.push({
+        date,
+        key,
+        label: `${formatDate(date)} ${formatWeekday(date)}`,
+        isWorkday,
+        isBaseWorkday,
+        shiftStart,
+        shiftEnd,
+        furnaceStart: "",
+        availableMinutes,
+        overtimeMinutes: dayOvertimeMinutes,
+        maintenanceMinutes: actualRes.totalStopMinutes,
+        startMaintenanceMinutes: 0,
+        midMaintenanceMinutes: 0,
+        midMaintenanceStartMinute: null,
+        midMaintenanceComplete: true,
+        maintenanceLabel: stopLabel,
+        pressStartTime: null,
+        capacityPressed: capacityProducedCapped,
+        pressed: produced,
+        source,
+        sameDayEtmReady: produced,
+        target,
+        targetGap,
+        maleRemainingEnd: 0,
+        femaleRemainingEnd: 0,
+        ringRemainingEnd: 0,
+        lastFurnaceExitTime: null,
+        breakdownMinutes,
+        breakdownDetails,
+        etm1CuttingRemainingEnd: etm1Cutting,
+        etm2CuttingRemainingEnd: etm2Cutting,
+        etm1DrillRemainingEnd: etm1Drill,
+        etm2DrillRemainingEnd: etm2Drill,
+        etmWarnings: warnings,
+        etmCuttingStopsMinutes: actualRes.cuttingInsertStopsMinutes,
+        etmDrillStopsMinutes: actualRes.drillBitStopsMinutes,
+        etmPaletStopsMinutes: actualRes.paletStopsMinutes,
+        etm1CuttingStart: stateAtStart.etm1Cutting,
+        etm2CuttingStart: stateAtStart.etm2Cutting,
+        etm1DrillStart: stateAtStart.etm1Drill,
+        etm2DrillStart: stateAtStart.etm2Drill,
+        etmWipStart,
+        etmWipEnd,
+      });
+
+      continue;
+    }
     const shiftStartMinute = shift?.startMinute ?? 0;
     const shiftEndMinute = shift ? shift.endMinute + dayOvertimeMinutes : 0;
     const overrideMaintStart = override?.moldMaintenanceStart ? parseTime(override.moldMaintenanceStart) : null;

@@ -200,6 +200,146 @@ Bugün `/schedule` sayfasındaki planlama, Gantt şeması, Supabase entegrasyonu
 - `ScheduleTable.tsx` Gantt detay panelindeki kalıp seçici açılır menüsüne (dropdown) **"Erkek + HIP Ring"** ve **"Dişi + HIP Ring"** seçenekleri eklenerek kullanıcının tek seferde her iki değişimi de manuel olarak o güne planlayabilmesi sağlandı.
 - `utils.ts` simülasyon motorunda, kalıp değişimi sürerken araya giren hafta sonları (veya çalışılmayan/postpone edilen günler) nedeniyle kalan kalıp değişim sürelerinin (carryover) sıfırlanıp unutulmasına yol açan mantık hatası düzeltildi. Carryover durum güncellemeleri yalnızca aktif iş günlerinde ve kalıp değişimi duruşu gerçekten tetiklendiğinde güncellenecek şekilde sınırlandırıldı.
 
+## [2026-06-02] update | HIP Ring Parametrelerinin Schedule Parametrelerine Eklenmesi
+
+**Yapılanlar:**
+- `manuf_schedule_params` tablosuna `ring_interval` (HIP Ring ömrü, 1300 adet) ve `ring_change_minutes` (HIP Ring değişim süresi, 570 dk) parametreleri eklenerek schedule sayfasındaki parametreler bölümünden dinamik olarak yönetilebilir hale getirildi.
+- `supabase/migrations/20260602074500_add_ring_params_to_schedule_params.sql` migration dosyası oluşturuldu ve canlı veritabanında çalıştırıldı.
+- `wiki/entities/db-tablolari.md` dokümantasyonu güncellendi.
+
+## [2026-06-02] delete | Kurtarma Analizi ve Önerilen Karar Destek Adımları Kaldırıldı
+
+**Yapılanlar:**
+- `RecoveryCard` ("Kurtarma Senaryosu Analizi") ve `CampaignOptimizer` ("Önerilen Karar Destek Adımları") bileşenleri ve bu bileşenlerle ilgili tüm mantıksal hesaplama kodları (`recoveryDays`, `neededPerRecoveryDay`, `extraMinutesPerRecoveryDay`, `defaultShift`, `holidayCapacity`, `requiredHolidayDays`) `/schedule` sayfasından tamamen kaldırıldı.
+- `src/app/schedule/_components/RecoveryCard.tsx` ve `src/app/schedule/_components/CampaignOptimizer.tsx` bileşen dosyaları projeden silindi.
+- `OperationsActionPanel` üzerindeki kurtarma hesaplama bağımlılıkları temizlendi ve "Açığı kapat" kartı kurtarma detayları verilmeden sade bir hedeften sapma uyarısına dönüştürüldü.
+
+## [2026-06-02] update | Arayüz Metinlerinin Temizlenmesi
+
+**Yapılanlar:**
+- `/schedule` sayfa başlığında bulunan `"Hücre bazlı dönem planı"` alt başlığı kaldırıldı.
+- Pres Hücresi seçildiğinde gösterilen `"Pres başlangıç hazırlığı, normalizasyon fırını, kalıp ömürleri ve fazla mesai etkisini seçili tarih aralığına göre görün."` açıklaması kaldırıldı.
+- `SettingsSidebar.tsx` içerisinde bulunan fırın ve normalizasyon sürelerinin detaylarını anlatan mavi renkli bilgilendirme kartı (Card) tamamen temizlendi. Unused `Card` ve `CardContent` importları kaldırıldı.
+
+## [2026-06-02] update | Dinamik Parametre Filtreleme ve Ekle Butonunun Kaldırılması
+
+**Yapılanlar:**
+- Sol menüdeki **Parametreler** panelinde, seçilen hücreye göre dinamik parametre gösterimi sağlandı:
+  - **Pres Hücresi** seçildiğinde sadece Pres ile ilgili parametreler (ısınma, fırın süreleri, kalıp ömürleri ve süreleri) listelenir.
+  - **ETM Hücresi** seçildiğinde ise `etm_` önekiyle başlayan takım ve palet değişim süreleri/ömürleri listelenir.
+  - Diğer hücreler seçildiğinde ise *"Seçili hücre için tanımlanmış bir parametre bulunmamaktadır"* uyarısı verilir.
+- Parametre ekleme/silme fonksiyonları ve bunlara bağlı olan **"Yeni parametre ekle"** butonu/form alanı `ParamsSidebar.tsx` bileşeninden tamamen kaldırıldı.
+
+## [2026-06-02] delete | Fırın Başlangıç Genel Ayarı Kaldırıldı
+
+**Yapılanlar:**
+- Sol menüdeki **Plan Ayarları** (SettingsSidebar) kısmında bulunan genel **"Fırın başlangıç"** saat seçici alanı arayüzden kaldırıldı.
+- Günlük bazda (Gantt şeması ve detay panelinden) fırın başlangıç saatleri gün gün ayarlanabildiği için bu genel ayar parametresi gizlendi ve ilgili props/template kodları temizlendi.
+
+## [2026-06-02] merge | ETM Hücresi Modülü /schedule Altına Birleştirildi
+
+**Yapılanlar:**
+- ETM Hücresi ayrı rotası (`/schedule/etm`) tamamen silindi.
+- `/schedule` sayfasındaki aktif hücre seçici dropdown'ı "ETM Hücresi" durumunu doğrudan destekleyecek şekilde genişletildi.
+- "Kalıplar" sekmesi aktif hücre ETM Hücresi olduğunda dinamik olarak "Takımlar (ETM)" başlığını alıyor ve kalıp değişim takvimi yerine `<EtmToolsSidebar />` bileşenini yüklüyor. ETM dışı hücrelerde ise bu sekme tamamen gizleniyor.
+- `SettingsSidebar` bileşeni ETM seçildiğinde ETM-1/2 kesici uç ve punta matkabı başlangıç kalan ömür değerlerinin girilmesini destekleyecek şekilde güncellendi.
+- Günlük simülasyon tablosu (`ScheduleTable.tsx`) ETM Hücresi seçildiğinde ETM-1/2 kesici uç ve punta matkabı kalan ömürlerini içeren durum rozetlerini gösterecek şekilde uyarlandı.
+- Projenin `npm run build` ile başarıyla derlendiği doğrulandı.
+
+## [2026-06-02] fix | ETM Gantt Şeması ve Satır Görünümleri Düzeltildi
+
+**Yapılanlar:**
+- `ScheduleTable.tsx` içerisindeki `buildGanttSegments` fonksiyonunun `isPress` parametresi `cellName` parametresiyle değiştirilerek ETM Hücresi için özel Gantt segmentleri ("ETM Proses", "Kesici Uç Değişimi", "Punta Matkabı Değişimi" ve "Palet Değişimi") çizim mantığı eklendi.
+- ETM Hücresi seçildiğinde fırın, kalıp ısıtma ve kalıp soğutma gibi pres hücrelerine özel segmentler Gantt şemasından ve satırlarından tamamen temizlendi.
+- ETM'ye ait duruş segmentleri (Kesici Uç, Punta Matkabı, Palet) ve proses adımları parça bazında simüle edilerek, her 10 parçada bir 5 dk kesici uç değişimi ve her 20 parçada bir 10 dk palet değişimi olacak şekilde gün içine periyodik/ardışık bloklar halinde dağıtıldı.
+- Her duruş segmenti kendi ilişkili satırına (Kesici Uç Değişimi, Palet Değişimi, Punta Matkabı Değişimi) yerleştirilerek görsel olarak anlaşılır bir akış şeması oluşturuldu.
+- Gantt tablosundaki sürükle-bırak satır sıralaması (`ganttRowOrder`), aktif hücre değiştikçe `useEffect` hook'u ile dinamik olarak sıfırlanıp ilgili hücrenin satır listesine (ETM Proses, Kesici Uç Değişimi, Punta Matkabı Değişimi, Palet Değişimi, Arıza/Duruş) uyarlanacak şekilde güncellendi.
+- `types.ts` ve `utils.ts` dosyaları güncellenerek simülasyon çıktısına bireysel takım (kesici uç, matkap) ve palet değişim süreleri (`etmCuttingStopsMinutes`, `etmDrillStopsMinutes`, `etmPaletStopsMinutes`) eklendi.
+- `OperationsActionPanel.tsx` içindeki `buildGanttSegments` çağrısı, değişen imza doğrultusunda `cellName` parametresi geçecek şekilde güncellenerek TypeScript derleme hatası giderildi.
+
+## [2026-06-02] refactor | Öncül/Ardıl Bağlantı Noktaları ve SVG Çizimleri Kaldırıldı
+
+**Yapılanlar:**
+- Gantt şemasındaki çubukların baş ve sonlarında yer alan, görsel karmaşaya sebep olan mavi renkli öncül/ardıl bağlantı sürükleme noktaları (dots) `ScheduleTable.tsx` içerisinden tamamen kaldırıldı.
+- Segmentleri birbirine bağlayan SVG yön okları, kontrol paneli (Öncül/Ardıl Bağları kartı) ve ilişkili kodlar silindi.
+- Bileşen tipleri (`Props`) ve parent bileşenler (`page.tsx`) temizlenerek gereksiz `dependencies` ve `updateDayDependencies` parametreleri kaldırıldı, kod yapısı basitleştirildi.
+
+## [2026-06-02] fix | ETM Punta Matkabı ve Takım Değişimlerinin Makine Bazlı Ayrılması
+
+**Yapılanlar:**
+- `ScheduleTable.tsx` içerisindeki ETM Gantt segment üretim döngüsü güncellendi.
+- Kesici uç ve punta matkabı değişimlerinin tetiklenmesi için kullanılan statik parça bazlı modülo kontrolleri (`p1 % 300 === 0` vb.) yerine, günün başlangıç kalan ömür değerleri (`etm1CuttingStart`, `etm2CuttingStart`, `etm1DrillStart`, `etm2DrillStart`) referans alınarak parça üretildikçe kalan ömrün eksilmesi ve `0`'a ulaştığında değişimin tetiklenerek ömrün sıfırlanması mantığı kuruldu.
+- Bu sayede 300 parçalık punta matkabı ömrü ve 10 parçalık kesici uç değişimleri gün bazında kümülatif kalan ömre bağlı olarak doğru sıralarda ve anlarda Gantt şemasına yansıtıldı.
+- **Makine Bazlı Ayrım:** ETM Hücresi seçildiğinde Gantt tablosundaki proses, kesici uç değişimi ve punta matkabı değişimi satırları ETM-1 ve ETM-2 makineleri için iki ayrı satıra bölündü (`ETM-1 Proses`, `ETM-2 Proses`, `ETM-1 Kesici Uç Değişimi`, `ETM-2 Kesici Uç Değişimi`, `ETM-1 Punta Matkabı Değişimi`, `ETM-2 Punta Matkabı Değişimi`). Segment etiketleri ve engelleme/gizleme (disabled segments) eşleşmeleri makine bazında ayrıştırıldı.
+- **Satır Mükerrerliği Giderildi:** Her bir parça üretimi için üretilen bireysel segmentlerin etiketleri, Gantt satır listesi hesaplanırken (`customGanttRows`) tekilleştirilerek (`new Set`) aynı satır adının (örneğin `ETM-1 Proses`) tabloda mükerrer olarak (alt alta onlarca kez) açılması engellendi.
+- **Generic ETM Proses Satırı Kaldırıldı:** ETM Hücresi dışındaki hücreler için kullanılan genel proses segmenti üretme bloğundan ETM hücresi muaf tutuldu (`!isEtm` koşulu eklendi). Böylece hem ayrıntılı makine bazlı proses segmentlerinin hem de genel `"ETM Proses"` çubuğunun aynı anda çizilerek satır kalabalığı yapması önlendi.
+- **Satır Sıralaması Düzenlendi:** Gantt tablosundaki ETM satır sıralaması, kullanıcının talebi doğrultusunda ETM-1 ve ETM-2 grubu olarak dikeyde alt alta sıralandı:
+  1. `ETM-1 Proses`
+  2. `ETM-1 Kesici Uç Değişimi`
+  3. `ETM-1 Punta Matkabı Değişimi`
+  4. `ETM-2 Proses`
+  5. `ETM-2 Kesici Uç Değişimi`
+  6. `ETM-2 Punta Matkabı Değişimi`
+  7. `Palet Değişimi`
+  8. `Arıza / Duruş`
+- **ETM Proses Barları Birleştirildi (Konsolidasyon):** ETM-1 ve ETM-2 proseslerinin 1'er parça şeklinde (3'er dakikalık) bölünmüş şekilde çizilmesi engellendi. Proses barları, bir duruş (takım/punta değişimi, palet değişimi veya arıza) tetiklenene kadar uzatılarak kesintisiz, bloklar halinde çizilecek şekilde güncellendi. Blokların üzerindeki parça adetleri otomatik hesaplanarak "X adet" şeklinde yansıtıldı.
+- **Dinamik Parametre Entegrasyonu:** Gantt şeması segment oluşturucusunda (`buildGanttSegments`) duruş sürelerinin (kesici uç değişimi, punta matkabı değişimi, palet değişimi ve hat çevrim süresi) statik (5 dk, 10 dk vb.) olarak el ile yazılmış olması (hardcoded) nedeniyle, parametre menüsündeki değişikliklerin şemaya yansımama ve simülasyon kapasitesi ile Gantt sürelerinin uyuşmama hatası giderildi. `processParams` parametreleri şema oluşturucuya aktarılarak tüm süreler dinamikleştirildi.
+
+## [2026-06-02] update | ETM Hücresi WIP Kısıt Simülasyonu Entegrasyonu
+
+**Yapılanlar:**
+- **Simülasyon Kısıt Mantığı:** `buildSchedule` simülasyon motoruna ETM Hücresi'nin fiziksel WIP (yarı mamul) stok limitleri entegre edildi. ETM'nin günlük kapasitesi ve üretimi, `Başlangıç WIP (Pres → ETM) + Pres'in O Günkü Simüle Edilen Üretimi` miktarı ile sınırlandırıldı (capped).
+- **Üst Akış (Upstream) Pres Simülasyonu:** ETM Hücresi planlaması seçildiğinde, arka planda önce Pres Hücresi simülasyonu koşturulup günlük planlanan üretim çıkışları (`pressed` adetleri) elde edilir. Bu adetler ETM simülasyonuna günlük girdi (`upstreamOutput`) olarak aktarılır.
+- **Başlangıç WIP Yükleme ve Arayüz Girişi:** ETM seçildiğinde sol menüye (Plan Ayarları) **"Başlangıç WIP (Pres → ETM)"** giriş alanı eklendi. Bu değer, planlama dönemi başlangıç tarihindeki gerçek/hesaplanan WIP stok tablosundan (`manuf_wip_stock`) otomatik olarak `startDate - 1 day` üzerinden yüklenir ve kullanıcı tarafından manuel olarak değiştirilebilir.
+- **Günlük WIP Durum Gösterimi:** Günlük simülasyon tablosuna (`ScheduleTable`) ETM hücresi aktifken **"WIP (Başla → Bitir)"** sütunu eklenerek, gün başı kullanılabilir WIP ve gün sonu devreden WIP miktarlarının şeffaf bir şekilde izlenmesi sağlandı.
+- **Tarih Geçmişi ve Supabase:** Veritabanındaki WIP verilerini önceki günden itibaren çekmek için `loadCellWipStock` sorgu aralığı `startDate - 1` günü kapsayacak şekilde genişletildi.
 
 
 
+
+## [2026-06-02] fix | ETM Manuel Punta Matkabı ve Kesici Uç Değişimlerinin Gantt'ta Gösterilmesi
+
+**Yapılanlar:**
+- `ScheduleTable.tsx` içerisindeki `buildGanttSegments` fonksiyonuna `toolChangesForDay: ToolChangeItem[]` parametresi eklendi.
+- ETM Hücresi segment üretim bloğunda (`isEtm` koşulu altında), üretim barları başlamadan önce manual takım değişimleri (manuel punta matkabı ve kesici uç) ayrı birer Gantt segmenti olarak çiziliyor. Punta matkabı değişimleri `bg-amber-500` (kehribar), kesici uç değişimleri `bg-orange-400` (turuncu) rengiyle ilgili makine satırlarına (`ETM-1/2 Punta Matkabı Değişimi`, `ETM-1/2 Kesici Uç Değişimi`) yerleştirildi.
+- `utils.ts` içerisindeki `buildSchedule` ETM simülasyon bloğu güncellendi: manuel değişimlerin süreleri (`manualCuttingStops`, `manualDrillStops`) mevcut kapasiteden düşülerek (`etmWorkAvailableMinutes`) simülasyon kapasitesi doğru hesaplandı; `actualRes` üzerindeki toplam duruş dakikaları da manuel değişim sürelerini içerecek şekilde güncellendi.
+- `Props` tipi ve `ScheduleTable` bileşeni `etmToolChanges?: ToolChangeItem[]` prop'unu kabul eder hale getirildi.
+- `OperationsActionPanel` bileşeni de aynı prop'u alıp `buildGanttSegments` çağrısına geçirecek şekilde güncellendi.
+- `page.tsx` içerisindeki her iki bileşene `etmToolChanges={etmToolChanges}` prop'u eklendi.
+- `npm run build` ile TypeScript derlemesi başarıyla doğrulandı.
+
+## [2026-06-02] fix | Fırın Sola Taşınınca Vardiya Çubuğunun Uzaması Düzeltildi
+
+**Yapılanlar:**
+- `/schedule` Gantt çiziminde görünür zaman aralığını genişleten `shiftStart`/`shiftEnd` hesabı ile gerçek **"Vardiya"** segmenti ayrıştırıldı.
+- "Fırın Isıtma" bloğu vardiyadan önceye sürüklendiğinde zaman çizelgesi sola genişlemeye devam eder, ancak **"Vardiya"** çubuğu artık fırınla birlikte sola uzamaz; gerçek vardiya başlangıç/bitiş saatlerinde sabit kalır.
+- `npm run build` ile doğrulandı.
+
+## [2026-06-02] update | Standart Fırın Isıtma Şablonu 07:00-08:00 Yapıldı
+
+**Yapılanlar:**
+- `/schedule` standart şablonundaki `FURNACE_START` sabiti `07:00` olarak güncellendi.
+- Gantt'ta override olmayan Pres günlerinde "Fırın Isıtma" bloğu varsayılan olarak **07:00-08:00** aralığında başlar.
+- `npm run build` ile doğrulandı.
+
+## [2026-06-02] update | Kalıp Soğutma Vardiya Sonrasına Taşabilir Yapıldı
+
+**Yapılanlar:**
+- `buildSchedule` Pres kapasite hesabında kalıp soğutma süresi (`dieCoolingMinutes`) vardiya içi pres süresinden düşülmeyecek şekilde güncellendi.
+- Pres prosesi vardiya sonuna kadar devam edebilir; "Kalıp Soğutma" Gantt bloğu üretim bitiminden sonra, gerekirse vardiya saatleri dışında gösterilir.
+- `npm run build` ile doğrulandı.
+
+## [2026-06-02] update | Fırın Isınma Süresi 60 Dakikaya Eşitlendi
+
+**Yapılanlar:**
+- Standart 07:00-08:00 fırın ısıtma şablonuyla uyum için `NORMALIZATION_WARMUP_MINUTES` varsayılanı 60 dk yapıldı.
+- `manuf_schedule_params` içindeki `normalization_warmup_minutes` değerini 60'a güncelleyen migration eklendi.
+- Wiki ve bilgi panelindeki 120 dk referansları 60 dk olarak güncellendi.
+- `npm run build` ile doğrulandı.
+
+## [2026-06-02] update | Fırın Isıtma Başlangıcı Vardiyadan Bağımsızlaştırıldı
+
+**Yapılanlar:**
+- `/schedule` Gantt detayındaki Pres hücresi kontrollerine gün bazlı **"Fırın başlangıç"** saat alanı eklendi.
+- "Fırın Isıtma" Gantt bloğunun sürükleme sınırı vardiya başlangıç/bitiş aralığından ayrılarak gün içinde bağımsız ayarlanabilir hale getirildi.
+- Pres bloğu hareket ettirilirken hesaplanan fırın başlangıcı da vardiya penceresine değil gün sınırına göre korunacak şekilde sınırlandı.

@@ -15,7 +15,7 @@ CREATE POLICY "allow_all" ON public.manuf_schedule_params
   FOR ALL USING (true) WITH CHECK (true);
 
 INSERT INTO public.manuf_schedule_params (key, label, value, unit, is_custom) VALUES
-  ('normalization_warmup_minutes',  'Fırın ısınma süresi',              120,  'dk',   false),
+  ('normalization_warmup_minutes',  'Fırın ısınma süresi',               60,  'dk',   false),
   ('pre_press_heat_minutes',        'Pres öncesi parça ısınma süresi',   30,   'dk',   false),
   ('press_cycle_minutes',           'Pres çevrim süresi',                 3,   'dk',   false),
   ('normalization_process_minutes', 'Normalizasyon işlem süresi',        270,  'dk',   false),

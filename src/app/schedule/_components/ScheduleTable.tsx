@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useState, useEffect } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { ChevronDown, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { deleteMoldChange, saveMoldChange, type MoldChange } from "../actions";
 import { DEFAULT_DIE_COOLING_MINUTES, SHIFT_MINUTES } from "../constants";
-import type { CustomGanttItem, DayPlan, DayOverride, GanttDependency } from "../types";
-import { formatNumber, formatTimeFromMinutes, numberInput, parseTime } from "../utils";
+import type { CustomGanttItem, DayPlan, DayOverride, GanttDependency, ToolChangeItem } from "../types";
+import { formatNumber, formatTimeFromMinutes, numberInput, parseTime, type ProcessParams } from "../utils";
 
 type Props = {
   schedule: DayPlan[];
@@ -22,8 +22,8 @@ type Props = {
   cellName?: string;
   moldChanges: MoldChange[];
   setMoldChanges: (v: MoldChange[]) => void;
-  dependencies: GanttDependency[];
-  updateDayDependencies: (key: string, nextDeps: GanttDependency[]) => Promise<void>;
+  processParams?: ProcessParams;
+  etmToolChanges?: ToolChangeItem[];
 };
 
 
@@ -62,6 +62,14 @@ const ROW_LABEL_TO_SEGMENT_ID: Record<string, string> = {
   "HIP Ring Değişimi": "mold-maintenance-ring",
   "Pres Proses": "press-process",
   "Kalıp Soğutma": "die-cooling",
+  "ETM-1 Proses": "press-process",
+  "ETM-2 Proses": "press-process",
+  "ETM-1 Kesici Uç": "etm-cutting-stops",
+  "ETM-2 Kesici Uç": "etm-cutting-stops",
+  "ETM-1 Punta Matkabı": "etm-drill-stops",
+  "ETM-2 Punta Matkabı": "etm-drill-stops",
+  "Palet": "etm-palet-stops",
+  "Takım / Palet Duruşu": "tool-maintenance",
 };
 
 function unwrapTime(value: string | null, afterMinute?: number) {
@@ -102,7 +110,16 @@ function snapToQuarter(minutes: number) {
   return Math.round(minutes / 15) * 15;
 }
 
-export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesForDay: MoldChange[], dayOverride?: DayOverride): { startMinute: number; endMinute: number; segments: GanttSegment[] } {
+export function buildGanttSegments(
+  day: DayPlan,
+  cellName: string,
+  moldChangesForDay: MoldChange[],
+  dayOverride?: DayOverride,
+  processParams?: ProcessParams,
+  toolChangesForDay: ToolChangeItem[] = []
+): { startMinute: number; endMinute: number; segments: GanttSegment[] } {
+  const isPress = cellName === "Pres Hücresi";
+  const isEtm = cellName === "ETM Hücresi";
   const disabledList = dayOverride?.disabledSegments ?? [];
   const baseShiftStart = unwrapTime(day.shiftStart) ?? 465;
   const baseShiftEnd = unwrapTime(day.shiftEnd, baseShiftStart) ?? baseShiftStart + Math.max(day.availableMinutes, 570);
@@ -137,7 +154,7 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
     midMaintStart !== null && midMaintMinutes > 0
       ? midMaintStart + midMaintMinutes
       : null;
-  const productionMinutes = isPress ? day.pressed * 3 : Math.min(day.availableMinutes, baseShiftEnd - baseShiftStart);
+  const productionMinutes = (isPress || isEtm) ? day.pressed * 3 : Math.min(day.availableMinutes, baseShiftEnd - baseShiftStart);
   const uninterruptedProductionEnd =
     productionStart !== null ? productionStart + Math.max(productionMinutes, 0) : null;
   const productionCrossesMidMaintenance =
@@ -164,7 +181,8 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
 
   const customItems = dayOverride?.customGanttItems ?? [];
 
-  // 1. Pass: Calculate dynamic shiftStart and shiftEnd to cover all active items
+  // 1. Pass: expand the visible timeline to cover all active items.
+  // Keep the actual shift segment tied to baseShiftStart/baseShiftEnd below.
   let shiftStart = baseShiftStart;
   let shiftEnd = baseShiftEnd;
 
@@ -185,6 +203,9 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
       shiftStart = Math.min(shiftStart, pressStart - 30);
     }
     shiftEnd = Math.max(shiftEnd, productionEnd);
+  }
+  if (isEtm && day.maintenanceMinutes > 0 && productionEnd !== null && !disabledList.includes("tool-maintenance")) {
+    shiftEnd = Math.max(shiftEnd, productionEnd + day.maintenanceMinutes);
   }
   if (!disabledList.includes("die-cooling") && isPress && coolingMinutes > 0 && coolEnd !== null) {
     shiftEnd = Math.max(shiftEnd, coolEnd);
@@ -212,10 +233,10 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
   segments.push({
     id: "shift",
     label: "Vardiya",
-    start: shiftStart,
-    end: shiftEnd,
+    start: baseShiftStart,
+    end: baseShiftEnd,
     className: "bg-zinc-300",
-    note: `${formatTimeFromMinutes(shiftStart)} - ${formatTimeFromMinutes(shiftEnd)}`,
+    note: `${formatTimeFromMinutes(baseShiftStart)} - ${formatTimeFromMinutes(baseShiftEnd)}`,
     editable: "shift",
   });
 
@@ -351,7 +372,7 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
     }
   }
 
-  if (productionStart !== null && productionEnd !== null && productionEnd > productionStart && !disabledList.includes("press-process")) {
+  if (!isEtm && productionStart !== null && productionEnd !== null && productionEnd > productionStart && !disabledList.includes("press-process")) {
     const productionSegments =
       productionCrossesMidMaintenance && midMaintStart !== null && midMaintEnd !== null
         ? canResumeAfterMidMaintenance
@@ -365,7 +386,7 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
     for (const segment of productionSegments) {
       segments.push({
         id: segment.id,
-        label: "Pres Proses",
+        label: isPress ? "Pres Proses" : isEtm ? "ETM Proses" : "Proses",
         start: segment.start,
         end: segment.end,
         className: "bg-lime-500",
@@ -373,6 +394,201 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
         editable: segment.id === "press-process" ? "press" : undefined,
       });
     }
+  }
+
+  if (isEtm && productionEnd !== null) {
+    let currentMinute = productionStart ?? baseShiftStart;
+    const parts = day.pressed;
+    const etmSegments: GanttSegment[] = [];
+
+    const cuttingInsertInterval = processParams?.cuttingInsertInterval ?? 10;
+    const cuttingInsertChangeMinutes = processParams?.cuttingInsertChangeMinutes ?? 5;
+    const drillBitInterval = processParams?.drillBitInterval ?? 300;
+    const drillBitChangeMinutes = processParams?.drillBitChangeMinutes ?? 10;
+    const paletInterval = processParams?.paletInterval ?? 20;
+    const paletChangeMinutes = processParams?.paletChangeMinutes ?? 10;
+    const hatCycleMinutes = processParams?.hatCycleMinutes ?? 3;
+
+    // Draw manual tool changes first
+    for (const change of toolChangesForDay) {
+      const isCutting = change.tool_type === "cutting_insert";
+      const isDrill = change.tool_type === "drill_bit";
+      const duration = isCutting ? cuttingInsertChangeMinutes : isDrill ? drillBitChangeMinutes : 0;
+      if (duration === 0) continue;
+
+      const label = change.machine === "ETM-1"
+        ? (isCutting ? "ETM-1 Kesici Uç" : "ETM-1 Punta Matkabı")
+        : (isCutting ? "ETM-2 Kesici Uç" : "ETM-2 Punta Matkabı");
+
+      const className = isCutting ? "bg-orange-400" : "bg-amber-500";
+      const note = change.description ? `Manuel: ${change.description}` : `Manuel ${label}`;
+
+      etmSegments.push({
+        id: `manual-${change.machine}-${change.tool_type}-${day.key}`,
+        label,
+        start: currentMinute,
+        end: currentMinute + duration,
+        className,
+        note,
+      });
+
+      currentMinute += duration;
+    }
+
+    let etm1CutRemaining = day.etm1CuttingStart ?? cuttingInsertInterval;
+    let etm2CutRemaining = day.etm2CuttingStart ?? cuttingInsertInterval;
+    let etm1DrillRemaining = day.etm1DrillStart ?? drillBitInterval;
+    let etm2DrillRemaining = day.etm2DrillStart ?? drillBitInterval;
+
+    let activeProses1: GanttSegment | null = null;
+    let activeProses2: GanttSegment | null = null;
+
+    for (let p = 1; p <= parts; p++) {
+      const isMachine1 = p % 2 === 1;
+
+      if (isMachine1) {
+        if (activeProses1) {
+          activeProses1.end = currentMinute + hatCycleMinutes;
+        } else {
+          activeProses1 = {
+            id: `etm1-proses-${p}`,
+            label: "ETM-1 Proses",
+            start: currentMinute,
+            end: currentMinute + hatCycleMinutes,
+            className: "bg-lime-500",
+            note: "",
+            editable: undefined,
+          };
+          etmSegments.push(activeProses1);
+        }
+      } else {
+        if (activeProses2) {
+          activeProses2.end = currentMinute + hatCycleMinutes;
+        } else {
+          activeProses2 = {
+            id: `etm2-proses-${p}`,
+            label: "ETM-2 Proses",
+            start: currentMinute,
+            end: currentMinute + hatCycleMinutes,
+            className: "bg-lime-500",
+            note: "",
+            editable: undefined,
+          };
+          etmSegments.push(activeProses2);
+        }
+      }
+      currentMinute += hatCycleMinutes;
+
+      let cellWideStop = false;
+      let machine1Stop = false;
+      let machine2Stop = false;
+
+      if (isMachine1) {
+        // ETM-1 (odd parts)
+        etm1CutRemaining--;
+        if (etm1CutRemaining <= 0) {
+          if (!disabledList.includes("etm-cutting-stops")) {
+            etmSegments.push({
+              id: `etm1-cut-${p}`,
+              label: "ETM-1 Kesici Uç",
+              start: currentMinute,
+              end: currentMinute + cuttingInsertChangeMinutes,
+              className: "bg-orange-400",
+              note: `ETM-1 Kesici Uç`,
+            });
+            currentMinute += cuttingInsertChangeMinutes;
+            machine1Stop = true;
+          }
+          etm1CutRemaining = cuttingInsertInterval;
+        }
+
+        etm1DrillRemaining--;
+        if (etm1DrillRemaining <= 0) {
+          if (!disabledList.includes("etm-drill-stops")) {
+            etmSegments.push({
+              id: `etm1-drill-${p}`,
+              label: "ETM-1 Punta Matkabı",
+              start: currentMinute,
+              end: currentMinute + drillBitChangeMinutes,
+              className: "bg-amber-500",
+              note: `ETM-1 Punta Matkabı`,
+            });
+            currentMinute += drillBitChangeMinutes;
+            machine1Stop = true;
+          }
+          etm1DrillRemaining = drillBitInterval;
+        }
+      } else {
+        // ETM-2 (even parts)
+        etm2CutRemaining--;
+        if (etm2CutRemaining <= 0) {
+          if (!disabledList.includes("etm-cutting-stops")) {
+            etmSegments.push({
+              id: `etm2-cut-${p}`,
+              label: "ETM-2 Kesici Uç",
+              start: currentMinute,
+              end: currentMinute + cuttingInsertChangeMinutes,
+              className: "bg-orange-400",
+              note: `ETM-2 Kesici Uç`,
+            });
+            currentMinute += cuttingInsertChangeMinutes;
+            machine2Stop = true;
+          }
+          etm2CutRemaining = cuttingInsertInterval;
+        }
+
+        etm2DrillRemaining--;
+        if (etm2DrillRemaining <= 0) {
+          if (!disabledList.includes("etm-drill-stops")) {
+            etmSegments.push({
+              id: `etm2-drill-${p}`,
+              label: "ETM-2 Punta Matkabı",
+              start: currentMinute,
+              end: currentMinute + drillBitChangeMinutes,
+              className: "bg-amber-500",
+              note: `ETM-2 Punta Matkabı`,
+            });
+            currentMinute += drillBitChangeMinutes;
+            machine2Stop = true;
+          }
+          etm2DrillRemaining = drillBitInterval;
+        }
+      }
+
+      if (p % paletInterval === 0 && !disabledList.includes("etm-palet-stops")) {
+        etmSegments.push({
+          id: `etm-palet-${p}`,
+          label: "Palet",
+          start: currentMinute,
+          end: currentMinute + paletChangeMinutes,
+          className: "bg-yellow-400",
+          note: `Palet`,
+        });
+        currentMinute += paletChangeMinutes;
+        cellWideStop = true;
+      }
+
+      if (cellWideStop || machine1Stop || machine2Stop) {
+        activeProses1 = null;
+        activeProses2 = null;
+      }
+    }
+
+    // Set notes (piece counts) for processes based on their durations
+    for (const s of etmSegments) {
+      if (s.label.endsWith("Proses")) {
+        const count = Math.round((s.end - s.start + hatCycleMinutes) / (hatCycleMinutes * 2));
+        s.note = `${count} adet`;
+      }
+    }
+
+    // Mark the last ETM Proses segment as editable for time/quantity dragging
+    const lastProses = [...etmSegments].reverse().find(s => s.label.endsWith("Proses"));
+    if (lastProses) {
+      lastProses.editable = "press";
+    }
+
+    segments.push(...etmSegments);
   }
 
   const coolStart = (productionEnd !== null && day.pressed > 0) ? productionEnd : null;
@@ -420,19 +636,37 @@ export function buildGanttSegments(day: DayPlan, isPress: boolean, moldChangesFo
   return { startMinute, endMinute, segments: segments.filter(seg => !disabledList.includes(seg.id)) };
 }
 
-export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updateOverride, clearDayOverride, cellName = "Pres Hücresi", moldChanges, setMoldChanges, dependencies, updateDayDependencies }: Props) {
+export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updateOverride, clearDayOverride, cellName = "Pres Hücresi", moldChanges, setMoldChanges, processParams, etmToolChanges }: Props) {
   const isPress = cellName === "Pres Hücresi";
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
   const [pendingMoldKey, setPendingMoldKey] = useState<string | null>(null);
-  const [linkingDependency, setLinkingDependency] = useState<{
-
-    dayKey: string;
-    segmentId: string;
-    segmentLabel: string;
-  } | null>(null);
   const [ganttRowOrder, setGanttRowOrder] = useState<string[]>(DEFAULT_MOVABLE_GANTT_ROWS);
   const [draggedRowLabel, setDraggedRowLabel] = useState<string | null>(null);
-  const visibleColumnCount = isPress ? 7 : 6;
+
+  useEffect(() => {
+    if (cellName === "Pres Hücresi") {
+      setGanttRowOrder(DEFAULT_MOVABLE_GANTT_ROWS);
+    } else if (cellName === "ETM Hücresi") {
+      setGanttRowOrder([
+        "ETM-1 Proses",
+        "ETM-1 Kesici Uç",
+        "ETM-1 Punta Matkabı",
+        "ETM-2 Proses",
+        "ETM-2 Kesici Uç",
+        "ETM-2 Punta Matkabı",
+        "Palet",
+        "Arıza / Duruş",
+      ]);
+    } else {
+      setGanttRowOrder([
+        "Proses",
+        "Arıza / Duruş",
+      ]);
+    }
+  }, [cellName]);
+
+  const isEtm = cellName === "ETM Hücresi";
+  const visibleColumnCount = isPress ? 7 : isEtm ? 8 : 6;
 
   const addMoldChange = async (day: DayPlan, moldType: "male" | "female") => {
     setPendingMoldKey(`${day.key}-${moldType}`);
@@ -469,56 +703,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
     toast.success("Kalıp değişimi plandan kaldırıldı.");
   };
 
-  const beginDependencyLink = (
-    event: ReactPointerEvent<HTMLElement>,
-    day: DayPlan,
-    segment: GanttSegment,
-  ) => {
-    if (event.button !== 0) return;
 
-    event.preventDefault();
-    event.stopPropagation();
-
-    setLinkingDependency({
-      dayKey: day.key,
-      segmentId: segment.id,
-      segmentLabel: segment.label,
-    });
-
-    const onPointerUp = (upEvent: PointerEvent) => {
-      const target = document
-        .elementFromPoint(upEvent.clientX, upEvent.clientY)
-        ?.closest<HTMLElement>("[data-gantt-endpoint='true']");
-
-      setLinkingDependency(null);
-
-      if (!target) return;
-      if (target.dataset.dayKey !== day.key) return;
-
-      const successorId = target.dataset.segmentId;
-      const successorLabel = target.dataset.segmentLabel;
-      if (!successorId || !successorLabel || successorId === segment.id) return;
-
-      const dependency: GanttDependency = {
-        id: `${day.key}:${segment.id}->${successorId}`,
-        dayKey: day.key,
-        predecessorId: segment.id,
-        predecessorLabel: segment.label,
-        successorId,
-        successorLabel,
-      };
-
-      const dayDeps = dependencies.filter((d) => d.dayKey === day.key);
-      const nextDayDeps = [
-        ...dayDeps.filter((item) => item.id !== dependency.id),
-        dependency,
-      ];
-      updateDayDependencies(day.key, nextDayDeps);
-      toast.success(`${segment.label} öncül, ${successorLabel} ardıl olarak bağlandı.`);
-    };
-
-    document.addEventListener("pointerup", onPointerUp, { once: true });
-  };
 
   const moveGanttRow = (targetRowLabel: string) => {
     if (!draggedRowLabel || draggedRowLabel === targetRowLabel || targetRowLabel === FIXED_GANTT_ROW) return;
@@ -605,7 +790,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
       const delta = snapToQuarter((clientX - originX) * minutesPerPixel);
 
       if (segment.editable === "furnace") {
-        const nextStart = clamp(furnaceStart + delta, gantt.startMinute, shiftEnd - 15);
+        const nextStart = clamp(furnaceStart + delta, 0, MAX_MINUTE - 15);
         updateOverride(day.key, { furnaceStart: formatTimeFromMinutes(nextStart) });
         return;
       }
@@ -618,11 +803,10 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
           return;
         }
 
-        // Move: shift the whole press block (and furnace along with it)
-        // Clamp to gantt area so overtime is possible
+        // Move: infer the required furnace start without tying it to the shift window.
         const nextStart = clamp(originalStart + delta, gantt.startMinute, MAX_MINUTE - originalDuration);
         const pressDelta = nextStart - originalStart;
-        updateOverride(day.key, { furnaceStart: formatTimeFromMinutes(furnaceStart + pressDelta) });
+        updateOverride(day.key, { furnaceStart: formatTimeFromMinutes(clamp(furnaceStart + pressDelta, 0, MAX_MINUTE - 15)) });
         return;
       }
 
@@ -746,7 +930,16 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                 <th className="px-3 py-2.5 font-semibold">Üretim / Hedef</th>
                 <th className="px-3 py-2.5 text-right font-semibold">Fark</th>
                 <th className="px-3 py-2.5 text-right font-semibold">F.Mesai</th>
-                {isPress && <th className="px-3 py-2.5 text-center font-semibold">Kalıp</th>}
+                {(isPress || cellName === "ETM Hücresi") && (
+                  <th className="px-3 py-2.5 text-center font-semibold">
+                    {isPress ? "Kalıp" : "Takımlar (ETM)"}
+                  </th>
+                )}
+                {cellName === "ETM Hücresi" && (
+                  <th className="px-3 py-2.5 text-center font-semibold">
+                    WIP (Başla → Bitir)
+                  </th>
+                )}
                 <th className="px-3 py-2.5 font-semibold text-rose-500">Arıza</th>
                 <th className="py-2.5 pr-3 text-right font-semibold">Sıfırla</th>
               </tr>
@@ -762,11 +955,11 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                 const hasMaleMoldChange = moldChangesForDay.some((change) => change.mold_type === "male");
                 const hasFemaleMoldChange = moldChangesForDay.some((change) => change.mold_type === "female");
                 const customGanttItems = overrides[day.key]?.customGanttItems ?? [];
-                const gantt = buildGanttSegments(day, isPress, moldChangesForDay, overrides[day.key]);
+                const toolChangesForDay = (etmToolChanges ?? []).filter((change) => change.tarih === day.key);
+                const gantt = buildGanttSegments(day, cellName, moldChangesForDay, overrides[day.key], processParams, toolChangesForDay);
                 const timeSlots = createTimeSlots(gantt.startMinute, gantt.endMinute);
-                const dayDependencies = dependencies.filter((dependency) => dependency.dayKey === day.key);
-                const customGanttRows = gantt.segments
-                  .map((segment) => segment.label)
+
+                const customGanttRows = Array.from(new Set(gantt.segments.map((segment) => segment.label)))
                   .filter((label) => !GANTT_ROWS.includes(label));
                 const disabledList = overrides[day.key]?.disabledSegments ?? [];
                 const visibleGanttRows = [
@@ -901,6 +1094,68 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                             title="HIP Ring kalan"
                           >
                             R {formatNumber(day.ringRemainingEnd)}
+                          </span>
+                        </div>
+                      </td>
+                    )}
+
+                    {/* ── Takım ömrü (sadece ETM) ── */}
+                    {cellName === "ETM Hücresi" && (
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              (day.etm1CuttingRemainingEnd ?? 0) <= 2 ? "bg-rose-100 text-rose-700" : "bg-zinc-100 text-zinc-600"
+                            }`}
+                            title="ETM-1 Kesici Uç kalan"
+                          >
+                            E1-K {day.etm1CuttingRemainingEnd ?? 0}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              (day.etm2CuttingRemainingEnd ?? 0) <= 2 ? "bg-rose-100 text-rose-700" : "bg-zinc-100 text-zinc-600"
+                            }`}
+                            title="ETM-2 Kesici Uç kalan"
+                          >
+                            E2-K {day.etm2CuttingRemainingEnd ?? 0}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              (day.etm1DrillRemainingEnd ?? 0) <= 50 ? "bg-rose-100 text-rose-700" : "bg-zinc-100 text-zinc-600"
+                            }`}
+                            title="ETM-1 Matkap kalan"
+                          >
+                            E1-M {day.etm1DrillRemainingEnd ?? 0}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              (day.etm2DrillRemainingEnd ?? 0) <= 50 ? "bg-rose-100 text-rose-700" : "bg-zinc-100 text-zinc-600"
+                            }`}
+                            title="ETM-2 Matkap kalan"
+                          >
+                            E2-M {day.etm2DrillRemainingEnd ?? 0}
+                          </span>
+                        </div>
+                      </td>
+                    )}
+
+                    {cellName === "ETM Hücresi" && (
+                      <td className="px-3 py-2 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span
+                            className="inline-flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-700"
+                            title="Gün başı WIP"
+                          >
+                            {day.etmWipStart ?? 0}
+                          </span>
+                          <span className="text-zinc-400">→</span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                              (day.etmWipEnd ?? 0) === 0 ? "bg-amber-50 border border-amber-200 text-amber-700" : "bg-zinc-100 text-zinc-600"
+                            }`}
+                            title="Gün sonu WIP"
+                          >
+                            {day.etmWipEnd ?? 0}
                           </span>
                         </div>
                       </td>
@@ -1045,7 +1300,19 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                               )}
                             </div>
                           )}
-                          <div className="mb-3 flex items-center gap-2">
+                          <div className="mb-3 flex flex-wrap items-center gap-2">
+                            {isPress && (
+                              <label className="flex h-8 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700">
+                                <span>Fırın başlangıç</span>
+                                <Input
+                                  className="h-6 w-24 bg-white px-1.5 text-xs font-semibold"
+                                  disabled={isRowDisabled}
+                                  type="time"
+                                  value={overrides[day.key]?.furnaceStart ?? day.furnaceStart}
+                                  onChange={(e) => updateOverride(day.key, { furnaceStart: e.target.value || undefined })}
+                                />
+                              </label>
+                            )}
                             <label className="flex h-8 items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 cursor-pointer select-none">
                               <input
                                 checked={day.isWorkday}
@@ -1189,49 +1456,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                             )}
                           </div>
 
-                          <div className="mb-3 rounded-md border border-zinc-200 bg-zinc-50 p-2">
-                            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                                Öncül / Ardıl Bağları
-                              </p>
-                              {linkingDependency?.dayKey === day.key && (
-                                <span className="rounded bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">
-                                  {linkingDependency.segmentLabel} noktasından diğer bloğa bırakın
-                                </span>
-                              )}
-                            </div>
 
-                            {dayDependencies.length > 0 ? (
-                              <div className="flex flex-wrap gap-1.5">
-                                {dayDependencies.map((dependency) => (
-                                  <span
-                                    key={dependency.id}
-                                    className="inline-flex items-center gap-1.5 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700"
-                                  >
-                                    {dependency.predecessorLabel} → {dependency.successorLabel}
-                                    <button
-                                      type="button"
-                                      className="rounded p-0.5 text-blue-400 hover:bg-white hover:text-rose-600"
-                                      onClick={() => {
-                                        const dayDeps = dependencies.filter((d) => d.dayKey === day.key);
-                                        updateDayDependencies(
-                                          day.key,
-                                          dayDeps.filter((item) => item.id !== dependency.id)
-                                        );
-                                      }}
-                                      title="Bağı kaldır"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </button>
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-[11px] text-zinc-500">
-                                Çubuk uçlarındaki noktalardan birini diğer çubuğun noktasına sürükleyerek öncül → ardıl bağı kurun.
-                              </p>
-                            )}
-                          </div>
 
                           <div className="overflow-x-auto">
                             <div style={{ width: `${160 + (timeSlots.length - 1) * 72}px` }} className="min-w-full">
@@ -1347,39 +1572,11 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                           key={segment.id}
                                           className={`absolute top-1 bottom-1 rounded-sm border border-black/10 ${segment.className} ${
                                             segment.editable ? "cursor-grab touch-none ring-1 ring-black/5 active:cursor-grabbing" : ""
-                                          } ${
-                                            dayDependencies.some(
-                                              (dependency) =>
-                                                dependency.predecessorId === segment.id ||
-                                                dependency.successorId === segment.id
-                                            )
-                                              ? "ring-2 ring-blue-500"
-                                              : ""
                                           }`}
                                           style={segmentStyle(segment, gantt.startMinute, gantt.endMinute)}
                                           title={segment.note}
                                           onPointerDown={(e) => beginSegmentDrag(e, day, segment, gantt, "move")}
                                         >
-                                          <span
-                                            data-gantt-endpoint="true"
-                                            data-day-key={day.key}
-                                            data-segment-id={segment.id}
-                                            data-segment-label={segment.label}
-                                            data-endpoint-side="start"
-                                            className="absolute -left-1 top-1/2 z-20 h-2 w-2 -translate-y-1/2 rounded-full border border-white bg-blue-600 shadow-sm hover:scale-125"
-                                            onPointerDown={(e) => beginDependencyLink(e, day, segment)}
-                                            title={`${segment.label} bağlantı noktası`}
-                                          />
-                                          <span
-                                            data-gantt-endpoint="true"
-                                            data-day-key={day.key}
-                                            data-segment-id={segment.id}
-                                            data-segment-label={segment.label}
-                                            data-endpoint-side="end"
-                                            className="absolute -right-1 top-1/2 z-20 h-2 w-2 -translate-y-1/2 rounded-full border border-white bg-blue-600 shadow-sm hover:scale-125"
-                                            onPointerDown={(e) => beginDependencyLink(e, day, segment)}
-                                            title={`${segment.label} bağlantı noktası`}
-                                          />
                                           {segment.editable === "shift" && (
                                             <span
                                               className="absolute left-0 top-0 z-10 h-full w-2 cursor-ew-resize rounded-l-sm bg-black/20"
@@ -1398,64 +1595,8 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                                       ))}
                                     </div>
                                   </div>
-                                );
+                               );
                               })}
-                                {dayDependencies.length > 0 && (
-                                  <svg
-                                    className="pointer-events-none absolute z-40 overflow-visible"
-                                    preserveAspectRatio="none"
-                                    style={{
-                                      height: `${visibleGanttRows.length * 28}px`,
-                                      left: "160px",
-                                      top: 0,
-                                      width: "calc(100% - 160px)",
-                                    }}
-                                    viewBox={`0 0 100 ${visibleGanttRows.length * 28}`}
-                                  >
-                                    <defs>
-                                      <marker
-                                        id={`arrow-${day.key}`}
-                                        markerHeight="8"
-                                        markerWidth="8"
-                                        orient="auto"
-                                        refX="7"
-                                        refY="4"
-                                      >
-                                        <path d="M0,0 L8,4 L0,8 Z" fill="#1d4ed8" />
-                                      </marker>
-                                    </defs>
-                                    {dayDependencies.map((dependency) => {
-                                      const predecessor = gantt.segments.find((segment) => segment.id === dependency.predecessorId);
-                                      const successor = gantt.segments.find((segment) => segment.id === dependency.successorId);
-                                      if (!predecessor || !successor) return null;
-
-                                      const predecessorRow = visibleGanttRows.indexOf(predecessor.label);
-                                      const successorRow = visibleGanttRows.indexOf(successor.label);
-                                      if (predecessorRow < 0 || successorRow < 0) return null;
-
-                                      const x1 = segmentPercent(predecessor.end, gantt.startMinute, gantt.endMinute);
-                                      const x2 = segmentPercent(successor.start, gantt.startMinute, gantt.endMinute);
-                                      const y1 = predecessorRow * 28 + 14;
-                                      const y2 = successorRow * 28 + 14;
-                                      const controlOffset = Math.max(Math.abs(x2 - x1) * 0.35, 8);
-                                      const c1 = Math.min(x1 + controlOffset, 100);
-                                      const c2 = Math.max(x2 - controlOffset, 0);
-
-                                      return (
-                                        <path
-                                          key={dependency.id}
-                                          d={`M ${x1} ${y1} C ${c1} ${y1}, ${c2} ${y2}, ${x2} ${y2}`}
-                                          fill="none"
-                                          markerEnd={`url(#arrow-${day.key})`}
-                                          stroke="#1d4ed8"
-                                          strokeLinecap="round"
-                                          strokeWidth="2.4"
-                                          vectorEffect="non-scaling-stroke"
-                                        />
-                                      );
-                                    })}
-                                  </svg>
-                                )}
                               </div>
                             </div>
                           </div>
