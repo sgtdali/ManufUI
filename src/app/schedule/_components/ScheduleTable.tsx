@@ -70,6 +70,9 @@ const ROW_LABEL_TO_SEGMENT_ID: Record<string, string> = {
   "ETM-2 Punta Matkabı": "etm-drill-stops",
   "Palet": "etm-palet-stops",
   "Takım / Palet Duruşu": "tool-maintenance",
+  "Cell1 Proses": "rob108-c1-proses",
+  "Cell2 ROB108 Proses": "rob108-c2r108-proses",
+  "Cell2 ROB104 Proses": "rob108-c2r104-proses",
 };
 
 function unwrapTime(value: string | null, afterMinute?: number) {
@@ -120,6 +123,7 @@ export function buildGanttSegments(
 ): { startMinute: number; endMinute: number; segments: GanttSegment[] } {
   const isPress = cellName === "Pres Hücresi";
   const isEtm = cellName === "ETM Hücresi";
+  const isRob108 = cellName === "ROB108 Hücresi";
   const disabledList = dayOverride?.disabledSegments ?? [];
   const baseShiftStart = unwrapTime(day.shiftStart) ?? 465;
   const baseShiftEnd = unwrapTime(day.shiftEnd, baseShiftStart) ?? baseShiftStart + Math.max(day.availableMinutes, 570);
@@ -154,7 +158,7 @@ export function buildGanttSegments(
     midMaintStart !== null && midMaintMinutes > 0
       ? midMaintStart + midMaintMinutes
       : null;
-  const productionMinutes = (isPress || isEtm) ? day.pressed * 3 : Math.min(day.availableMinutes, baseShiftEnd - baseShiftStart);
+  const productionMinutes = (isPress || isEtm) ? day.pressed * 3 : isRob108 ? 0 : Math.min(day.availableMinutes, baseShiftEnd - baseShiftStart);
   const uninterruptedProductionEnd =
     productionStart !== null ? productionStart + Math.max(productionMinutes, 0) : null;
   const productionCrossesMidMaintenance =
@@ -206,6 +210,10 @@ export function buildGanttSegments(
   }
   if (isEtm && day.maintenanceMinutes > 0 && productionEnd !== null && !disabledList.includes("tool-maintenance")) {
     shiftEnd = Math.max(shiftEnd, productionEnd + day.maintenanceMinutes);
+  }
+  if (isRob108) {
+    // Cell1 ve Cell2 simülasyonları birbirinden bağımsız koşar ve her biri vardiya süresini dolduracak şekilde tasarlandı
+    shiftEnd = Math.max(shiftEnd, baseShiftEnd);
   }
   if (!disabledList.includes("die-cooling") && isPress && coolingMinutes > 0 && coolEnd !== null) {
     shiftEnd = Math.max(shiftEnd, coolEnd);
@@ -372,7 +380,7 @@ export function buildGanttSegments(
     }
   }
 
-  if (!isEtm && productionStart !== null && productionEnd !== null && productionEnd > productionStart && !disabledList.includes("press-process")) {
+  if (!isEtm && !isRob108 && productionStart !== null && productionEnd !== null && productionEnd > productionStart && !disabledList.includes("press-process")) {
     const productionSegments =
       productionCrossesMidMaintenance && midMaintStart !== null && midMaintEnd !== null
         ? canResumeAfterMidMaintenance
@@ -591,6 +599,183 @@ export function buildGanttSegments(
     segments.push(...etmSegments);
   }
 
+  if (isRob108 && day.isWorkday) {
+    const rob108Cycle = processParams?.rob108CycleMinutes || 15;
+    const rob104Cycle = processParams?.rob104CycleMinutes || 3;
+    const toolInterval = processParams?.rob108ToolInterval || 5;
+    const toolChangeDur = processParams?.rob108ToolChangeDuration || 10;
+    const rob104ToolInterval = processParams?.rob104ToolInterval || 5;
+    const rob104ToolChangeDur = processParams?.rob104ToolChangeDuration || 10;
+    const paletSize = processParams?.rob108PaletSize || 20;
+    const paletChangeDur = processParams?.rob108PaletChangeDuration || 10;
+    const rob108TicksPerPart = Math.round(rob108Cycle / rob104Cycle);
+
+    const cell1Avail = day.rob108Cell1AvailableMinutes || 0;
+    const cell2Avail = day.rob108Cell2AvailableMinutes || 0;
+    const c1L1 = day.rob108Cell1L1ToolStart || toolInterval;
+    const c1L2 = day.rob108Cell1L2ToolStart || toolInterval;
+    const c1L3 = day.rob108Cell1L3ToolStart || toolInterval;
+    const c2R108L1 = day.rob108Cell2Rob108L1ToolStart || toolInterval;
+    const c2R108L2 = day.rob108Cell2Rob108L2ToolStart || toolInterval;
+    const c2R104L1 = day.rob108Cell2Rob104L1ToolStart || toolInterval;
+    const c2R104L2 = day.rob108Cell2Rob104L2ToolStart || toolInterval;
+
+    // ── Cell 1: 3 ROB108 tornası, her 15 dk'da 3 parça eş zamanlı ──────────
+    {
+      let wt = baseShiftStart;
+      let tr1 = c1L1, tr2 = c1L2, tr3 = c1L3;
+      let coll = 0;
+      let c1PaletDone = 0;
+      let activeSeg: GanttSegment | null = null;
+      const totalTicks = Math.floor(cell1Avail / rob108Cycle);
+      for (let i = 0; i < totalTicks; i++) {
+        if (activeSeg) {
+          activeSeg.end = wt + rob108Cycle;
+        } else {
+          activeSeg = { id: `c1-prod-${i}`, label: "Cell1 Proses", start: wt, end: wt + rob108Cycle, className: "bg-lime-500", note: "" };
+          segments.push(activeSeg);
+        }
+        wt += rob108Cycle;
+        coll += 3; tr1--; tr2--; tr3--;
+        let stop = false;
+        let stepPaletDT = 0;
+        let stepToolDT = 0;
+
+        const paletsNeeded = Math.floor(coll / paletSize);
+        if (paletsNeeded > c1PaletDone) {
+          stepPaletDT = 2 * paletChangeDur;
+        }
+
+        let t1Need = tr1 <= 0;
+        let t2Need = tr2 <= 0;
+        let t3Need = tr3 <= 0;
+        let numTools = (t1Need ? 1 : 0) + (t2Need ? 1 : 0) + (t3Need ? 1 : 0);
+        stepToolDT = numTools * toolChangeDur;
+
+        if (stepPaletDT > 0 || stepToolDT > 0) {
+          const stepDowntime = Math.max(stepPaletDT, stepToolDT);
+
+          if (paletsNeeded > c1PaletDone) {
+            segments.push({ id: `c1-pi-${i}`, label: "Cell1 Proses", start: wt, end: wt + paletChangeDur, className: "bg-yellow-400", note: "Giriş palet" });
+            segments.push({ id: `c1-po-${i}`, label: "Cell1 Proses", start: wt + paletChangeDur, end: wt + 2 * paletChangeDur, className: "bg-yellow-500", note: "Çıkış palet" });
+            c1PaletDone = paletsNeeded;
+          }
+
+          let twt = wt;
+          if (t1Need) {
+            segments.push({ id: `c1-t1-${i}`, label: "Cell1 Proses", start: twt, end: twt + toolChangeDur, className: "bg-orange-400", note: "T1 takım" });
+            twt += toolChangeDur; tr1 = toolInterval;
+          }
+          if (t2Need) {
+            segments.push({ id: `c1-t2-${i}`, label: "Cell1 Proses", start: twt, end: twt + toolChangeDur, className: "bg-orange-500", note: "T2 takım" });
+            twt += toolChangeDur; tr2 = toolInterval;
+          }
+          if (t3Need) {
+            segments.push({ id: `c1-t3-${i}`, label: "Cell1 Proses", start: twt, end: twt + toolChangeDur, className: "bg-orange-600", note: "T3 takım" });
+            twt += toolChangeDur; tr3 = toolInterval;
+          }
+
+          wt += stepDowntime;
+          stop = true;
+        }
+        if (stop) activeSeg = null;
+      }
+      shiftEnd = Math.max(shiftEnd, wt);
+    }
+
+    // ── Cell 2: 2 ROB108 (15dk) + 2 ROB104 (3dk), paylaşımlı robot ─────────
+    {
+      let wt = baseShiftStart;
+      const r108Rem = [c2R108L1, c2R108L2];
+      const r104Rem = [c2R104L1, c2R104L2];
+      let r108Coll = 0, r104Coll = 0, r108Tick = 0;
+      let activeR108: GanttSegment | null = null;
+      let activeR104: GanttSegment | null = null;
+      const totalTicks = Math.floor(cell2Avail / rob104Cycle);
+      for (let tick = 0; tick < totalTicks; tick++) {
+        r108Tick++;
+        const isR108Part = r108Tick >= rob108TicksPerPart;
+        // Extend both production rows
+        if (activeR108) { activeR108.end = wt + rob104Cycle; } else {
+          activeR108 = { id: `c2r108-${tick}`, label: "Cell2 ROB108 Proses", start: wt, end: wt + rob104Cycle, className: "bg-lime-400", note: "" };
+          segments.push(activeR108);
+        }
+        if (activeR104) { activeR104.end = wt + rob104Cycle; } else {
+          activeR104 = { id: `c2r104-${tick}`, label: "Cell2 ROB104 Proses", start: wt, end: wt + rob104Cycle, className: "bg-teal-400", note: "" };
+          segments.push(activeR104);
+        }
+        wt += rob104Cycle;
+        r104Coll += 2; r104Rem[0]--; r104Rem[1]--;
+        if (isR108Part) { r108Coll += 2; r108Rem[0]--; r108Rem[1]--; r108Tick = 0; }
+        let stop = false;
+
+        let stepPaletDT = 0;
+        let stepToolDT = 0;
+
+        let r104PaletNeed = r104Coll > 0 && r104Coll % paletSize === 0;
+        if (r104PaletNeed) stepPaletDT += 2 * paletChangeDur;
+
+        let r108PaletNeed = isR108Part && r108Coll > 0 && r108Coll % paletSize === 0;
+        if (r108PaletNeed) stepPaletDT += 2 * paletChangeDur;
+
+        let r104T1Need = r104Rem[0] <= 0;
+        let r104T2Need = r104Rem[1] <= 0;
+        stepToolDT += (r104T1Need ? 1 : 0) * rob104ToolChangeDur + (r104T2Need ? 1 : 0) * rob104ToolChangeDur;
+
+        let r108T1Need = isR108Part && r108Rem[0] <= 0;
+        let r108T2Need = isR108Part && r108Rem[1] <= 0;
+        stepToolDT += (r108T1Need ? 1 : 0) * toolChangeDur + (r108T2Need ? 1 : 0) * toolChangeDur;
+
+        if (stepPaletDT > 0 || stepToolDT > 0) {
+          const stepDowntime = Math.max(stepPaletDT, stepToolDT);
+
+          // ROB104 palet
+          if (r104PaletNeed) {
+            segments.push({ id: `c2r104-pi-${tick}`, label: "Cell2 ROB104 Proses", start: wt, end: wt + paletChangeDur, className: "bg-yellow-400", note: "ROB104 giriş" });
+            segments.push({ id: `c2r104-po-${tick}`, label: "Cell2 ROB104 Proses", start: wt + paletChangeDur, end: wt + 2 * paletChangeDur, className: "bg-yellow-400", note: "ROB104 çıkış" });
+            segments.push({ id: `c2r104-pi2-${tick}`, label: "Cell2 ROB108 Proses", start: wt, end: wt + 2 * paletChangeDur, className: "bg-yellow-400", note: "ROB104 palet (durdurdu)" });
+          }
+          // ROB108 palet
+          if (r108PaletNeed) {
+            const offset = r104PaletNeed ? 2 * paletChangeDur : 0;
+            segments.push({ id: `c2r108-pi-${tick}`, label: "Cell2 ROB108 Proses", start: wt + offset, end: wt + offset + paletChangeDur, className: "bg-yellow-300", note: "ROB108 giriş" });
+            segments.push({ id: `c2r108-po-${tick}`, label: "Cell2 ROB108 Proses", start: wt + offset + paletChangeDur, end: wt + offset + 2 * paletChangeDur, className: "bg-yellow-300", note: "ROB108 çıkış" });
+            segments.push({ id: `c2r108-pi2-${tick}`, label: "Cell2 ROB104 Proses", start: wt + offset, end: wt + offset + 2 * paletChangeDur, className: "bg-yellow-300", note: "ROB108 palet (durdurdu)" });
+          }
+
+          let twt = wt;
+          // ROB104 takım
+          if (r104T1Need) {
+            segments.push({ id: `c2r104-t1-${tick}`, label: "Cell2 ROB104 Proses", start: twt, end: twt + rob104ToolChangeDur, className: "bg-orange-400", note: "ROB104 T1" });
+            segments.push({ id: `c2r104-t1b-${tick}`, label: "Cell2 ROB108 Proses", start: twt, end: twt + rob104ToolChangeDur, className: "bg-orange-400", note: "ROB104 T1 (durdurdu)" });
+            twt += rob104ToolChangeDur; r104Rem[0] = rob104ToolInterval;
+          }
+          if (r104T2Need) {
+            segments.push({ id: `c2r104-t2-${tick}`, label: "Cell2 ROB104 Proses", start: twt, end: twt + rob104ToolChangeDur, className: "bg-orange-500", note: "ROB104 T2" });
+            segments.push({ id: `c2r104-t2b-${tick}`, label: "Cell2 ROB108 Proses", start: twt, end: twt + rob104ToolChangeDur, className: "bg-orange-500", note: "ROB104 T2 (durdurdu)" });
+            twt += rob104ToolChangeDur; r104Rem[1] = rob104ToolInterval;
+          }
+          // ROB108 takım
+          if (r108T1Need) {
+            segments.push({ id: `c2r108-t1-${tick}`, label: "Cell2 ROB108 Proses", start: twt, end: twt + toolChangeDur, className: "bg-blue-400", note: "ROB108 T1" });
+            segments.push({ id: `c2r108-t1b-${tick}`, label: "Cell2 ROB104 Proses", start: twt, end: twt + toolChangeDur, className: "bg-blue-400", note: "ROB108 T1 (durdurdu)" });
+            twt += toolChangeDur; r108Rem[0] = toolInterval;
+          }
+          if (r108T2Need) {
+            segments.push({ id: `c2r108-t2-${tick}`, label: "Cell2 ROB108 Proses", start: twt, end: twt + toolChangeDur, className: "bg-blue-500", note: "ROB108 T2" });
+            segments.push({ id: `c2r108-t2b-${tick}`, label: "Cell2 ROB104 Proses", start: twt, end: twt + toolChangeDur, className: "bg-blue-500", note: "ROB108 T2 (durdurdu)" });
+            twt += toolChangeDur; r108Rem[1] = toolInterval;
+          }
+
+          wt += stepDowntime;
+          stop = true;
+        }
+        if (stop) { activeR108 = null; activeR104 = null; }
+      }
+      shiftEnd = Math.max(shiftEnd, wt);
+    }
+  }
+
   const coolStart = (productionEnd !== null && day.pressed > 0) ? productionEnd : null;
   if (isPress && coolStart !== null && coolEnd !== null && coolingMinutes > 0 && coolEnd > coolStart && !disabledList.includes("die-cooling")) {
     segments.push({
@@ -646,6 +831,8 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
   useEffect(() => {
     if (cellName === "Pres Hücresi") {
       setGanttRowOrder(DEFAULT_MOVABLE_GANTT_ROWS);
+    } else if (cellName === "ROB108 Hücresi") {
+      setGanttRowOrder(["Cell1 Proses", "Cell2 ROB108 Proses", "Cell2 ROB104 Proses"]);
     } else if (cellName === "ETM Hücresi") {
       setGanttRowOrder([
         "ETM-1 Proses",
@@ -666,7 +853,8 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
   }, [cellName]);
 
   const isEtm = cellName === "ETM Hücresi";
-  const visibleColumnCount = isPress ? 7 : isEtm ? 8 : 6;
+  const isRob108Cell = cellName === "ROB108 Hücresi";
+  const visibleColumnCount = isPress ? 7 : isEtm ? 8 : 7;
 
   const addMoldChange = async (day: DayPlan, moldType: "male" | "female") => {
     setPendingMoldKey(`${day.key}-${moldType}`);
@@ -935,7 +1123,7 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                     {isPress ? "Kalıp" : "Takımlar (ETM)"}
                   </th>
                 )}
-                {cellName === "ETM Hücresi" && (
+                {cellName !== "Pres Hücresi" && (
                   <th className="px-3 py-2.5 text-center font-semibold">
                     WIP (Başla → Bitir)
                   </th>
@@ -1139,27 +1327,39 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                       </td>
                     )}
 
-                    {cellName === "ETM Hücresi" && (
-                      <td className="px-3 py-2 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span
-                            className="inline-flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-700"
-                            title="Gün başı WIP"
-                          >
-                            {day.etmWipStart ?? 0}
-                          </span>
-                          <span className="text-zinc-400">→</span>
-                          <span
-                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                              (day.etmWipEnd ?? 0) === 0 ? "bg-amber-50 border border-amber-200 text-amber-700" : "bg-zinc-100 text-zinc-600"
-                            }`}
-                            title="Gün sonu WIP"
-                          >
-                            {day.etmWipEnd ?? 0}
-                          </span>
-                        </div>
-                      </td>
-                    )}
+                    {cellName !== "Pres Hücresi" && (() => {
+                      const wipStart = cellName === "ETM Hücresi" ? (day.etmWipStart ?? null)
+                        : cellName === "ROB108 Hücresi" ? (day.rob108WipStart ?? null)
+                        : null;
+                      const wipEnd = cellName === "ETM Hücresi" ? (day.etmWipEnd ?? null)
+                        : cellName === "ROB108 Hücresi" ? (day.rob108WipEnd ?? null)
+                        : null;
+                      return (
+                        <td className="px-3 py-2 text-center">
+                          {wipStart !== null && wipEnd !== null ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span
+                                className="inline-flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-bold text-blue-700"
+                                title="Gün başı WIP"
+                              >
+                                {wipStart}
+                              </span>
+                              <span className="text-zinc-400">→</span>
+                              <span
+                                className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                  wipEnd === 0 ? "bg-amber-50 border border-amber-200 text-amber-700" : "bg-zinc-100 text-zinc-600"
+                                }`}
+                                title="Gün sonu WIP"
+                              >
+                                {wipEnd}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-zinc-300 text-xs">—</span>
+                          )}
+                        </td>
+                      );
+                    })()}
 
                     {/* ── Arıza ── */}
                     <td className="px-3 py-2">

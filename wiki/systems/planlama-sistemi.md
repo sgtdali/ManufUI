@@ -1,6 +1,6 @@
 ---
-updated: 2026-06-01
-sources: [src/app/schedule/page.tsx, src/app/schedule/utils.ts, src/app/schedule/_components/ScheduleTable.tsx, src/app/schedule/_components/MoldChangesSidebar.tsx]
+updated: 2026-06-02
+sources: [src/app/schedule/page.tsx, src/app/schedule/utils.ts, src/app/schedule/_components/ScheduleTable.tsx, src/app/schedule/_components/SettingsSidebar.tsx, src/app/schedule/overview/constants.ts]
 ---
 
 # Planlama Sistemi
@@ -18,35 +18,32 @@ sources: [src/app/schedule/page.tsx, src/app/schedule/utils.ts, src/app/schedule
 | Müşteri personeli | Verimsizlik / devamsızlık |
 | Diğer | Karışık / sınıflandırılmamış |
 
-## Mevcut Schedule Sayfası (`/schedule`)
+## Schedule Sayfası (`/schedule`)
 
-Sadece **Pres hücresi** için simülasyon motoru var:
+Tek sayfa, üstteki `<select>` ile 12 hücre arasında geçiş yapılır. Seçili hücre değişince o hücrenin tüm upstream zinciri topolojik sırayla simüle edilir ve sonuç aynı `ScheduleTable`/Gantt UI'ı ile gösterilir.
 
-- Günlük hedef vs gerçekleşen karşılaştırması
-- Kalıp ömrü ve değişim planlaması (Erkek Kalıp Değişimi, Dişi Kalıp Değişimi, HIP Ring Değişimi olarak 3 ayrı satır halinde Gantt şemasında ve planlama listesinde takip edilir)
-- Her kalıp türü için duruşlar ve engelleme/gizleme (disabled segments) kararları bağımsız olarak yönetilebilir (`mold-maintenance-male`, `mold-maintenance-female`, `mold-maintenance-ring`)
-- Fazla mesai etkisi hesabı
-- WIP → ETM geçişi
-- Kurtarma senaryosu: açığı kapatmak için kaç gün fazla mesai gerektiği
+**Desteklenen hücreler:**
+
+| Hücre | Simülasyon tipi | Özel state |
+|-------|----------------|------------|
+| Pres Hücresi | Pres (kalıp ömrü, fırın, Gantt) | maleRemaining, femaleRemaining, ringRemaining |
+| ETM Hücresi | ETM (takım ömrü, WIP kısıt) | wip, etm1/etm2 cutting/drill |
+| Diğer 10 hücre | Generic kapasite (vardiya × max kapasite oranı) | — |
+
+**Cascade:** Bir upstream hücrede (örn. Pres) ayar değiştirilip Kaydet yapılırsa, downstream hücreler (ETM, ROB108 …) bir sonraki sayfada güncel upstream verisini görür. Aynı sayfada kalmak ise `upstreamCellData` state'inden anlık güncelleme yapar.
 
 Detaylar için bkz. [WIP Hesabı](wip-hesabi.md).
 
-## Eksikler
+## Eksikler / Açık Konular
 
-- Sadece Pres hücresi var, diğer 11 hücre schedule'a dahil değil
+- Yeni hücreler için özel simülasyon mantığı henüz yazılmadı (generic kapasite kullanıyor)
 - "Bu hafta neden kaybettik" analizi yok
 - Arıza verisi ile planlama arasında bağlantı yok
-- Veri → karar köprüsü yok: veri toplanıyor ama planlama hâlâ sezgisel
 
 ## İstenen
 
 **Haftalık kayıp analizi:** Hücre bazında bu hafta ne kadar kayıp yaşandı, sebebi ne, önümüzdeki hafta için öneri.
 Tamamen mevcut Supabase verisiyle yapılabilir.
-
-## Açık Sorular
-
-- Diğer hücreler schedule sayfasına mı eklenmeli, yoksa ayrı sayfa mı olmalı?
-- Haftalık analiz otomatik mi tetiklenmeli, yoksa manuel mi?
 
 ## İlgili Sayfalar
 

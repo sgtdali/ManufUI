@@ -43,8 +43,8 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 **Anahtar dosyalar:**
 - `src/lib/types.ts` — BOLUMLER, DURUS_KOLONLARI, ZAMAN_DILIMLERI
 - `src/app/schedule/constants.ts` — simülasyon sabitleri
-- `src/app/schedule/utils.ts` — buildSchedule motoru
-- `src/app/schedule/overview/constants.ts` — CELL_FLOWS
+- `src/app/schedule/utils.ts` — `buildSchedule` (tek hücre) + `buildCellChain` (zincir orchestrator) + `getUpstreamChain`
+- `src/app/schedule/overview/constants.ts` — CELL_FLOWS, CELL_STATE_CONFIG (per-hücre başlangıç field config'i)
 
 ## Log
 

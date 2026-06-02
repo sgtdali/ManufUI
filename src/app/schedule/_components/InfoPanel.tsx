@@ -14,6 +14,7 @@ type Props = {
 export function InfoPanel({ cellName = "Pres Hücresi", processParams }: Props) {
   const [open, setOpen] = useState(false);
   const isEtm = cellName === "ETM Hücresi";
+  const isRob108 = cellName === "ROB108 Hücresi";
 
   return (
     <Card className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
@@ -25,7 +26,7 @@ export function InfoPanel({ cellName = "Pres Hücresi", processParams }: Props) 
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-zinc-500" />
           <span className="text-xs font-bold uppercase tracking-wider text-zinc-700">
-            {isEtm ? "Planlama Yardımı ve ETM Kuralları" : "Planlama Yardımı ve Kalıp Kuralları"}
+            {isRob108 ? "Planlama Yardımı ve ROB108 Kuralları" : isEtm ? "Planlama Yardımı ve ETM Kuralları" : "Planlama Yardımı ve Kalıp Kuralları"}
           </span>
         </div>
         {open ? <ChevronUp className="h-4 w-4 text-zinc-500" /> : <ChevronDown className="h-4 w-4 text-zinc-500" />}
@@ -33,7 +34,26 @@ export function InfoPanel({ cellName = "Pres Hücresi", processParams }: Props) 
 
       {open && (
         <CardContent className="border-t border-zinc-100 bg-white p-5">
-          {isEtm ? (
+          {isRob108 ? (
+            <div className="grid gap-6 divide-y divide-zinc-100 md:grid-cols-3 md:divide-x md:divide-y-0">
+              <InfoBlock icon={<Clock className="h-4 w-4 text-blue-600" />} title="Hattın Yapısı">
+                <li>Cell 1: 3 torna ROB108 (bağımsız robot)</li>
+                <li>Cell 2: 2 torna ROB108 + 2 torna ROB104 (paylaşımlı robot)</li>
+                <li>Üretim ETM çıkışı + başlangıç WIP ile kısıtlıdır</li>
+              </InfoBlock>
+              <InfoBlock icon={<Gauge className="h-4 w-4 text-blue-600" />} title="ROB108 / ROB104 Kapasitesi" padded>
+                <li>ROB108 çevrim süresi: {processParams?.rob108CycleMinutes ?? 15} dk/parça</li>
+                <li>ROB104 çevrim süresi: {processParams?.rob104CycleMinutes ?? 3} dk/parça</li>
+                <li>Takım ve palet değişimleri kapasiteden düşülür</li>
+              </InfoBlock>
+              <InfoBlock icon={<Hammer className="h-4 w-4 text-blue-600" />} title="Takım / Palet Kuralları" padded>
+                <li>ROB108 Takım: {processParams?.rob108ToolInterval ?? 5} adette {processParams?.rob108ToolChangeDuration ?? 10} dk</li>
+                <li>ROB104 Takım: {processParams?.rob104ToolInterval ?? 5} adette {processParams?.rob104ToolChangeDuration ?? 10} dk</li>
+                <li>Palet: {processParams?.rob108PaletSize ?? 20} adette {processParams?.rob108PaletChangeDuration ?? 10} dk (giriş + çıkış)</li>
+                <li>Çakışan duruşlar eş zamanlı/paralel yapılır (maksimum olan süre kadar durur)</li>
+              </InfoBlock>
+            </div>
+          ) : isEtm ? (
             <div className="grid gap-6 divide-y divide-zinc-100 md:grid-cols-3 md:divide-x md:divide-y-0">
               <InfoBlock icon={<Clock className="h-4 w-4 text-blue-600" />} title="WIP Giriş Kuralı">
                 <li>ETM üretimi Pres çıkışı + başlangıç WIP ile sınırlıdır</li>

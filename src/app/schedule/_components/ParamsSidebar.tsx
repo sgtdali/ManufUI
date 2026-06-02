@@ -62,10 +62,13 @@ function ParamInput({
 export function ParamsSidebar({ params, setParams, selectedCell }: Props) {
   const filtered = params.filter((p) => {
     if (selectedCell === "Pres Hücresi") {
-      return !p.key.startsWith("etm_");
+      return !p.key.startsWith("etm_") && !p.key.startsWith("rob108_") && !p.key.startsWith("rob104_");
     }
     if (selectedCell === "ETM Hücresi") {
       return p.key.startsWith("etm_");
+    }
+    if (selectedCell === "ROB108 Hücresi" || selectedCell === "ROB104 Hücresi") {
+      return p.key.startsWith("rob108_") || p.key.startsWith("rob104_");
     }
     return false;
   });

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
@@ -27,13 +27,14 @@ import {
   type CellBottleneckStats,
 
 } from "./actions";
-import { CELLS, CELL_FLOWS, type CellName } from "./overview/constants";
+import { CELLS, CELL_FLOWS, CELL_STATE_CONFIG, getDefaultCellState, type CellName } from "./overview/constants";
 import { loadCellParams, type CellParam } from "./overview/actions";
 import { SHIFT_START, SHIFT_END, FURNACE_START } from "./constants";
 import type { DayOverride, GanttDependency, ToolChangeItem } from "./types";
 
 import {
-  buildSchedule,
+  buildCellChain,
+  getUpstreamChain,
   formatNumber,
   getFirstDayOfMonth,
   getLastDayOfMonth,
@@ -42,6 +43,7 @@ import {
   DEFAULT_PROCESS_PARAMS,
   toDayKey,
   type ProcessParams,
+  type UpstreamCellData,
 } from "./utils";
 
 import { MetricCard } from "./_components/MetricCard";
@@ -66,10 +68,16 @@ export default function SchedulePage() {
   const [defaultShiftEnd, setDefaultShiftEnd] = useState(SHIFT_END);
   const [defaultFurnaceStart, setDefaultFurnaceStart] = useState(FURNACE_START);
   const [overtimeMinutes, setOvertimeMinutes] = useState("0");
-  const [initialMaleRemaining, setInitialMaleRemaining] = useState("500");
-  const [initialFemaleRemaining, setInitialFemaleRemaining] = useState("1300");
-  const [initialRingRemaining, setInitialRingRemaining] = useState("1300");
   const [holidayWorkEnabled, setHolidayWorkEnabled] = useState(false);
+
+  // ── Hücre başlangıç durumu (kalıp kalan, takım kalan, WIP) ─────────────────
+  const [cellInitialState, setCellInitialState] = useState<Record<string, Record<string, string>>>(() => {
+    const init: Record<string, Record<string, string>> = {};
+    for (const [cell, config] of Object.entries(CELL_STATE_CONFIG)) {
+      if (config) init[cell] = Object.fromEntries(config.map((f) => [f.key, f.defaultValue]));
+    }
+    return init;
+  });
 
   // â”€â”€ Override / senaryo durumu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [overrides, setOverrides] = useState<Record<string, DayOverride>>({});
@@ -102,18 +110,10 @@ export default function SchedulePage() {
 
   // â”€â”€ ETM Takım DeÄŸişimleri ve Ã–mürleri â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [etmToolChanges, setEtmToolChanges] = useState<ToolChangeItem[]>([]);
-  const [etm1InitialCutting, setEtm1InitialCutting] = useState("10");
-  const [etm2InitialCutting, setEtm2InitialCutting] = useState("10");
-  const [etm1InitialDrill, setEtm1InitialDrill] = useState("300");
-  const [etm2InitialDrill, setEtm2InitialDrill] = useState("300");
-  const [initialWip, setInitialWip] = useState("0");
   const [, startEtmChangesTransition] = useTransition();
 
-  // â”€â”€ Pres Hücresi Verileri (ETM Hücresi planlanırken kullanılır) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const [presActuals, setPresActuals] = useState<Record<string, number>>({});
-  const [presOverrides, setPresOverrides] = useState<Record<string, DayOverride>>({});
-  const [presBreakdowns, setPresBreakdowns] = useState<Record<string, { minutes: number; details: string[] }>>({});
-  const [presMoldChanges, setPresMoldChanges] = useState<MoldChange[]>([]);
+  // â”€â”€ Upstream zincir DB verisi â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [upstreamCellData, setUpstreamCellData] = useState<Partial<Record<string, UpstreamCellData>>>({});
 
   // â”€â”€ Proses parametreleri â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [scheduleParams, setScheduleParams] = useState<ScheduleParamRow[]>([]);
@@ -167,20 +167,56 @@ export default function SchedulePage() {
         if (tcResult.success) setEtmToolChanges(tcResult.data ?? []);
         else setEtmToolChanges([]);
       });
+    }
 
-      // Load Pres data for ETM WIP simulation
-      loadCellActuals("Pres Hücresi", startDate, endDate).then((res) => {
-        if (!cancelled && res.success) setPresActuals(res.actuals);
+    // Load data for all upstream cells in chain
+    const upstreamChain = getUpstreamChain(selectedCell);
+    if (upstreamChain.length > 0) {
+      Promise.all(
+        upstreamChain.map(async (upstreamCell) => {
+          const [actualsRes, overridesRes, breakdownsRes] = await Promise.all([
+            loadCellActuals(upstreamCell, startDate, endDate),
+            loadScheduleOverrides(upstreamCell, startDate, endDate),
+            loadCellBreakdowns(upstreamCell, startDate, endDate),
+          ]);
+          let moldChangesByDate: Record<string, ("male" | "female" | "ring")[]> = {};
+          let toolChangesByDate: Record<string, { machine: "ETM-1" | "ETM-2"; toolType: "cutting_insert" | "drill_bit" }[]> = {};
+          if (upstreamCell === "Pres Hücresi") {
+            const moldRes = await loadMoldChanges(startDate, endDate);
+            if (moldRes.success) {
+              for (const mc of moldRes.data ?? []) {
+                if (!moldChangesByDate[mc.tarih]) moldChangesByDate[mc.tarih] = [];
+                moldChangesByDate[mc.tarih].push(mc.mold_type);
+              }
+            }
+          } else if (upstreamCell === "ETM Hücresi") {
+            const toolRes = await loadEtmToolChanges(startDate, endDate);
+            if (toolRes.success) {
+              for (const tc of toolRes.data ?? []) {
+                if (!toolChangesByDate[tc.tarih]) toolChangesByDate[tc.tarih] = [];
+                toolChangesByDate[tc.tarih].push({ machine: tc.machine, toolType: tc.tool_type });
+              }
+            }
+          }
+          return {
+            cell: upstreamCell,
+            data: {
+              actuals: actualsRes.success ? actualsRes.actuals : {},
+              overrides: overridesRes.success ? (overridesRes.overrides ?? {}) : {},
+              breakdownsByDate: breakdownsRes.success ? (breakdownsRes.breakdownsByDate ?? {}) : {},
+              moldChangesByDate,
+              toolChangesByDate,
+            } satisfies UpstreamCellData,
+          };
+        })
+      ).then((results) => {
+        if (cancelled) return;
+        const newData: Partial<Record<string, UpstreamCellData>> = {};
+        for (const { cell, data } of results) newData[cell] = data;
+        setUpstreamCellData(newData);
       });
-      loadScheduleOverrides("Pres Hücresi", startDate, endDate).then((res) => {
-        if (!cancelled && res.success) setPresOverrides(res.overrides);
-      });
-      loadCellBreakdowns("Pres Hücresi", startDate, endDate).then((res) => {
-        if (!cancelled && res.success) setPresBreakdowns(res.breakdownsByDate ?? {});
-      });
-      loadMoldChanges(startDate, endDate).then((res) => {
-        if (!cancelled && res.success) setPresMoldChanges(res.data ?? []);
-      });
+    } else {
+      setUpstreamCellData({});
     }
 
     const loadWipAndBreakdowns = async () => {
@@ -201,20 +237,20 @@ export default function SchedulePage() {
       const dailyOutgoing = wipResult.outgoing.filter((item) => item.tarih >= startDate);
       setWipData({ incoming: dailyIncoming, outgoing: dailyOutgoing });
 
-      if (selectedCell === "ETM Hücresi") {
+      const primaryUpstream = CELL_FLOWS[selectedCell]?.upstream[0];
+      if (primaryUpstream) {
         const initialWipItem = wipResult.incoming.find(
-          (item) => item.tarih === prevDayKey && item.kaynak_hucresi === "Pres Hücresi"
+          (item) => item.tarih === prevDayKey && item.kaynak_hucresi === primaryUpstream
         );
-        if (initialWipItem) {
-          const val = initialWipItem.override_edildi && initialWipItem.gercek_adet !== null
-            ? initialWipItem.gercek_adet
-            : initialWipItem.hesaplanan_adet;
-          setInitialWip(String(val));
-        } else {
-          setInitialWip("0");
-        }
-      } else {
-        setInitialWip("0");
+        const val = initialWipItem
+          ? (initialWipItem.override_edildi && initialWipItem.gercek_adet !== null
+              ? initialWipItem.gercek_adet
+              : initialWipItem.hesaplanan_adet)
+          : 0;
+        setCellInitialState((prev) => ({
+          ...prev,
+          [selectedCell]: { ...(prev[selectedCell] ?? {}), wip: String(val) },
+        }));
       }
 
       if (breakdownResult.success) {
@@ -242,6 +278,7 @@ export default function SchedulePage() {
   }, []);
 
 
+
   // â”€â”€ Kalıp deÄŸişim haritası â”€â”
   const moldChangesByDate = useMemo(() => {
     const map: Record<string, ("male" | "female" | "ring")[]> = {};
@@ -252,16 +289,6 @@ export default function SchedulePage() {
     return map;
   }, [moldChanges]);
 
-  // â”€â”€ Pres kalıp deÄŸişim haritası (ETM için) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const presMoldChangesByDate = useMemo(() => {
-    const map: Record<string, ("male" | "female" | "ring")[]> = {};
-    const list = selectedCell === "Pres Hücresi" ? moldChanges : presMoldChanges;
-    for (const mc of list) {
-      if (!map[mc.tarih]) map[mc.tarih] = [];
-      map[mc.tarih].push(mc.mold_type);
-    }
-    return map;
-  }, [moldChanges, presMoldChanges, selectedCell]);
 
   // â”€â”€ ETM Takım deÄŸişim haritası â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const toolChangesByDate = useMemo(() => {
@@ -298,70 +325,48 @@ export default function SchedulePage() {
       paletInterval: map["etm_palet_interval"] ?? DEFAULT_PROCESS_PARAMS.paletInterval,
       paletChangeMinutes: map["etm_palet_change_minutes"] ?? DEFAULT_PROCESS_PARAMS.paletChangeMinutes,
       hatCycleMinutes: map["etm_hat_cycle_minutes"] ?? DEFAULT_PROCESS_PARAMS.hatCycleMinutes,
+      rob108ToolInterval: map["rob108_tool_interval"] || DEFAULT_PROCESS_PARAMS.rob108ToolInterval,
+      rob108ToolChangeDuration: map["rob108_tool_change_duration"] || DEFAULT_PROCESS_PARAMS.rob108ToolChangeDuration,
+      rob108PaletSize: map["rob108_palet_size"] || DEFAULT_PROCESS_PARAMS.rob108PaletSize,
+      rob108PaletChangeDuration: map["rob108_palet_change_duration"] || DEFAULT_PROCESS_PARAMS.rob108PaletChangeDuration,
+      rob108CycleMinutes: map["rob108_cycle_minutes"] || DEFAULT_PROCESS_PARAMS.rob108CycleMinutes,
+      rob104CycleMinutes: map["rob104_cycle_minutes"] || DEFAULT_PROCESS_PARAMS.rob104CycleMinutes,
+      rob104ToolInterval: map["rob104_tool_interval"] || DEFAULT_PROCESS_PARAMS.rob104ToolInterval,
+      rob104ToolChangeDuration: map["rob104_tool_change_duration"] || DEFAULT_PROCESS_PARAMS.rob104ToolChangeDuration,
     };
   }, [scheduleParams]);
 
   // â”€â”€ Simülasyon â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Aralık parametresi değiştiğinde ROB108 takım kalan değerlerini senkronize et
+  useEffect(() => {
+    const rob108Int = String(processParams.rob108ToolInterval || 5);
+    const rob104Int = String(processParams.rob104ToolInterval || 5);
+    setCellInitialState((prev) => ({
+      ...prev,
+      "ROB108 Hücresi": {
+        ...(prev["ROB108 Hücresi"] || {}),
+        cell1L1Tool: rob108Int,
+        cell1L2Tool: rob108Int,
+        cell1L3Tool: rob108Int,
+        cell2Rob108L1Tool: rob108Int,
+        cell2Rob108L2Tool: rob108Int,
+        cell2Rob104L1Tool: rob104Int,
+        cell2Rob104L2Tool: rob104Int,
+      },
+    }));
+  }, [processParams.rob108ToolInterval, processParams.rob104ToolInterval]);
+
+  const currentCellState = useMemo(
+    () => cellInitialState[selectedCell] ?? {},
+    [cellInitialState, selectedCell]
+  );
+
   const schedule = useMemo(
     () => {
-      if (selectedCell === "ETM Hücresi") {
-        // Simülatörde üst akış Pres'i simüle et
-        const presSchedule = buildSchedule({
-          startDate,
-          endDate,
-          dailyTarget: Math.max(numberInput(dailyTarget), 0),
-          defaultShiftStart,
-          defaultShiftEnd,
-          defaultFurnaceStart,
-          overtimeMinutes: Math.max(numberInput(overtimeMinutes), 0),
-          holidayWorkEnabled,
-          initialMaleRemaining: Math.max(numberInput(initialMaleRemaining), 0),
-          initialFemaleRemaining: Math.max(numberInput(initialFemaleRemaining), 0),
-          initialRingRemaining: Math.max(numberInput(initialRingRemaining), 0),
-          overrides: presOverrides,
-          actuals: presActuals,
-          moldChangesByDate: presMoldChangesByDate,
-          processParams,
-          breakdownsByDate: presBreakdowns,
-          cellName: "Pres Hücresi",
-          cellParams: allCellParams,
-        });
-
-        const upstreamOutput: Record<string, number> = {};
-        for (const day of presSchedule) {
-          upstreamOutput[day.key] = day.pressed;
-        }
-
-        return buildSchedule({
-          startDate,
-          endDate,
-          dailyTarget: Math.max(numberInput(dailyTarget), 0),
-          defaultShiftStart,
-          defaultShiftEnd,
-          defaultFurnaceStart,
-          overtimeMinutes: Math.max(numberInput(overtimeMinutes), 0),
-          holidayWorkEnabled,
-          initialMaleRemaining: Math.max(numberInput(initialMaleRemaining), 0),
-          initialFemaleRemaining: Math.max(numberInput(initialFemaleRemaining), 0),
-          initialRingRemaining: Math.max(numberInput(initialRingRemaining), 0),
-          overrides,
-          actuals,
-          moldChangesByDate,
-          processParams,
-          breakdownsByDate,
-          cellName: selectedCell,
-          cellParams: allCellParams,
-          etm1InitialCutting: Math.max(numberInput(etm1InitialCutting), 0),
-          etm2InitialCutting: Math.max(numberInput(etm2InitialCutting), 0),
-          etm1InitialDrill: Math.max(numberInput(etm1InitialDrill), 0),
-          etm2InitialDrill: Math.max(numberInput(etm2InitialDrill), 0),
-          toolChangesByDate,
-          upstreamOutput,
-          initialWip: Math.max(numberInput(initialWip), 0),
-        });
-      }
-
-      return buildSchedule({
+      const cs = currentCellState;
+      const g = (v: string | undefined, d: number) => Math.max(numberInput(v || String(d)), 0);
+      return buildCellChain({
+        targetCell: selectedCell,
         startDate,
         endDate,
         dailyTarget: Math.max(numberInput(dailyTarget), 0),
@@ -370,30 +375,36 @@ export default function SchedulePage() {
         defaultFurnaceStart,
         overtimeMinutes: Math.max(numberInput(overtimeMinutes), 0),
         holidayWorkEnabled,
-        initialMaleRemaining: Math.max(numberInput(initialMaleRemaining), 0),
-        initialFemaleRemaining: Math.max(numberInput(initialFemaleRemaining), 0),
-        initialRingRemaining: Math.max(numberInput(initialRingRemaining), 0),
-        overrides,
-        actuals,
-        moldChangesByDate,
         processParams,
-        breakdownsByDate,
-        cellName: selectedCell,
         cellParams: allCellParams,
-        etm1InitialCutting: Math.max(numberInput(etm1InitialCutting), 0),
-        etm2InitialCutting: Math.max(numberInput(etm2InitialCutting), 0),
-        etm1InitialDrill: Math.max(numberInput(etm1InitialDrill), 0),
-        etm2InitialDrill: Math.max(numberInput(etm2InitialDrill), 0),
+        actuals,
+        overrides,
+        breakdownsByDate,
+        moldChangesByDate,
         toolChangesByDate,
+        initialMaleRemaining: g(cs.maleRemaining, 500),
+        initialFemaleRemaining: g(cs.femaleRemaining, 1300),
+        initialRingRemaining: g(cs.ringRemaining, 1300),
+        etm1InitialCutting: g(cs.etm1Cutting, 10),
+        etm2InitialCutting: g(cs.etm2Cutting, 10),
+        etm1InitialDrill: g(cs.etm1Drill, 300),
+        etm2InitialDrill: g(cs.etm2Drill, 300),
+        initialWip: g(cs.wip, 0),
+        rob108Cell1L1Tool: g(cs.cell1L1Tool, 5),
+        rob108Cell1L2Tool: g(cs.cell1L2Tool, 5),
+        rob108Cell1L3Tool: g(cs.cell1L3Tool, 5),
+        rob108Cell2Rob108L1Tool: g(cs.cell2Rob108L1Tool, 5),
+        rob108Cell2Rob108L2Tool: g(cs.cell2Rob108L2Tool, 5),
+        rob108Cell2Rob104L1Tool: g(cs.cell2Rob104L1Tool, 5),
+        rob108Cell2Rob104L2Tool: g(cs.cell2Rob104L2Tool, 5),
+        upstreamCellData,
       });
     },
     [
       actuals, dailyTarget, defaultFurnaceStart, defaultShiftEnd, defaultShiftStart,
-      endDate, holidayWorkEnabled, initialFemaleRemaining, initialMaleRemaining, initialRingRemaining,
-      moldChangesByDate, overtimeMinutes, overrides, processParams, startDate,
-      breakdownsByDate, selectedCell, allCellParams,
-      etm1InitialCutting, etm2InitialCutting, etm1InitialDrill, etm2InitialDrill, toolChangesByDate,
-      presActuals, presOverrides, presMoldChangesByDate, presBreakdowns, initialWip,
+      endDate, holidayWorkEnabled, moldChangesByDate, overtimeMinutes, overrides,
+      processParams, startDate, breakdownsByDate, selectedCell, allCellParams,
+      toolChangesByDate, currentCellState, upstreamCellData,
     ]
   );
 
@@ -433,9 +444,13 @@ export default function SchedulePage() {
   }, [schedule, wipData.outgoing, todayKey, downstreamCell]);
 
   const latestEtmWipEnd = useMemo(() => {
+    if (selectedCell === "ROB108 Hücresi") {
+      const rob108Workdays = schedule.filter((d) => d.isWorkday && d.rob108WipEnd !== undefined);
+      return rob108Workdays[rob108Workdays.length - 1]?.rob108WipEnd ?? null;
+    }
     const etmWorkdays = schedule.filter((d) => d.isWorkday && d.etmWipEnd !== undefined);
     return etmWorkdays[etmWorkdays.length - 1]?.etmWipEnd ?? null;
-  }, [schedule]);
+  }, [schedule, selectedCell]);
 
   const wipOutgoing = useMemo(() => {
     const map: Record<string, number | null> = {};
@@ -589,9 +604,6 @@ export default function SchedulePage() {
         <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 md:flex-row md:items-end md:justify-between">
           <div className="flex-1">
             <h1 className="mt-2 text-3xl font-semibold tracking-normal">Schedule - {selectedCell}</h1>
-            <p className="mt-2 max-w-3xl text-sm text-zinc-600">
-              {selectedCell !== "Pres Hücresi" && `${selectedCell} kapasite planlaması, günlük duruşları ve hedefleri izleyin.`}
-            </p>
             
             {/* Hücre Seçici */}
             <div className="mt-4 flex flex-col gap-1 max-w-[280px]">
@@ -638,7 +650,7 @@ export default function SchedulePage() {
                 disabled={isSaving}
               >
                 <Save className="h-4 w-4" />
-                {isSaving ? "Kaydediliyor..." : `DeÄŸişiklikleri Kaydet (${dirtyKeys.size})`}
+                {isSaving ? "Kaydediliyor..." : `Değişiklikleri Kaydet (${dirtyKeys.size})`}
               </Button>
             )}
             <Link href="/schedule/overview"><Button type="button" variant="outline">Hat Görünümü</Button></Link>
@@ -706,23 +718,16 @@ export default function SchedulePage() {
                     startDate={startDate} setStartDate={setStartDate}
                     endDate={endDate} setEndDate={setEndDate}
                     dailyTarget={dailyTarget} setDailyTarget={setDailyTarget}
-                    defaultShiftStart={defaultShiftStart} setDefaultShiftStart={setDefaultShiftStart}
-                    defaultShiftEnd={defaultShiftEnd} setDefaultShiftEnd={setDefaultShiftEnd}
-                    overtimeMinutes={overtimeMinutes} setOvertimeMinutes={setOvertimeMinutes}
-                    initialMaleRemaining={initialMaleRemaining} setInitialMaleRemaining={setInitialMaleRemaining}
-                    initialFemaleRemaining={initialFemaleRemaining} setInitialFemaleRemaining={setInitialFemaleRemaining}
-                    initialRingRemaining={initialRingRemaining} setInitialRingRemaining={setInitialRingRemaining}
-                    etm1InitialCutting={etm1InitialCutting} setEtm1InitialCutting={setEtm1InitialCutting}
-                    etm2InitialCutting={etm2InitialCutting} setEtm2InitialCutting={setEtm2InitialCutting}
-                    etm1InitialDrill={etm1InitialDrill} setEtm1InitialDrill={setEtm1InitialDrill}
-                    etm2InitialDrill={etm2InitialDrill} setEtm2InitialDrill={setEtm2InitialDrill}
-                    initialWip={initialWip} setInitialWip={setInitialWip}
-                    holidayWorkEnabled={holidayWorkEnabled} setHolidayWorkEnabled={setHolidayWorkEnabled}
                     clearAllOverrides={clearAllOverrides}
-                    normalizationWarmupMinutes={processParams.normalizationWarmupMinutes}
-                    prePressHeatMinutes={processParams.prePressHeatMinutes}
-                    normalizationProcessMinutes={processParams.normalizationProcessMinutes}
                     selectedCell={selectedCell}
+                    cellState={cellInitialState[selectedCell] || {}}
+                    onCellStateChange={(key, val) =>
+                      setCellInitialState((prev) => ({
+                        ...prev,
+                        [selectedCell]: { ...(prev[selectedCell] || {}), [key]: val },
+                      }))
+                    }
+                    cellStateConfig={CELL_STATE_CONFIG[selectedCell] || []}
                   />
                 )}
                 {activeSidebarTab === "molds" && (
@@ -797,7 +802,7 @@ export default function SchedulePage() {
               />
               <MetricCard
                 icon={<Factory />}
-                label={isEtmCell ? "Dönem ETM çıktısı" : "Dönem pres çıktısı"}
+                label={selectedCell === "ROB108 Hücresi" ? "Dönem ROB108 çıktısı" : isEtmCell ? "Dönem ETM çıktısı" : "Dönem pres çıktısı"}
                 value={formatNumber(periodPressed)}
                 note={
                   periodGap > 0
@@ -808,16 +813,16 @@ export default function SchedulePage() {
               />
               <MetricCard
                 icon={<TimerReset />}
-                label={isEtmCell ? "Gün sonu WIP" : "Aynı gün ETM hazır"}
-                value={isEtmCell ? (latestEtmWipEnd !== null ? formatNumber(latestEtmWipEnd) : "—") : formatNumber(periodSameDayReady)}
-                note={isEtmCell ? "Pres çıkışı + başlangıç WIP sonrası devreden stok" : "Normalizasyon gecikmesi dahil"}
+                label={isEtmCell || selectedCell === "ROB108 Hücresi" ? "Gün sonu WIP" : "Aynı gün ETM hazır"}
+                value={isEtmCell || selectedCell === "ROB108 Hücresi" ? (latestEtmWipEnd !== null ? formatNumber(latestEtmWipEnd) : "—") : formatNumber(periodSameDayReady)}
+                note={selectedCell === "ROB108 Hücresi" ? "ETM çıkışı + başlangıç WIP sonrası devreden stok" : isEtmCell ? "Pres çıkışı + başlangıç WIP sonrası devreden stok" : "Normalizasyon gecikmesi dahil"}
                 color="blue"
               />
               <MetricCard
                 icon={<Hammer />}
-                label={isEtmCell ? "Takım / palet duruşu" : "Kalıp duruşu"}
+                label={isEtmCell || selectedCell === "ROB108 Hücresi" ? "Takım / palet duruşu" : "Kalıp duruşu"}
                 value={`${formatNumber(Math.round(maintenanceHours))} saat`}
-                note={firstRiskDay ? `${firstRiskDay.label}: ${firstRiskDay.maintenanceLabel}` : isEtmCell ? "Takım/palet duruşu yok" : "Planlı duruş yok"}
+                note={firstRiskDay ? `${firstRiskDay.label}: ${firstRiskDay.maintenanceLabel}` : (isEtmCell || selectedCell === "ROB108 Hücresi" ? "Takım/palet duruşu yok" : "Planlı duruş yok")}
                 color="amber"
               />
               <MetricCard

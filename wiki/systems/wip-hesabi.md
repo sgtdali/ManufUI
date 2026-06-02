@@ -5,7 +5,36 @@ sources: [src/app/schedule/constants.ts, src/app/schedule/utils.ts, src/app/sche
 
 # WIP Hesabı ve Üretim Simülasyonu
 
-`/schedule` sayfasının arkasındaki `buildSchedule` simülasyon motoru. Pres hücresinin günlük kapasitesini, kalıp ömürlerini ve WIP akışını hesaplar. Ayrıca Genel Hat Görünümü üzerinden tüm 12 hücre arasındaki WIP (Work-in-Progress) stok geçişleri kronolojik kümülatif üretim farkları üzerinden hesaplanır.
+`/schedule` sayfasının arkasındaki simülasyon motoru. `buildCellChain` üst zinciri topolojik sırayla simüle ederek seçili hücrenin günlük kapasitesini, alet/kalıp ömürlerini ve WIP akışını hesaplar. Tüm 12 hücre desteklenir. Ayrıca Genel Hat Görünümü üzerinden tüm 12 hücre arasındaki WIP (Work-in-Progress) stok geçişleri kronolojik kümülatif üretim farkları üzerinden hesaplanır.
+
+## Simülasyon Mimarisi (`buildCellChain`)
+
+`buildSchedule` tek hücre için simüle eder; `buildCellChain` ise seçili hücrenin tüm upstream zincirini topolojik sırayla (`getUpstreamChain`) simüle edip her hücrenin günlük çıktısını bir sonrakine `upstreamOutput` olarak geçirir.
+
+```
+getUpstreamChain("ROB108") → ["Pres Hücresi", "ETM Hücresi"]
+buildCellChain:
+  simulate(Pres)  → pressOutput[date] = pressed
+  simulate(ETM, upstreamOutput=pressOutput)  → etmOutput[date] = pressed
+  simulate(ROB108, upstreamOutput=etmOutput) → return DayPlan[]
+```
+
+Yeni hücre eklemek için:
+1. `CELL_STATE_CONFIG` (`overview/constants.ts`) içine başlangıç field'larını ekle.
+2. Gerekirse `buildSchedule` içine yeni hücre bloğu yaz; yoksa generic kapasite mantığı otomatik devreye girer.
+3. Başka hiçbir dosyaya dokunmak gerekmez.
+
+## Per-Hücre Başlangıç Durumu (`CELL_STATE_CONFIG`)
+
+`overview/constants.ts`'te tanımlanır. Her hücre için kullanıcının sidebar'dan girebileceği başlangıç sayaçlarını belirtir.
+
+| Hücre | Alanlar |
+|-------|---------|
+| Pres Hücresi | maleRemaining, femaleRemaining, ringRemaining |
+| ETM Hücresi | wip, etm1Cutting, etm2Cutting, etm1Drill, etm2Drill |
+| Diğerleri | (henüz tanımlı değil — generic kapasite kullanır) |
+
+`page.tsx`'te `cellInitialState: Record<CellName, Record<string, string>>` state'i bu değerleri tutar. Hücre değiştiğinde WIP, `manuf_wip_stock` tablosundan otomatik yüklenerek `wip` alanına yazılır.
 
 ## Varsayılan Parametreler
 

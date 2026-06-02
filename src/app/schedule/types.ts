@@ -47,6 +47,20 @@ export type DayPlan = {
   etm2DrillStart?: number;
   etmWipStart?: number;
   etmWipEnd?: number;
+  rob108WipStart?: number;
+  rob108WipEnd?: number;
+  rob108Cell1Prod?: number;
+  rob108Cell1AvailableMinutes?: number;
+  rob108Cell2Rob108Prod?: number;
+  rob108Cell2Rob104Prod?: number;
+  rob108Cell2AvailableMinutes?: number;
+  rob108Cell1L1ToolStart?: number;
+  rob108Cell1L2ToolStart?: number;
+  rob108Cell1L3ToolStart?: number;
+  rob108Cell2Rob108L1ToolStart?: number;
+  rob108Cell2Rob108L2ToolStart?: number;
+  rob108Cell2Rob104L1ToolStart?: number;
+  rob108Cell2Rob104L2ToolStart?: number;
 };
 
 export type EtmWarning = {

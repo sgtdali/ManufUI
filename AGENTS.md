@@ -27,8 +27,7 @@ raw/
 
 1. `wiki/index.md` oku — hangi sayfaların var olduğunu öğren.
 2. `wiki/log.md` son 5 girişini oku — son ne yapıldığını öğren.
-3. Görevle ilgili `wiki/systems/` veya `wiki/entities/` sayfalarını oku.
-4. Kod değişikliği yapmadan önce ilgili kaynak dosyaları da oku.
+3. kullanıcı `wiki güncelle` dediğinde o oturum için wikideki ilgili bölümleri güncelle log.md'ye gerekli eklemeleri yap. Kullanıcı belirtmediği sürece ekleme yapma.
 
 ## Sayfa Formatı
 
@@ -43,34 +42,7 @@ sources: [kaynak dosya listesi]
 
 Sayfalar birbirine `[[sayfa-adı]]` değil standart markdown linki `[Sayfa Adı](../kategori/dosya.md)` ile bağlanır.
 
-## Ingest Akışı (Yeni Bilgi Gelince)
 
-`raw/chat-exports/` veya başka bir kaynaktan yeni belge geldiğinde:
-
-1. Belgeyi oku ve kullanıcıyla anahtar çıkarımları tartış.
-2. İlgili `wiki/` sayfalarını güncelle (birden fazla sayfa etkilenebilir).
-3. Sayfa yoksa oluştur, varsa revize et — çelişkileri not et.
-4. `wiki/index.md` güncelle (yeni sayfa eklendiyse).
-5. `wiki/log.md` sonuna yeni entry ekle:
-   `## [YYYY-MM-DD] ingest | <kaynak adı>`
-
-## Query Akışı (Soru Sorulunca)
-
-1. `wiki/index.md` tara — konuyla ilgili sayfaları bul.
-2. İlgili sayfaları oku.
-3. Cevabı sentezle, kaynak sayfaları belirt.
-4. Cevap tekrar kullanılabilir bir sentezse yeni wiki sayfası olarak kaydet.
-5. `wiki/log.md` sonuna ekle:
-   `## [YYYY-MM-DD] query | <soru özeti>`
-
-## Lint (Wiki Sağlık Kontrolü)
-
-Periyodik olarak şunları kontrol et:
-- Sayfalar arası çelişkiler
-- Yeni kaynaklarla geçersiz kalan eski iddialar
-- Linksiz (orphan) sayfalar
-- Önemli kavramlar için eksik sayfalar
-- `wiki/index.md` ile gerçek dosya listesinin uyuşması
 
 ## Sayfa Güncelleme Kuralları
 

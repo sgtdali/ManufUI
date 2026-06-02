@@ -1,5 +1,6 @@
 // Yardımcı fonksiyonlar ve buildSchedule simülasyon motoru
 import type { DayPlan, DayOverride, EtmWarning } from "./types";
+import { CELL_FLOWS } from "./overview/constants";
 import {
   NORMALIZATION_WARMUP_MINUTES,
   PRE_PRESS_HEAT_MINUTES,
@@ -31,6 +32,15 @@ export type ProcessParams = {
   paletInterval?: number;
   paletChangeMinutes?: number;
   hatCycleMinutes?: number;
+  // ROB108 Parameters:
+  rob108ToolInterval?: number;
+  rob108ToolChangeDuration?: number;
+  rob108PaletSize?: number;
+  rob108PaletChangeDuration?: number;
+  rob108CycleMinutes?: number;
+  rob104CycleMinutes?: number;
+  rob104ToolInterval?: number;
+  rob104ToolChangeDuration?: number;
 };
 
 export const DEFAULT_PROCESS_PARAMS: ProcessParams = {
@@ -52,6 +62,15 @@ export const DEFAULT_PROCESS_PARAMS: ProcessParams = {
   paletInterval: 20,
   paletChangeMinutes: 10,
   hatCycleMinutes: 3,
+  // ROB108 Defaults:
+  rob108ToolInterval: 5,
+  rob108ToolChangeDuration: 10,
+  rob108PaletSize: 20,
+  rob108PaletChangeDuration: 10,
+  rob108CycleMinutes: 15,
+  rob104CycleMinutes: 3,
+  rob104ToolInterval: 5,
+  rob104ToolChangeDuration: 10,
 };
 
 // --- String / Date helpers ---
@@ -303,6 +322,230 @@ function calculateEtmStopsForProduced(
   };
 }
 
+// --- ROB108 simülasyon yardımcıları ---
+
+type Rob108SimState = {
+  cell1L1Tool: number; cell1L2Tool: number; cell1L3Tool: number;
+  cell2Rob108L1Tool: number; cell2Rob108L2Tool: number;
+  cell2Rob104L1Tool: number; cell2Rob104L2Tool: number;
+};
+
+type Rob108SimParams = {
+  toolInterval: number; toolChangeDuration: number;
+  rob104ToolInterval: number; rob104ToolChangeDuration: number;
+  paletSize: number; paletChangeDuration: number;
+  rob108CycleMinutes: number; rob104CycleMinutes: number;
+};
+
+function calculateRob108DayProduction(
+  shiftMinutes: number,
+  state: Rob108SimState,
+  p: Rob108SimParams
+): {
+  rob108Produced: number;
+  rob104Produced: number;
+  cell1Prod: number;
+  cell1AvailableMinutes: number;
+  cell2Rob108Prod: number;
+  cell2AvailableMinutes: number;
+  maintenanceMinutes: number;
+  maintenanceParts: string[];
+  newState: Rob108SimState;
+} {
+  if (shiftMinutes <= 0) {
+    return {
+      rob108Produced: 0, rob104Produced: 0,
+      cell1Prod: 0, cell1AvailableMinutes: 0,
+      cell2Rob108Prod: 0, cell2AvailableMinutes: 0,
+      maintenanceMinutes: 0, maintenanceParts: [], newState: state,
+    };
+  }
+
+  // Cell 1: 3 ROB108 tornası, bağımsız robot
+  let cell1ToolDT = 0;
+  let cell1PaletDT = 0;
+  let cell1Downtime = 0;
+  let c1Ppl = 0;
+  let c1Time = 0;
+  let c1L1 = state.cell1L1Tool;
+  let c1L2 = state.cell1L2Tool;
+  let c1L3 = state.cell1L3Tool;
+  let c1PaletDone = 0;
+  let c1ProdCount = 0;
+  let c1ToolChanges = 0;
+  let c1PaletChanges = 0;
+
+  while (true) {
+    const nextProdCount = c1ProdCount + 3;
+    let stepPaletDT = 0;
+    let stepToolDT = 0;
+    
+    const paletsNeeded = Math.floor(nextProdCount / p.paletSize);
+    if (paletsNeeded > c1PaletDone) {
+      stepPaletDT = 2 * p.paletChangeDuration;
+    }
+    
+    let t1Need = c1L1 - 1 <= 0;
+    let t2Need = c1L2 - 1 <= 0;
+    let t3Need = c1L3 - 1 <= 0;
+    let numTools = (t1Need ? 1 : 0) + (t2Need ? 1 : 0) + (t3Need ? 1 : 0);
+    stepToolDT = numTools * p.toolChangeDuration;
+    
+    let stepDowntime = 0;
+    if (stepPaletDT > 0 && stepToolDT > 0) {
+      stepDowntime = Math.max(stepPaletDT, stepToolDT);
+    } else {
+      stepDowntime = stepPaletDT + stepToolDT;
+    }
+    
+    const stepTotal = p.rob108CycleMinutes + stepDowntime;
+    if (c1Time + stepTotal <= shiftMinutes) {
+      c1Time += stepTotal;
+      c1ProdCount = nextProdCount;
+      c1Ppl++;
+      
+      if (t1Need) { c1L1 = p.toolInterval; c1ToolChanges++; } else { c1L1--; }
+      if (t2Need) { c1L2 = p.toolInterval; c1ToolChanges++; } else { c1L2--; }
+      if (t3Need) { c1L3 = p.toolInterval; c1ToolChanges++; } else { c1L3--; }
+      
+      if (stepPaletDT > 0) {
+        c1PaletDone = paletsNeeded;
+        c1PaletChanges++;
+      }
+      
+      cell1ToolDT += stepToolDT;
+      cell1PaletDT += stepPaletDT;
+      cell1Downtime += stepDowntime;
+    } else {
+      break;
+    }
+  }
+  const c1Prod = c1ProdCount;
+  const cell1Avail = c1Ppl * p.rob108CycleMinutes;
+
+  // Cell 2: 2 ROB108 + 2 ROB104 tornası, paylaşımlı robot
+  let cell2ToolDT = 0;
+  let cell2PaletDT = 0;
+  let cell2Downtime = 0;
+  let c2Time = 0;
+  let c2R108Prod = 0;
+  let c2R104Prod = 0;
+  let c2R108Rem = [state.cell2Rob108L1Tool, state.cell2Rob108L2Tool];
+  let r104Rem = [state.cell2Rob104L1Tool, state.cell2Rob104L2Tool];
+  let r108Coll = 0, r104Coll = 0, r108Tick = 0;
+  let c2ToolChangesR108 = 0;
+  let c2ToolChangesR104 = 0;
+  let c2PaletChangesR108 = 0;
+  let c2PaletChangesR104 = 0;
+  
+  const rob108TicksPerPart = Math.round(p.rob108CycleMinutes / p.rob104CycleMinutes);
+
+  while (c2Time + p.rob104CycleMinutes <= shiftMinutes) {
+    let stepTime = p.rob104CycleMinutes;
+    let stepPaletDT = 0;
+    let stepToolDT = 0;
+    
+    const nextR108Tick = r108Tick + 1;
+    const isR108Part = nextR108Tick >= rob108TicksPerPart;
+    
+    const nextR104Coll = r104Coll + 2;
+    let r104PaletNeed = nextR104Coll > 0 && nextR104Coll % p.paletSize === 0;
+    if (r104PaletNeed) {
+      stepPaletDT += 2 * p.paletChangeDuration;
+    }
+    
+    let r108PaletNeed = false;
+    if (isR108Part) {
+      const nextR108Coll = r108Coll + 2;
+      r108PaletNeed = nextR108Coll > 0 && nextR108Coll % p.paletSize === 0;
+      if (r108PaletNeed) {
+        stepPaletDT += 2 * p.paletChangeDuration;
+      }
+    }
+    
+    let r104Tool1Need = r104Rem[0] - 1 <= 0;
+    let r104Tool2Need = r104Rem[1] - 1 <= 0;
+    let r104Tools = (r104Tool1Need ? 1 : 0) + (r104Tool2Need ? 1 : 0);
+    stepToolDT += r104Tools * p.rob104ToolChangeDuration;
+    
+    let r108Tool1Need = false;
+    let r108Tool2Need = false;
+    if (isR108Part) {
+      r108Tool1Need = c2R108Rem[0] - 1 <= 0;
+      r108Tool2Need = c2R108Rem[1] - 1 <= 0;
+      let r108Tools = (r108Tool1Need ? 1 : 0) + (r108Tool2Need ? 1 : 0);
+      stepToolDT += r108Tools * p.toolChangeDuration;
+    }
+    
+    let stepDowntime = 0;
+    if (stepPaletDT > 0 && stepToolDT > 0) {
+      stepDowntime = Math.max(stepPaletDT, stepToolDT);
+    } else {
+      stepDowntime = stepPaletDT + stepToolDT;
+    }
+    
+    if (c2Time + stepTime + stepDowntime <= shiftMinutes) {
+      c2Time += stepTime + stepDowntime;
+      
+      r104Coll = nextR104Coll;
+      c2R104Prod += 2;
+      if (r104Tool1Need) { r104Rem[0] = p.rob104ToolInterval; c2ToolChangesR104++; } else { r104Rem[0]--; }
+      if (r104Tool2Need) { r104Rem[1] = p.rob104ToolInterval; c2ToolChangesR104++; } else { r104Rem[1]--; }
+      if (r104PaletNeed) c2PaletChangesR104++;
+
+      if (isR108Part) {
+        r108Coll += 2;
+        c2R108Prod += 2;
+        if (r108Tool1Need) { c2R108Rem[0] = p.toolInterval; c2ToolChangesR108++; } else { c2R108Rem[0]--; }
+        if (r108Tool2Need) { c2R108Rem[1] = p.toolInterval; c2ToolChangesR108++; } else { c2R108Rem[1]--; }
+        r108Tick = 0;
+        if (r108PaletNeed) c2PaletChangesR108++;
+      } else {
+        r108Tick = nextR108Tick;
+      }
+      
+      cell2ToolDT += stepToolDT;
+      cell2PaletDT += stepPaletDT;
+      cell2Downtime += stepDowntime;
+    } else {
+      break;
+    }
+  }
+  const cell2Avail = (c2R104Prod / 2) * p.rob104CycleMinutes;
+
+  const rob108Produced = c1Prod + c2R108Prod;
+  const totalMaintenanceDT = cell1Downtime + cell2Downtime;
+
+  const maintenanceParts: string[] = [];
+  const rob108ToolChanges = c1ToolChanges + c2ToolChangesR108;
+  const rob104ToolChanges = c2ToolChangesR104;
+  const totalPaletChanges = c1PaletChanges + c2PaletChangesR108 + c2PaletChangesR104;
+
+  if (rob108ToolChanges > 0) maintenanceParts.push(`ROB108 takım x${rob108ToolChanges} (${cell1ToolDT + cell2ToolDT}dk teorik)`);
+  if (rob104ToolChanges > 0) maintenanceParts.push(`ROB104 takım x${rob104ToolChanges}`);
+  if (totalPaletChanges > 0) maintenanceParts.push(`Palet x${totalPaletChanges}`);
+
+  return {
+    rob108Produced,
+    rob104Produced: c2R104Prod,
+    cell1Prod: c1Prod,
+    cell1AvailableMinutes: cell1Avail,
+    cell2Rob108Prod: c2R108Prod,
+    cell2AvailableMinutes: cell2Avail,
+    maintenanceMinutes: totalMaintenanceDT,
+    maintenanceParts,
+    newState: {
+      cell1L1Tool: c1L1,
+      cell1L2Tool: c1L2,
+      cell1L3Tool: c1L3,
+      cell2Rob108L1Tool: c2R108Rem[0],
+      cell2Rob108L2Tool: c2R108Rem[1],
+      cell2Rob104L1Tool: r104Rem[0],
+      cell2Rob104L2Tool: r104Rem[1],
+    },
+  };
+}
+
 // --- Simülasyon motoru ---
 
 export type BuildScheduleParams = {
@@ -331,6 +574,13 @@ export type BuildScheduleParams = {
   toolChangesByDate?: Record<string, { machine: "ETM-1" | "ETM-2"; toolType: "cutting_insert" | "drill_bit" }[]>;
   upstreamOutput?: Record<string, number>;
   initialWip?: number;
+  rob108Cell1L1Tool?: number;
+  rob108Cell1L2Tool?: number;
+  rob108Cell1L3Tool?: number;
+  rob108Cell2Rob108L1Tool?: number;
+  rob108Cell2Rob108L2Tool?: number;
+  rob108Cell2Rob104L1Tool?: number;
+  rob108Cell2Rob104L2Tool?: number;
 };
 
 export function buildSchedule({
@@ -359,6 +609,13 @@ export function buildSchedule({
   toolChangesByDate = {},
   upstreamOutput,
   initialWip,
+  rob108Cell1L1Tool = 5,
+  rob108Cell1L2Tool = 5,
+  rob108Cell1L3Tool = 5,
+  rob108Cell2Rob108L1Tool = 5,
+  rob108Cell2Rob108L2Tool = 5,
+  rob108Cell2Rob104L1Tool = 5,
+  rob108Cell2Rob104L2Tool = 5,
 }: BuildScheduleParams): DayPlan[] {
   const {
     normalizationWarmupMinutes,
@@ -386,7 +643,16 @@ export function buildSchedule({
   let etm2Cutting = etm2InitialCutting;
   let etm1Drill = etm1InitialDrill;
   let etm2Drill = etm2InitialDrill;
-  let cumulativeWip = initialWip ?? 0;
+  let cumulativeWip = initialWip || 0;
+
+  // ROB108 state variables
+  let rob108C1L1 = rob108Cell1L1Tool;
+  let rob108C1L2 = rob108Cell1L2Tool;
+  let rob108C1L3 = rob108Cell1L3Tool;
+  let rob108C2R108L1 = rob108Cell2Rob108L1Tool;
+  let rob108C2R108L2 = rob108Cell2Rob108L2Tool;
+  let rob108C2R104L1 = rob108Cell2Rob104L1Tool;
+  let rob108C2R104L2 = rob108Cell2Rob104L2Tool;
 
   const isPress = cellName === "Pres Hücresi";
 
@@ -607,6 +873,104 @@ export function buildSchedule({
 
       continue;
     }
+
+    if (cellName === "ROB108 Hücresi") {
+      const rob108State: Rob108SimState = {
+        cell1L1Tool: rob108C1L1, cell1L2Tool: rob108C1L2, cell1L3Tool: rob108C1L3,
+        cell2Rob108L1Tool: rob108C2R108L1, cell2Rob108L2Tool: rob108C2R108L2,
+        cell2Rob104L1Tool: rob108C2R104L1, cell2Rob104L2Tool: rob108C2R104L2,
+      };
+      const rob108P: Rob108SimParams = {
+        toolInterval: processParams.rob108ToolInterval || 5,
+        toolChangeDuration: processParams.rob108ToolChangeDuration || 10,
+        rob104ToolInterval: processParams.rob104ToolInterval || 5,
+        rob104ToolChangeDuration: processParams.rob104ToolChangeDuration || 10,
+        paletSize: processParams.rob108PaletSize || 20,
+        paletChangeDuration: processParams.rob108PaletChangeDuration || 10,
+        rob108CycleMinutes: processParams.rob108CycleMinutes || 15,
+        rob104CycleMinutes: processParams.rob104CycleMinutes || 3,
+      };
+
+      const stateAtDayStart = { ...rob108State };
+      const capRes = calculateRob108DayProduction(availableMinutes, rob108State, rob108P);
+      const capacityProduced = capRes.rob108Produced;
+
+      const rob108WipStart = cumulativeWip;
+      const incomingFromEtm = upstreamOutput?.[key] || 0;
+      const availableWip = rob108WipStart + incomingFromEtm;
+      const capacityProducedCapped = Math.min(capacityProduced, availableWip);
+
+      const hasScenario = override?.pressed !== undefined;
+      const hasActual = actuals[key] !== undefined;
+      const isRecoveryWorkday = override?.forceWorkday === true && !isBaseWorkday;
+
+      const inputProduced = hasScenario
+        ? Math.max(Math.floor(override?.pressed || 0), 0)
+        : hasActual
+          ? Math.max(Math.floor(actuals[key]), 0)
+          : isRecoveryWorkday
+            ? 0
+            : capacityProduced;
+
+      const inputProducedCapped = Math.min(inputProduced, availableWip);
+      const produced = isWorkday ? inputProducedCapped : 0;
+      const rob108WipEnd = availableWip - produced;
+      cumulativeWip = rob108WipEnd;
+
+      rob108C1L1 = capRes.newState.cell1L1Tool;
+      rob108C1L2 = capRes.newState.cell1L2Tool;
+      rob108C1L3 = capRes.newState.cell1L3Tool;
+      rob108C2R108L1 = capRes.newState.cell2Rob108L1Tool;
+      rob108C2R108L2 = capRes.newState.cell2Rob108L2Tool;
+      rob108C2R104L1 = capRes.newState.cell2Rob104L1Tool;
+      rob108C2R104L2 = capRes.newState.cell2Rob104L2Tool;
+
+      const source = hasScenario ? "scenario" : hasActual ? "actual" : "plan";
+      const target = isBaseWorkday ? dailyTarget : 0;
+
+      result.push({
+        date, key,
+        label: `${formatDate(date)} ${formatWeekday(date)}`,
+        isWorkday, isBaseWorkday,
+        shiftStart, shiftEnd,
+        furnaceStart: "",
+        availableMinutes,
+        overtimeMinutes: dayOvertimeMinutes,
+        maintenanceMinutes: capRes.maintenanceMinutes,
+        startMaintenanceMinutes: 0,
+        midMaintenanceMinutes: 0,
+        midMaintenanceStartMinute: null,
+        midMaintenanceComplete: true,
+        maintenanceLabel: capRes.maintenanceParts.length > 0 ? capRes.maintenanceParts.join(" · ") : "-",
+        pressStartTime: null,
+        capacityPressed: capacityProducedCapped,
+        pressed: produced,
+        source,
+        sameDayEtmReady: produced,
+        target,
+        targetGap: Math.max(target - produced, 0),
+        maleRemainingEnd: 0, femaleRemainingEnd: 0, ringRemainingEnd: 0,
+        lastFurnaceExitTime: null,
+        breakdownMinutes, breakdownDetails,
+        rob108WipStart,
+        rob108WipEnd,
+        rob108Cell1Prod: capRes.cell1Prod,
+        rob108Cell1AvailableMinutes: capRes.cell1AvailableMinutes,
+        rob108Cell2Rob108Prod: capRes.cell2Rob108Prod,
+        rob108Cell2Rob104Prod: capRes.rob104Produced,
+        rob108Cell2AvailableMinutes: capRes.cell2AvailableMinutes,
+        rob108Cell1L1ToolStart: stateAtDayStart.cell1L1Tool,
+        rob108Cell1L2ToolStart: stateAtDayStart.cell1L2Tool,
+        rob108Cell1L3ToolStart: stateAtDayStart.cell1L3Tool,
+        rob108Cell2Rob108L1ToolStart: stateAtDayStart.cell2Rob108L1Tool,
+        rob108Cell2Rob108L2ToolStart: stateAtDayStart.cell2Rob108L2Tool,
+        rob108Cell2Rob104L1ToolStart: stateAtDayStart.cell2Rob104L1Tool,
+        rob108Cell2Rob104L2ToolStart: stateAtDayStart.cell2Rob104L2Tool,
+      });
+
+      continue;
+    }
+
     const shiftStartMinute = shift?.startMinute ?? 0;
     const shiftEndMinute = shift ? shift.endMinute + dayOvertimeMinutes : 0;
     const overrideMaintStart = override?.moldMaintenanceStart ? parseTime(override.moldMaintenanceStart) : null;
@@ -1011,4 +1375,187 @@ export function buildSchedule({
   }
 
   return result;
+}
+
+// ── Cell chain simulation ──────────────────────────────────────────────────────
+
+export type UpstreamCellData = {
+  actuals: Record<string, number>;
+  overrides: Record<string, DayOverride>;
+  breakdownsByDate?: Record<string, { minutes: number; details: string[] }>;
+  moldChangesByDate?: Record<string, ("male" | "female" | "ring")[]>;
+  toolChangesByDate?: Record<string, { machine: "ETM-1" | "ETM-2"; toolType: "cutting_insert" | "drill_bit" }[]>;
+};
+
+/** Returns the upstream cells for targetCell in topological order (roots first). */
+export function getUpstreamChain(targetCell: string): string[] {
+  const visited = new Set<string>();
+  const chain: string[] = [];
+
+  function visit(cell: string) {
+    if (visited.has(cell)) return;
+    visited.add(cell);
+    const flows = CELL_FLOWS[cell as keyof typeof CELL_FLOWS];
+    if (flows) {
+      for (const up of flows.upstream) visit(up);
+    }
+    chain.push(cell);
+  }
+
+  const flows = CELL_FLOWS[targetCell as keyof typeof CELL_FLOWS];
+  if (flows) {
+    for (const up of flows.upstream) visit(up);
+  }
+  return chain;
+}
+
+export type BuildCellChainParams = {
+  targetCell: string;
+  startDate: string;
+  endDate: string;
+  dailyTarget: number;
+  defaultShiftStart: string;
+  defaultShiftEnd: string;
+  defaultFurnaceStart: string;
+  overtimeMinutes: number;
+  holidayWorkEnabled: boolean;
+  processParams: ProcessParams;
+  cellParams?: Record<string, { gunluk_max_kapasite: number | null; notlar: string | null }>;
+  // Target cell DB data
+  actuals: Record<string, number>;
+  overrides: Record<string, DayOverride>;
+  breakdownsByDate?: Record<string, { minutes: number; details: string[] }>;
+  moldChangesByDate: Record<string, ("male" | "female" | "ring")[]>;
+  toolChangesByDate: Record<string, { machine: "ETM-1" | "ETM-2"; toolType: "cutting_insert" | "drill_bit" }[]>;
+  // Target cell initial state (parsed numbers)
+  initialMaleRemaining: number;
+  initialFemaleRemaining: number;
+  initialRingRemaining: number;
+  etm1InitialCutting: number;
+  etm2InitialCutting: number;
+  etm1InitialDrill: number;
+  etm2InitialDrill: number;
+  initialWip: number;
+  rob108Cell1L1Tool: number;
+  rob108Cell1L2Tool: number;
+  rob108Cell1L3Tool: number;
+  rob108Cell2Rob108L1Tool: number;
+  rob108Cell2Rob108L2Tool: number;
+  rob108Cell2Rob104L1Tool: number;
+  rob108Cell2Rob104L2Tool: number;
+  // Upstream cells' DB data (keyed by cell name)
+  upstreamCellData: Partial<Record<string, UpstreamCellData>>;
+};
+
+/**
+ * Simulates targetCell by first simulating all upstream cells in topological order,
+ * then passing each cell's daily output as the upstream input to the next cell.
+ */
+export function buildCellChain({
+  targetCell,
+  startDate,
+  endDate,
+  dailyTarget,
+  defaultShiftStart,
+  defaultShiftEnd,
+  defaultFurnaceStart,
+  overtimeMinutes,
+  holidayWorkEnabled,
+  processParams,
+  cellParams,
+  actuals,
+  overrides,
+  breakdownsByDate,
+  moldChangesByDate,
+  toolChangesByDate,
+  initialMaleRemaining,
+  initialFemaleRemaining,
+  initialRingRemaining,
+  etm1InitialCutting,
+  etm2InitialCutting,
+  etm1InitialDrill,
+  etm2InitialDrill,
+  initialWip,
+  rob108Cell1L1Tool,
+  rob108Cell1L2Tool,
+  rob108Cell1L3Tool,
+  rob108Cell2Rob108L1Tool,
+  rob108Cell2Rob108L2Tool,
+  rob108Cell2Rob104L1Tool,
+  rob108Cell2Rob104L2Tool,
+  upstreamCellData,
+}: BuildCellChainParams): DayPlan[] {
+  const upstreamChain = getUpstreamChain(targetCell);
+  const cellOutputs: Record<string, Record<string, number>> = {};
+
+  const common = {
+    startDate, endDate, dailyTarget, defaultShiftStart, defaultShiftEnd, defaultFurnaceStart,
+    overtimeMinutes, holidayWorkEnabled, processParams, cellParams,
+  };
+
+  for (const cellName of upstreamChain) {
+    const rawData = upstreamCellData[cellName];
+    const data: UpstreamCellData = rawData || { actuals: {}, overrides: {} };
+    const flows = CELL_FLOWS[cellName as keyof typeof CELL_FLOWS];
+    let upstreamOutput: Record<string, number> | undefined;
+    if (flows && flows.upstream.length > 0) {
+      upstreamOutput = cellOutputs[flows.upstream[0]];
+    }
+
+    const cellSchedule = buildSchedule({
+      ...common,
+      actuals: data.actuals || {},
+      overrides: data.overrides || {},
+      breakdownsByDate: data.breakdownsByDate,
+      moldChangesByDate: data.moldChangesByDate || {},
+      toolChangesByDate: data.toolChangesByDate || {},
+      cellName,
+      upstreamOutput,
+      initialMaleRemaining: 500,
+      initialFemaleRemaining: 1300,
+      initialRingRemaining: 1300,
+      etm1InitialCutting: 10,
+      etm2InitialCutting: 10,
+      etm1InitialDrill: 300,
+      etm2InitialDrill: 300,
+      initialWip: 0,
+    });
+
+    cellOutputs[cellName] = {};
+    for (const day of cellSchedule) {
+      cellOutputs[cellName][day.key] = day.pressed;
+    }
+  }
+
+  const targetFlows = CELL_FLOWS[targetCell as keyof typeof CELL_FLOWS];
+  let targetUpstreamOutput: Record<string, number> | undefined;
+  if (targetFlows && targetFlows.upstream.length > 0) {
+    targetUpstreamOutput = cellOutputs[targetFlows.upstream[0]];
+  }
+
+  return buildSchedule({
+    ...common,
+    actuals,
+    overrides,
+    breakdownsByDate,
+    moldChangesByDate,
+    toolChangesByDate,
+    cellName: targetCell,
+    upstreamOutput: targetUpstreamOutput,
+    initialMaleRemaining,
+    initialFemaleRemaining,
+    initialRingRemaining,
+    etm1InitialCutting,
+    etm2InitialCutting,
+    etm1InitialDrill,
+    etm2InitialDrill,
+    initialWip,
+    rob108Cell1L1Tool,
+    rob108Cell1L2Tool,
+    rob108Cell1L3Tool,
+    rob108Cell2Rob108L1Tool,
+    rob108Cell2Rob108L2Tool,
+    rob108Cell2Rob104L1Tool,
+    rob108Cell2Rob104L2Tool,
+  });
 }
