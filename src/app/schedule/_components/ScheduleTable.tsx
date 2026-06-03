@@ -158,7 +158,8 @@ export function buildGanttSegments(
     midMaintStart !== null && midMaintMinutes > 0
       ? midMaintStart + midMaintMinutes
       : null;
-  const productionMinutes = (isPress || isEtm) ? day.pressed * 3 : isRob108 ? 0 : Math.min(day.availableMinutes, baseShiftEnd - baseShiftStart);
+  const pressCount = (isPress && day.capacityPressed !== undefined) ? day.capacityPressed : day.pressed;
+  const productionMinutes = (isPress || isEtm) ? pressCount * 3 : isRob108 ? 0 : Math.min(day.availableMinutes, baseShiftEnd - baseShiftStart);
   const uninterruptedProductionEnd =
     productionStart !== null ? productionStart + Math.max(productionMinutes, 0) : null;
   const productionCrossesMidMaintenance =
@@ -1525,6 +1526,30 @@ export function ScheduleTable({ schedule, overrides, actuals, wipOutgoing, updat
                               />
                               Çalış
                             </label>
+                            {(() => {
+                              const dVal = new Date(day.date);
+                              const isWeekend = dVal.getDay() === 5 || dVal.getDay() === 6;
+                              if (isWeekend && day.isWorkday) {
+                                return (
+                                  <label className="flex h-8 items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 cursor-pointer select-none">
+                                    <input
+                                      checked={overrides[day.key]?.disabledOperations?.includes("weekend-process-enabled") || false}
+                                      className="h-3.5 w-3.5 accent-blue-700 cursor-pointer"
+                                      type="checkbox"
+                                      onChange={(e) => {
+                                        const currentDisabledOps = overrides[day.key]?.disabledOperations || [];
+                                        const nextDisabledOps = e.target.checked
+                                          ? [...currentDisabledOps.filter((op) => op !== "weekend-process-enabled"), "weekend-process-enabled"]
+                                          : currentDisabledOps.filter((op) => op !== "weekend-process-enabled");
+                                        updateOverride(day.key, { disabledOperations: nextDisabledOps });
+                                      }}
+                                    />
+                                    Proses Yapılsın
+                                  </label>
+                                );
+                              }
+                              return null;
+                            })()}
                             <Button
                               type="button"
                               variant="outline"

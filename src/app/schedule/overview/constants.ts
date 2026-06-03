@@ -10,6 +10,8 @@ export const CELL_STATE_CONFIG: Partial<Record<string, CellStateField[]>> = {
     { key: "maleRemaining", label: "Erkek kalıp kalan adet", min: 0, defaultValue: "500" },
     { key: "femaleRemaining", label: "Dişi kalıp kalan adet", min: 0, defaultValue: "1300" },
     { key: "ringRemaining", label: "HIP Ring kalan adet", min: 0, defaultValue: "1300" },
+    { key: "cellEfficiency", label: "Hücre verimliliği (%)", min: 0, defaultValue: "100" },
+    { key: "qualityScrapRate", label: "Kalite red oranı (%)", min: 0, defaultValue: "0" },
   ],
   "ETM Hücresi": [
     { key: "wip", label: "Başlangıç WIP (Pres → ETM)", min: 0, defaultValue: "0" },

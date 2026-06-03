@@ -385,6 +385,8 @@ export default function SchedulePage() {
         initialMaleRemaining: g(cs.maleRemaining, 500),
         initialFemaleRemaining: g(cs.femaleRemaining, 1300),
         initialRingRemaining: g(cs.ringRemaining, 1300),
+        cellEfficiency: g(cellInitialState["Pres Hücresi"]?.cellEfficiency, 100),
+        qualityScrapRate: g(cellInitialState["Pres Hücresi"]?.qualityScrapRate, 0),
         etm1InitialCutting: g(cs.etm1Cutting, 10),
         etm2InitialCutting: g(cs.etm2Cutting, 10),
         etm1InitialDrill: g(cs.etm1Drill, 300),

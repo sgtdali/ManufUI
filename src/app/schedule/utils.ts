@@ -557,6 +557,8 @@ export type BuildScheduleParams = {
   defaultFurnaceStart: string;
   overtimeMinutes: number;
   holidayWorkEnabled: boolean;
+  cellEfficiency?: number;
+  qualityScrapRate?: number;
   initialMaleRemaining: number;
   initialFemaleRemaining: number;
   initialRingRemaining: number;
@@ -592,6 +594,8 @@ export function buildSchedule({
   defaultFurnaceStart,
   overtimeMinutes,
   holidayWorkEnabled,
+  cellEfficiency = 100,
+  qualityScrapRate = 0,
   initialMaleRemaining,
   initialFemaleRemaining,
   initialRingRemaining,
@@ -662,6 +666,8 @@ export function buildSchedule({
     const day = date.getDay();
     const isBaseWorkday = isWeekday(date) || (holidayWorkEnabled && (day === 5 || day === 6));
     const isWorkday = isBaseWorkday || override?.forceWorkday === true;
+    const isWeekend = day === 5 || day === 6;
+    const isProcessAllowed = !isWeekend || (override?.disabledOperations?.includes("weekend-process-enabled") === true);
     let shiftStart = override?.shiftStart;
     if (!shiftStart) {
       shiftStart = (day === 5 || day === 6) ? "09:00" : defaultShiftStart;
@@ -727,7 +733,7 @@ export function buildSchedule({
       }
 
       const stateAtStart = { etm1Cutting, etm2Cutting, etm1Drill, etm2Drill };
-      const etmWorkAvailableMinutes = Math.max(availableMinutes - manualCuttingStops - manualDrillStops, 0);
+      const etmWorkAvailableMinutes = isProcessAllowed ? Math.max(availableMinutes - manualCuttingStops - manualDrillStops, 0) : 0;
 
       const capRes = calculateEtmDayProductionAndStops(etmWorkAvailableMinutes, processParams, stateAtStart);
       const capacityProduced = capRes.produced;
@@ -740,15 +746,12 @@ export function buildSchedule({
 
       const hasScenario = override?.pressed !== undefined;
       const hasActual = actuals[key] !== undefined;
-      const isRecoveryWorkday = override?.forceWorkday === true && !isBaseWorkday;
 
       const inputProduced = hasScenario
         ? Math.max(Math.floor(override?.pressed ?? 0), 0)
         : hasActual
           ? Math.max(Math.floor(actuals[key]), 0)
-          : isRecoveryWorkday
-            ? 0
-            : capacityProduced;
+          : capacityProduced;
 
       const inputProducedCapped = Math.min(inputProduced, availableWip);
       const produced = isWorkday ? inputProducedCapped : 0;
@@ -756,7 +759,7 @@ export function buildSchedule({
       cumulativeWip = etmWipEnd;
 
       const source = hasScenario ? "scenario" : hasActual ? "actual" : "plan";
-      const target = isBaseWorkday ? dailyTarget : 0;
+      const target = isProcessAllowed ? dailyTarget : 0;
       const targetGap = Math.max(target - produced, 0);
 
       const actualRes = calculateEtmStopsForProduced(produced, processParams, stateAtStart);
@@ -892,7 +895,7 @@ export function buildSchedule({
       };
 
       const stateAtDayStart = { ...rob108State };
-      const capRes = calculateRob108DayProduction(availableMinutes, rob108State, rob108P);
+      const capRes = calculateRob108DayProduction(isProcessAllowed ? availableMinutes : 0, rob108State, rob108P);
       const capacityProduced = capRes.rob108Produced;
 
       const rob108WipStart = cumulativeWip;
@@ -902,15 +905,12 @@ export function buildSchedule({
 
       const hasScenario = override?.pressed !== undefined;
       const hasActual = actuals[key] !== undefined;
-      const isRecoveryWorkday = override?.forceWorkday === true && !isBaseWorkday;
 
       const inputProduced = hasScenario
         ? Math.max(Math.floor(override?.pressed || 0), 0)
         : hasActual
           ? Math.max(Math.floor(actuals[key]), 0)
-          : isRecoveryWorkday
-            ? 0
-            : capacityProduced;
+          : capacityProduced;
 
       const inputProducedCapped = Math.min(inputProduced, availableWip);
       const produced = isWorkday ? inputProducedCapped : 0;
@@ -926,7 +926,7 @@ export function buildSchedule({
       rob108C2R104L2 = capRes.newState.cell2Rob104L2Tool;
 
       const source = hasScenario ? "scenario" : hasActual ? "actual" : "plan";
-      const target = isBaseWorkday ? dailyTarget : 0;
+      const target = isProcessAllowed ? dailyTarget : 0;
 
       result.push({
         date, key,
@@ -1144,7 +1144,7 @@ export function buildSchedule({
     }
 
     const pressStartAbsoluteMinute =
-      isWorkday && maintenanceMinutes < availableMinutes
+      isWorkday && isProcessAllowed && maintenanceMinutes < availableMinutes
         ? isPress
           ? Math.max(
               Math.max(maintStartMinute + maintenanceMinutes, furnaceReadyMinute) + prePressHeatMinutes,
@@ -1164,6 +1164,7 @@ export function buildSchedule({
     let plannedMaleRemainingEnd = maleRemaining;
     let plannedFemaleRemainingEnd = femaleRemaining;
     let plannedRingRemainingEnd = ringRemaining;
+    let producedBeforeChange = 0;
 
     const hasScenario = override?.pressed !== undefined;
     const hasActual = actuals[key] !== undefined;
@@ -1194,7 +1195,12 @@ export function buildSchedule({
       plannedCapacityPressed = capacityPressed;
       plannedSameDayCapacity = sameDayCapacity;
 
-      const productionDemand = inputPressed >= 0 ? Math.min(capacityPressed, inputPressed) : capacityPressed;
+      const scrapFactor = Math.max(1 - (qualityScrapRate / 100), 0.01);
+      const efficiencyFactor = cellEfficiency / 100;
+      const grossInputPressed = (hasScenario || hasActual)
+        ? Math.min(Math.round(inputPressed / scrapFactor), capacityPressed)
+        : Math.round(capacityPressed * efficiencyFactor);
+      const productionDemand = grossInputPressed;
 
       if (pressStartAbsoluteMinute !== null && capacityPressed > 0) {
         const postponeMale = override?.postponeMaleChange === true || moldChangeMode === "postpone" || isMaleDisabled;
@@ -1221,14 +1227,18 @@ export function buildSchedule({
           Math.max(effectiveFemaleRemaining, 0),
           Math.max(effectiveRingRemaining, 0)
         );
-        const producedBeforeChange = Math.min(productionDemand, dieLimitedCapacity);
+        producedBeforeChange = Math.min(productionDemand, dieLimitedCapacity);
 
         plannedCapacityPressed = dieLimitedCapacity;
-        plannedSameDayCapacity = Math.min(sameDayCapacity, dieLimitedCapacity);
+        plannedSameDayCapacity = capacityPressed > 0
+          ? Math.min(sameDayCapacity, Math.round(producedBeforeChange * (sameDayCapacity / capacityPressed)))
+          : 0;
 
         if (producedBeforeChange < productionDemand) {
           plannedCapacityPressed = dieLimitedCapacity;
-          plannedSameDayCapacity = Math.min(sameDayCapacity, dieLimitedCapacity);
+          plannedSameDayCapacity = capacityPressed > 0
+            ? Math.min(sameDayCapacity, Math.round(producedBeforeChange * (sameDayCapacity / capacityPressed)))
+            : 0;
 
           const limitingMale =
             !postponeMale &&
@@ -1312,21 +1322,24 @@ export function buildSchedule({
       // General Cell capacity calculation scaling based on max capacity
       const maxCapacity = cellParams?.[cellName]?.gunluk_max_kapasite ?? dailyTarget ?? 100;
       const baseShiftMinutes = shift ? shift.minutes : 570;
-      capacityPressed = isWorkday
+      capacityPressed = isWorkday && isProcessAllowed
         ? Math.floor((availableMinutes / Math.max(baseShiftMinutes, 1)) * maxCapacity)
         : 0;
       plannedCapacityPressed = capacityPressed;
     }
 
     const finalPressed =
-      hasScenario || hasActual || isRecoveryWorkday
+      hasScenario || hasActual
         ? inputPressed
-        : plannedCapacityPressed;
+        : (isPress ? producedBeforeChange : plannedCapacityPressed);
 
-    const pressedVal = Math.max(finalPressed, 0);
+    let pressedVal = Math.max(finalPressed, 0);
+    if (!hasScenario && !hasActual && isPress) {
+      pressedVal = Math.round(Math.max(producedBeforeChange * (1 - (qualityScrapRate / 100)), 0));
+    }
     const source = hasScenario ? "scenario" : hasActual ? "actual" : "plan";
-    sameDayEtmReady = isPress ? Math.min(pressedVal, plannedSameDayCapacity) : pressedVal;
-    const target = isBaseWorkday ? dailyTarget : 0;
+    sameDayEtmReady = isPress ? Math.min(pressedVal, Math.round(plannedSameDayCapacity * (1 - (qualityScrapRate / 100)))) : pressedVal;
+    const target = isProcessAllowed ? dailyTarget : 0;
 
     let lastFurnaceExitTime: string | null = null;
     if (isPress && pressStartAbsoluteMinute !== null && pressedVal > 0) {
@@ -1419,6 +1432,8 @@ export type BuildCellChainParams = {
   defaultFurnaceStart: string;
   overtimeMinutes: number;
   holidayWorkEnabled: boolean;
+  cellEfficiency?: number;
+  qualityScrapRate?: number;
   processParams: ProcessParams;
   cellParams?: Record<string, { gunluk_max_kapasite: number | null; notlar: string | null }>;
   // Target cell DB data
@@ -1461,6 +1476,8 @@ export function buildCellChain({
   defaultFurnaceStart,
   overtimeMinutes,
   holidayWorkEnabled,
+  cellEfficiency,
+  qualityScrapRate,
   processParams,
   cellParams,
   actuals,
@@ -1490,7 +1507,7 @@ export function buildCellChain({
 
   const common = {
     startDate, endDate, dailyTarget, defaultShiftStart, defaultShiftEnd, defaultFurnaceStart,
-    overtimeMinutes, holidayWorkEnabled, processParams, cellParams,
+    overtimeMinutes, holidayWorkEnabled, cellEfficiency, qualityScrapRate, processParams, cellParams,
   };
 
   for (const cellName of upstreamChain) {
