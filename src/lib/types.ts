@@ -15,17 +15,24 @@ export const BOLUMLER = [
 
 export const BOLUM_SORUMLU: Record<string, string> = {
   "Pres Hücresi": "Musa Akyol",
-  "ETM Hücresi": "İbrahim Çetinbak",
+  "ETM Hücresi": "Çağrı Can Çolak",
   "ROB104 Hücresi": "Suat Tunç",
   "ROB108 Hücresi": "Suat Tunç",
-  "Flowform Hücresi": "Gökalp Atmaca",
-  "N602 Hücresi": "Gökalp Atmaca",
-  "N603 Hücresi": "Gökalp Atmaca",
+  "Flowform Hücresi": "Yücel Kıroğlu",
+  "N602 Hücresi": "Yücel Kıroğlu",
+  "N603 Hücresi": "Yücel Kıroğlu",
   "ROB109 Hücresi": "Mücahit Toptaş",
   "Quench Hücresi": "Calor",
   "ROB110-111 Hücresi": "Taner Çelik",
-  "Fosfat Hücresi": "Halil Kesit",
-  "Boya Hücresi": "Halil Kesit",
+  "Fosfat Hücresi": "Ahmet Hakan Akın",
+  "Boya Hücresi": "Ahmet Hakan Akın",
+};
+
+export const MAKINE_SAYISI_DEFAULTS: Record<string, number> = {
+  "ETM Hücresi": 2,
+  "ROB108 Hücresi": 6,
+  "ROB104 Hücresi": 2,
+  "ROB109 Hücresi": 2,
 };
 
 export type Bolum = (typeof BOLUMLER)[number];
@@ -49,6 +56,13 @@ export type ProductionRow = {
   setup_turu: string | null;
   setup_aciklama: string | null;
   takim_degisimi: number | null;
+  takim_degisim_turu: string | null;
+  kalip_demontaj: number | null;
+  kalip_demontaj_turu: string | null;
+  kalip_montaj: number | null;
+  kalip_montaj_turu: string | null;
+  calisan_makine_sayisi: number | null;
+  calisan_makine_aciklama: string | null;
   onceki_istasyon_bekleme: number | null;
   musteri_kaynakli_durus: number | null;
   musteri_durus_turu: string | null;
@@ -57,6 +71,15 @@ export type ProductionRow = {
   ariza_giderildi?: boolean;
   ariza_giderilme_aciklama?: string | null;
   ariza_giderildi_at?: string | null;
+};
+
+export type AciklamaDialogType = {
+  rowIndex: number;
+  alan: "ariza" | "planli_durus" | "setup" | "musteri" | "calisan_makine";
+  baslik: string;
+  aciklamaKey: "ariza_aciklama" | "planli_durus_aciklama" | "setup_aciklama" | "musteri_durus_aciklama" | "calisan_makine_aciklama";
+  aciklama: string;
+  selectedAltTur?: string;
 };
 
 export type ArizaDetail = {
@@ -86,15 +109,15 @@ export type ZamanDilimi = {
 };
 
 export const ZAMAN_DILIMLERI: ZamanDilimi[] = [
-  { sira_no: 1, label: "07:45 - 08:45" },
-  { sira_no: 2, label: "08:45 - 09:45" },
-  { sira_no: 3, label: "09:45 - 10:45" },
-  { sira_no: 4, label: "10:45 - 12:00" },
+  { sira_no: 1, label: "08:00 - 09:00" },
+  { sira_no: 2, label: "09:00 - 10:00" },
+  { sira_no: 3, label: "10:00 - 11:00" },
+  { sira_no: 4, label: "11:00 - 12:00" },
   { sira_no: 5, label: "12:00 - 13:00" },
   { sira_no: 6, label: "13:00 - 14:00" },
   { sira_no: 7, label: "14:00 - 15:00" },
   { sira_no: 8, label: "15:00 - 16:00" },
-  { sira_no: 9, label: "16:00 - 17:15" },
+  { sira_no: 9, label: "16:00 - 17:00" },
 ];
 
 export const CUMA_CUMARTESI_ZAMAN_DILIMLERI: ZamanDilimi[] = [
@@ -123,6 +146,20 @@ export function getZamanDilimleriForDate(tarih: string | null | undefined) {
 
 export type AltTurOption = { code: string };
 
+export const ETM_ARIZA_TURLER: AltTurOption[] = [
+  { code: "Mekanik" },
+  { code: "Elektrik" },
+  { code: "Akışkan" },
+  { code: "Belirsiz" },
+  { code: "SBU Arıza" },
+  { code: "Calor Konveyör Arıza" },
+  { code: "Robot" },
+  { code: "SBU Parça Boşaltma" },
+  { code: "SBU Parça Yükleme" },
+  { code: "Kesici Takım Yok" },
+  { code: "Bor Yağı Bitti" },
+];
+
 export const DURUS_KOLONLARI: {
   key: keyof ProductionRow;
   label: string;
@@ -133,7 +170,7 @@ export const DURUS_KOLONLARI: {
     key: "mola",
     label: "Mola",
     altTurKey: "mola_turu",
-    altTurler: [{ code: "M1" }, { code: "M2" }],
+    altTurler: [{ code: "Çay" }, { code: "Yemek" }],
   },
   {
     key: "ariza",
@@ -152,7 +189,7 @@ export const DURUS_KOLONLARI: {
     key: "planli_durus",
     label: "Planlı Duruş",
     altTurKey: "planli_durus_turu",
-    altTurler: [{ code: "P1" }, { code: "P2" }, { code: "P3" }],
+    altTurler: [{ code: "Planlı Bakım" }, { code: "Parça Basmama Kararı" }],
   },
   {
     key: "setup_ve_ayar",
@@ -161,12 +198,40 @@ export const DURUS_KOLONLARI: {
     altTurler: [{ code: "SA1" }, { code: "SA2" }],
   },
   { key: "takim_degisimi", label: "Takım Değişimi" },
+  {
+    key: "kalip_demontaj",
+    label: "Kalıp Demontaj",
+    altTurKey: "kalip_demontaj_turu",
+    altTurler: [
+      { code: "HFP Erkek BCE" },
+      { code: "HFP Erkek UpS" },
+      { code: "HFP Dişi" },
+      { code: "HIP Ringler" },
+      { code: "HIP Erkek" },
+    ],
+  },
+  {
+    key: "kalip_montaj",
+    label: "Kalıp Montaj",
+    altTurKey: "kalip_montaj_turu",
+    altTurler: [
+      { code: "HFP Erkek BCE" },
+      { code: "HFP Erkek UpS" },
+      { code: "HFP Dişi" },
+      { code: "HIP Ringler" },
+      { code: "HIP Erkek" },
+    ],
+  },
   { key: "onceki_istasyon_bekleme", label: "Bir Önceki İstasyon Parça Bekleme" },
   {
     key: "musteri_kaynakli_durus",
     label: "Müşteri Kaynaklı Duruş",
     altTurKey: "musteri_durus_turu",
-    altTurler: [{ code: "MKB1" }, { code: "MKB2" }, { code: "MKB3" }],
+    altTurler: [
+      { code: "Utility Eksiği" },
+      { code: "Consumable Eksiği" },
+      { code: "Operatör Bekleme" },
+    ],
   },
   { key: "kalite_kaynakli_durus", label: "Kalite Kaynaklı Duruş" },
 ];

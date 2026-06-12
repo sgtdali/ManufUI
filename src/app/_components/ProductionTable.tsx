@@ -15,6 +15,8 @@ import {
   ProductionFormData,
   ProductionRow,
   DURUS_KOLONLARI,
+  MAKINE_SAYISI_DEFAULTS,
+  ETM_ARIZA_TURLER,
 } from "@/lib/types";
 import {
   getEnteredDowntimeMinutes,
@@ -28,7 +30,9 @@ type Props = {
   watchedRows: ProductionRow[] | undefined;
   saving: boolean;
   onOpenAciklamaDialog: (rowIndex: number, k: typeof DURUS_KOLONLARI[number], val: string) => void;
+  onOpenCalisanMakineDialog?: (rowIndex: number, val: number | null) => void;
   onSubmit: (e: any) => void;
+  bolum: string;
 };
 
 function toNum(val: string): number | null {
@@ -43,8 +47,36 @@ export function ProductionTable({
   watchedRows,
   saving,
   onOpenAciklamaDialog,
+  onOpenCalisanMakineDialog,
   onSubmit,
+  bolum,
 }: Props) {
+  const visibleColumns = DURUS_KOLONLARI.filter((column) => {
+    if (bolum === "Pres Hücresi") {
+      return column.key !== "takim_degisimi";
+    } else {
+      return column.key !== "kalip_demontaj" && column.key !== "kalip_montaj";
+    }
+  }).map((column) => {
+    if ((bolum === "Pres Hücresi" || bolum === "ETM Hücresi") && column.key === "setup_ve_ayar") {
+      return { ...column, label: "Hazırlık" };
+    }
+    if (bolum === "ETM Hücresi" && column.key === "takim_degisimi") {
+      return {
+        ...column,
+        label: "Holder - Insert Değişim",
+        altTurKey: "takim_degisim_turu" as keyof ProductionRow,
+        altTurler: [
+          { code: "Holder Değişim" },
+          { code: "Holder Ayar" },
+          { code: "Insert Değişim" },
+          { code: "Punta Değişim" },
+        ],
+      };
+    }
+    return column;
+  });
+
   return (
     <Card className="border-zinc-200 shadow-sm rounded-xl overflow-hidden">
       <CardHeader className="pb-3 border-b border-zinc-100 bg-zinc-50/50">
@@ -58,7 +90,7 @@ export function ProductionTable({
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-blue-750 text-zinc-800 border-b border-zinc-200 text-left text-[10px] font-bold uppercase tracking-wider bg-zinc-50/70">
-                  <th className="py-3 pl-3 pr-1.5 font-semibold text-left whitespace-nowrap">
+                  <th className="py-3 pl-3 pr-1.5 font-semibold text-left whitespace-nowrap sticky left-0 z-10 bg-zinc-50 border-r border-zinc-200">
                     Zaman Dilimi
                   </th>
                   <th className="px-1.5 py-3 text-center font-semibold whitespace-nowrap">
@@ -67,7 +99,12 @@ export function ProductionTable({
                   <th className="px-1.5 py-3 text-center font-semibold whitespace-nowrap">
                     Müşteri<br />Var
                   </th>
-                  {DURUS_KOLONLARI.map((k) => (
+                  {MAKINE_SAYISI_DEFAULTS[bolum] !== undefined && (
+                    <th className="px-1.5 py-3 text-center font-semibold whitespace-nowrap">
+                      Çalışan<br />Makinesi Sayısı
+                    </th>
+                  )}
+                  {visibleColumns.map((k) => (
                     <th
                       key={k.key}
                       className="px-1.5 py-3 text-center font-semibold max-w-[90px]"
@@ -88,7 +125,9 @@ export function ProductionTable({
                       i % 2 === 0 ? "bg-white" : "bg-zinc-50/20"
                     }`}
                   >
-                    <td className="py-2.5 pl-3 pr-1.5 font-semibold text-blue-700 whitespace-nowrap">
+                    <td className={`py-2.5 pl-3 pr-1.5 font-semibold text-blue-700 whitespace-nowrap sticky left-0 z-10 border-r border-zinc-200 ${
+                      i % 2 === 0 ? "bg-white" : "bg-zinc-50"
+                    }`}>
                       {row.zaman_dilimi}
                     </td>
                     <td className="px-1.5 py-2">
@@ -131,7 +170,53 @@ export function ProductionTable({
                         {...register(`rows.${i}.musteri_var`)}
                       />
                     </td>
-                    {DURUS_KOLONLARI.map((k) => {
+                    {(() => {
+                      const defaultLimit = MAKINE_SAYISI_DEFAULTS[bolum];
+                      if (defaultLimit === undefined) return null;
+
+                      const val = watchedRows?.[i]?.calisan_makine_sayisi;
+                      const hasDesc = !!watchedRows?.[i]?.calisan_makine_aciklama;
+                      return (
+                        <td className="px-1.5 py-2 text-center">
+                          <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={defaultLimit}
+                              className="h-8 text-center w-14 text-xs font-semibold"
+                              {...register(`rows.${i}.calisan_makine_sayisi`, {
+                                setValueAs: toNum,
+                                onChange: (e) => {
+                                  const valNum = toNum(e.target.value);
+                                  if (onOpenCalisanMakineDialog) {
+                                    onOpenCalisanMakineDialog(i, valNum);
+                                  }
+                                }
+                              })}
+                            />
+                            {val != null && val < defaultLimit && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (onOpenCalisanMakineDialog) {
+                                    onOpenCalisanMakineDialog(i, val);
+                                  }
+                                }}
+                                className={`flex items-center justify-center h-8 w-8 rounded border text-xs font-bold transition-colors ${
+                                  hasDesc
+                                    ? "bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100"
+                                    : "bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100 animate-pulse"
+                                }`}
+                                title={hasDesc ? "Açıklamayı Düzenle" : "Açıklama Ekle (Zorunlu!)"}
+                              >
+                                ✍️
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })()}
+                    {visibleColumns.map((k) => {
                       const val = watchedRows?.[i]?.[k.key] as number | null;
                       const hasValue = val != null && val > 0;
                       const r = watchedRows?.[i];
@@ -156,32 +241,64 @@ export function ProductionTable({
                                 { setValueAs: toNum }
                               )}
                             />
-                            {k.altTurKey && k.altTurler && hasValue && (
-                              <Controller
-                                control={control}
-                                name={`rows.${i}.${k.altTurKey}` as `rows.${number}.${typeof k.altTurKey}`}
-                                render={({ field }) => (
-                                  <Select
-                                    onValueChange={(valSelected) => {
-                                      field.onChange(valSelected);
-                                      onOpenAciklamaDialog(i, k, valSelected || "");
-                                    }}
-                                    value={(field.value as string) ?? ""}
-                                  >
-                                    <SelectTrigger className="h-7 text-xs w-16 px-1 font-semibold text-zinc-700">
-                                      <SelectValue placeholder="" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {k.altTurler!.map((t) => (
-                                        <SelectItem key={t.code} value={t.code} className="text-xs font-semibold">
-                                          {t.code}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                            )}
+                            {k.altTurKey && k.altTurler && hasValue && (() => {
+                              let options = k.altTurler;
+                              if (bolum === "Pres Hücresi") {
+                                if (k.key === "ariza") {
+                                  options = [{ code: "Pres Öncesi" }, { code: "Pres" }, { code: "Pres Sonrası" }];
+                                } else if (k.key === "setup_ve_ayar") {
+                                  options = [
+                                    { code: "Kalıp Isıtma" },
+                                    { code: "Fırın Isıtma Bekleme" },
+                                    { code: "IHU Rejim Bekleme" },
+                                    { code: "Kalıp Soğuma Bekleme" },
+                                    { code: "Offset Alma" },
+                                    { code: "Kaçak Kontrolü" },
+                                  ];
+                                }
+                              } else if (bolum === "ETM Hücresi") {
+                                if (k.key === "ariza") {
+                                  options = ETM_ARIZA_TURLER;
+                                } else if (k.key === "setup_ve_ayar") {
+                                  options = [
+                                    { code: "Parça Ölçüm" },
+                                    { code: "Otomatik Mod Hazırlık" },
+                                  ];
+                                } else if (k.key === "planli_durus") {
+                                  options = [
+                                    { code: "Planlı Bakım" },
+                                    { code: "Parça Basmama Kararı" },
+                                    { code: "Kasa Alma - Bırakma" },
+                                  ];
+                                }
+                              }
+                              return (
+                                <Controller
+                                  control={control}
+                                  name={`rows.${i}.${k.altTurKey}` as any}
+                                  render={({ field }) => (
+                                    <Select
+                                      onValueChange={(valSelected) => {
+                                        field.onChange(valSelected);
+                                        onOpenAciklamaDialog(i, k, valSelected || "");
+                                      }}
+                                      value={(field.value as string) ?? ""}
+                                    >
+                                      <SelectTrigger className="h-7 text-xs w-16 px-1 font-semibold text-zinc-700">
+                                        <SelectValue placeholder="" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {options.map((t) => (
+                                          <SelectItem key={t.code} value={t.code} className="text-xs font-semibold">
+                                            {t.code}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                />
+                              );
+                            })()}
                           </div>
                         </td>
                       );

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { ArizaDetail } from "@/lib/types";
+import { type ArizaDetail, ETM_ARIZA_TURLER } from "@/lib/types";
 import { markArizaResolved, updateArizaType } from "./actions";
 
 type StatusFilter = "all" | "open" | "resolved";
@@ -256,19 +256,45 @@ export function ArizaRecordsTable({ details }: { details: ArizaDetail[] }) {
                 <td className="px-3 py-3 text-zinc-600">{detail.sorumlu}</td>
                 <td className="px-3 py-3 text-zinc-600">{detail.zamanDilimi}</td>
                 <td className="px-3 py-3">
-                  <select
-                    value={detail.tur}
-                    disabled={isPending}
-                    onChange={(e) => handleTypeChange(detail.id, e.target.value)}
-                    className="text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer disabled:opacity-50"
-                  >
-                    <option value="E">E</option>
-                    <option value="A">A</option>
-                    <option value="M">M</option>
-                    <option value="O">O</option>
-                    <option value="Kalite">Kalite</option>
-                    <option value="Belirsiz">Belirsiz</option>
-                  </select>
+                  {detail.bolum === "Pres Hücresi" ? (
+                    <select
+                      value={detail.tur}
+                      disabled={isPending}
+                      onChange={(e) => handleTypeChange(detail.id, e.target.value)}
+                      className="text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="Pres Öncesi">Pres Öncesi</option>
+                      <option value="Pres">Pres</option>
+                      <option value="Pres Sonrası">Pres Sonrası</option>
+                    </select>
+                  ) : detail.bolum === "ETM Hücresi" ? (
+                    <select
+                      value={detail.tur}
+                      disabled={isPending}
+                      onChange={(e) => handleTypeChange(detail.id, e.target.value)}
+                      className="text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer disabled:opacity-50"
+                    >
+                      {ETM_ARIZA_TURLER.map((opt) => (
+                        <option key={opt.code} value={opt.code}>
+                          {opt.code}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      value={detail.tur}
+                      disabled={isPending}
+                      onChange={(e) => handleTypeChange(detail.id, e.target.value)}
+                      className="text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="E">E</option>
+                      <option value="A">A</option>
+                      <option value="M">M</option>
+                      <option value="O">O</option>
+                      <option value="Kalite">Kalite</option>
+                      <option value="Belirsiz">Belirsiz</option>
+                    </select>
+                  )}
                 </td>
                 <td className="px-3 py-3 text-right font-semibold">
                   {formatNumber(detail.dakika)} dk

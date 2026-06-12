@@ -9,9 +9,12 @@ import {
   ZAMAN_DILIMLERI,
   DURUS_KOLONLARI,
   BOLUM_SORUMLU,
+  MAKINE_SAYISI_DEFAULTS,
+  ETM_ARIZA_TURLER,
   getZamanDilimleriForDate,
   type ZamanDilimi,
   type ProductionRow,
+  type AciklamaDialogType,
 } from "@/lib/types";
 import {
   formatTargetDowntimeIssues,
@@ -23,16 +26,11 @@ import { ProductionTable } from "./_components/ProductionTable";
 import { DowntimeExplanationDialog } from "./_components/DowntimeExplanationDialog";
 import { OverwriteConfirmDialog } from "./_components/OverwriteConfirmDialog";
 
-type AciklamaDialogType = {
-  rowIndex: number;
-  alan: "ariza" | "planli_durus" | "setup" | "musteri";
-  baslik: string;
-  aciklamaKey: "ariza_aciklama" | "planli_durus_aciklama" | "setup_aciklama" | "musteri_durus_aciklama";
-  aciklama: string;
-};
+// AciklamaDialogType is imported from @/lib/types
 
 function buildEmptyRows(
-  zamanDilimleri: ZamanDilimi[] = ZAMAN_DILIMLERI
+  zamanDilimleri: ZamanDilimi[] = ZAMAN_DILIMLERI,
+  bolum?: string
 ): ProductionFormData["rows"] {
   return zamanDilimleri.map((z) => ({
     sira_no: z.sira_no,
@@ -52,6 +50,13 @@ function buildEmptyRows(
     setup_turu: null,
     setup_aciklama: null,
     takim_degisimi: null,
+    takim_degisim_turu: null,
+    kalip_demontaj: null,
+    kalip_demontaj_turu: null,
+    kalip_montaj: null,
+    kalip_montaj_turu: null,
+    calisan_makine_sayisi: (bolum && MAKINE_SAYISI_DEFAULTS[bolum]) !== undefined ? MAKINE_SAYISI_DEFAULTS[bolum!] : null,
+    calisan_makine_aciklama: null,
     onceki_istasyon_bekleme: null,
     musteri_kaynakli_durus: null,
     musteri_durus_turu: null,
@@ -95,6 +100,13 @@ function applyRecordToForm(
               setup_turu: row.setup_turu as string | null,
               setup_aciklama: row.setup_aciklama as string | null,
               takim_degisimi: row.takim_degisimi as number | null,
+              takim_degisim_turu: row.takim_degisim_turu as string | null,
+              kalip_demontaj: row.kalip_demontaj as number | null,
+              kalip_demontaj_turu: row.kalip_demontaj_turu as string | null,
+              kalip_montaj: row.kalip_montaj as number | null,
+              kalip_montaj_turu: row.kalip_montaj_turu as string | null,
+              calisan_makine_sayisi: (row.calisan_makine_sayisi as number | null) ?? ((bolum && MAKINE_SAYISI_DEFAULTS[bolum]) !== undefined ? MAKINE_SAYISI_DEFAULTS[bolum] : null),
+              calisan_makine_aciklama: row.calisan_makine_aciklama as string | null,
               onceki_istasyon_bekleme: row.onceki_istasyon_bekleme as number | null,
               musteri_kaynakli_durus: row.musteri_kaynakli_durus as number | null,
               musteri_durus_turu: row.musteri_durus_turu as string | null,
@@ -102,7 +114,7 @@ function applyRecordToForm(
               kalite_kaynakli_durus: row.kalite_kaynakli_durus as number | null,
             };
           })
-      : buildEmptyRows(getZamanDilimleriForDate(tarih));
+      : buildEmptyRows(getZamanDilimleriForDate(tarih), bolum);
   return {
     bolum,
     sorumlu: (record.sorumlu as string) ?? "",
@@ -140,7 +152,7 @@ export default function ProductionFormPage() {
   const tableRows =
     watchedRows && watchedRows.length > 0
       ? watchedRows
-      : buildEmptyRows(zamanDilimleri);
+      : buildEmptyRows(zamanDilimleri, bolum);
 
   // Otomatik yükleme: bölüm veya tarih değişince arka planda çek
   useEffect(() => {
@@ -163,7 +175,7 @@ export default function ProductionFormPage() {
           bolum,
           sorumlu: BOLUM_SORUMLU[bolum] ?? "",
           tarih,
-          rows: buildEmptyRows(getZamanDilimleriForDate(tarih)),
+          rows: buildEmptyRows(getZamanDilimleriForDate(tarih), bolum),
         });
       }
     });
@@ -185,7 +197,7 @@ export default function ProductionFormPage() {
         bolum,
         sorumlu: BOLUM_SORUMLU[bolum] ?? "",
         tarih,
-        rows: buildEmptyRows(getZamanDilimleriForDate(tarih)),
+        rows: buildEmptyRows(getZamanDilimleriForDate(tarih), bolum),
       });
       return;
     }
@@ -220,7 +232,12 @@ export default function ProductionFormPage() {
       { key: "planli_durus", altTurKey: "planli_durus_turu", label: "Planlı Duruş" },
       { key: "setup_ve_ayar", altTurKey: "setup_turu", label: "Setup ve Ayar" },
       { key: "musteri_kaynakli_durus", altTurKey: "musteri_durus_turu", label: "Müşteri Kaynaklı Duruş" },
+      { key: "kalip_demontaj", altTurKey: "kalip_demontaj_turu", label: "Kalıp Demontaj" },
+      { key: "kalip_montaj", altTurKey: "kalip_montaj_turu", label: "Kalıp Montaj" },
     ];
+    if (data.bolum === "ETM Hücresi") {
+      altTurKontrol.push({ key: "takim_degisimi", altTurKey: "takim_degisim_turu", label: "Holder - Insert Değişim" });
+    }
     data.rows.forEach((row) => {
       altTurKontrol.forEach(({ key, altTurKey, label }) => {
         const sure = (row as Record<string, unknown>)[key] as number | null;
@@ -241,14 +258,29 @@ export default function ProductionFormPage() {
     // Açıklama validasyonu
     const aciklamaEksik: string[] = [];
     data.rows.forEach((row) => {
-      if (row.ariza_turu && !row.ariza_aciklama?.trim())
+      const isEtmCell = data.bolum === "ETM Hücresi";
+      const isArizaExplanationRequired = isEtmCell
+        ? ["Mekanik", "Elektrik", "Akışkan", "SBU Arıza", "Calor Konveyör Arıza", "Robot"].includes(row.ariza_turu || "")
+        : !!row.ariza_turu;
+      if (isArizaExplanationRequired && !row.ariza_aciklama?.trim())
         aciklamaEksik.push(`${row.zaman_dilimi} → Arıza açıklaması`);
-      if ((row.planli_durus_turu === "P1" || row.planli_durus_turu === "P2") && !row.planli_durus_aciklama?.trim())
+      if (row.planli_durus_turu === "Planlı Bakım" && !row.planli_durus_aciklama?.trim())
         aciklamaEksik.push(`${row.zaman_dilimi} → Planlı Duruş açıklaması`);
-      if (row.setup_turu && !row.setup_aciklama?.trim())
-        aciklamaEksik.push(`${row.zaman_dilimi} → Setup ve Ayar açıklaması`);
+      const isPressCell = data.bolum === "Pres Hücresi";
+      const isSetupExplanationRequired = isEtmCell
+        ? false
+        : isPressCell
+        ? (row.setup_turu === "Kaçak Kontrolü")
+        : !!row.setup_turu;
+      if (isSetupExplanationRequired && !row.setup_aciklama?.trim()) {
+        const labelText = (isPressCell || isEtmCell) ? "Hazırlık" : "Setup ve Ayar";
+        aciklamaEksik.push(`${row.zaman_dilimi} → ${labelText} açıklaması`);
+      }
       if (row.musteri_durus_turu && !row.musteri_durus_aciklama?.trim())
         aciklamaEksik.push(`${row.zaman_dilimi} → Müşteri Kaynaklı Duruş açıklaması`);
+      const defaultLimit = MAKINE_SAYISI_DEFAULTS[data.bolum];
+      if (defaultLimit !== undefined && row.calisan_makine_sayisi != null && row.calisan_makine_sayisi < defaultLimit && !row.calisan_makine_aciklama?.trim())
+        aciklamaEksik.push(`${row.zaman_dilimi} → Çalışan Makinesi Sayısı açıklaması`);
     });
     if (aciklamaEksik.length > 0) {
       toast.error(
@@ -285,29 +317,50 @@ export default function ProductionFormPage() {
 
   const handleOpenAciklamaDialog = useCallback((rowIndex: number, k: typeof DURUS_KOLONLARI[number], val: string) => {
     if (k.key === "ariza") {
-      setAciklamaDialog({
-        rowIndex,
-        alan: "ariza",
-        baslik: "Arıza Açıklaması",
-        aciklamaKey: "ariza_aciklama",
-        aciklama: (watchedRows?.[rowIndex]?.ariza_aciklama as string) ?? "",
-      });
-    } else if (k.key === "planli_durus" && (val === "P1" || val === "P2")) {
-      setAciklamaDialog({
-        rowIndex,
-        alan: "planli_durus",
-        baslik: "Planlı Duruş Açıklaması",
-        aciklamaKey: "planli_durus_aciklama",
-        aciklama: (watchedRows?.[rowIndex]?.planli_durus_aciklama as string) ?? "",
-      });
+      const isEtmCell = bolum === "ETM Hücresi";
+      const shouldOpen = isEtmCell
+        ? ["Mekanik", "Elektrik", "Akışkan", "SBU Arıza", "Calor Konveyör Arıza", "Robot"].includes(val)
+        : true;
+      if (shouldOpen) {
+        setAciklamaDialog({
+          rowIndex,
+          alan: "ariza",
+          baslik: "Arıza Açıklaması",
+          aciklamaKey: "ariza_aciklama",
+          aciklama: (watchedRows?.[rowIndex]?.ariza_aciklama as string) ?? "",
+          selectedAltTur: val,
+        });
+      } else {
+        setValue(`rows.${rowIndex}.ariza_aciklama`, null);
+      }
+    } else if (k.key === "planli_durus") {
+      const shouldOpen = val === "Planlı Bakım";
+      if (shouldOpen) {
+        setAciklamaDialog({
+          rowIndex,
+          alan: "planli_durus",
+          baslik: "Planlı Duruş Açıklaması",
+          aciklamaKey: "planli_durus_aciklama",
+          aciklama: (watchedRows?.[rowIndex]?.planli_durus_aciklama as string) ?? "",
+        });
+      } else {
+        setValue(`rows.${rowIndex}.planli_durus_aciklama`, null);
+      }
     } else if (k.key === "setup_ve_ayar") {
-      setAciklamaDialog({
-        rowIndex,
-        alan: "setup",
-        baslik: "Setup ve Ayar Açıklaması",
-        aciklamaKey: "setup_aciklama",
-        aciklama: (watchedRows?.[rowIndex]?.setup_aciklama as string) ?? "",
-      });
+      const isPressCell = bolum === "Pres Hücresi";
+      const isEtmCell = bolum === "ETM Hücresi";
+      const shouldOpen = isEtmCell ? false : isPressCell ? (val === "Kaçak Kontrolü") : true;
+      if (shouldOpen) {
+        setAciklamaDialog({
+          rowIndex,
+          alan: "setup",
+          baslik: (isPressCell || isEtmCell) ? "Hazırlık Açıklaması" : "Setup ve Ayar Açıklaması",
+          aciklamaKey: "setup_aciklama",
+          aciklama: (watchedRows?.[rowIndex]?.setup_aciklama as string) ?? "",
+        });
+      } else {
+        setValue(`rows.${rowIndex}.setup_aciklama`, null);
+      }
     } else if (k.key === "musteri_kaynakli_durus") {
       setAciklamaDialog({
         rowIndex,
@@ -318,6 +371,21 @@ export default function ProductionFormPage() {
       });
     }
   }, [watchedRows]);
+
+  const handleOpenCalisanMakineDialog = useCallback((rowIndex: number, val: number | null) => {
+    const defaultLimit = MAKINE_SAYISI_DEFAULTS[bolum];
+    if (defaultLimit !== undefined && val != null && val < defaultLimit) {
+      setAciklamaDialog({
+        rowIndex,
+        alan: "calisan_makine",
+        baslik: `Çalışan Makinesi Sayısı Açıklaması (${val} Makine / Normal: ${defaultLimit})`,
+        aciklamaKey: "calisan_makine_aciklama",
+        aciklama: (watchedRows?.[rowIndex]?.calisan_makine_aciklama as string) ?? "",
+      });
+    } else {
+      setValue(`rows.${rowIndex}.calisan_makine_aciklama`, null);
+    }
+  }, [watchedRows, setValue, bolum]);
 
   return (
     <div className="min-h-screen bg-zinc-50 p-4 md:p-8 text-zinc-950">
@@ -348,7 +416,9 @@ export default function ProductionFormPage() {
           watchedRows={watchedRows}
           saving={saving}
           onOpenAciklamaDialog={handleOpenAciklamaDialog}
+          onOpenCalisanMakineDialog={handleOpenCalisanMakineDialog}
           onSubmit={handleSubmit(onSubmit)}
+          bolum={bolum}
         />
       </div>
 
@@ -356,14 +426,11 @@ export default function ProductionFormPage() {
       <DowntimeExplanationDialog
         dialogData={aciklamaDialog}
         onClose={() => setAciklamaDialog(null)}
-        onTextChange={(text) => {
-          setAciklamaDialog((prev) => (prev ? { ...prev, aciklama: text } : null));
-        }}
-        onConfirm={() => {
+        onConfirm={(finalText) => {
           if (aciklamaDialog !== null) {
             setValue(
               `rows.${aciklamaDialog.rowIndex}.${aciklamaDialog.aciklamaKey}`,
-              aciklamaDialog.aciklama || null
+              finalText || null
             );
           }
           setAciklamaDialog(null);

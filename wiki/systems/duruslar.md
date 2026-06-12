@@ -1,87 +1,100 @@
 ---
-updated: 2026-05-28
-sources: [src/lib/types.ts, src/app/page.tsx]
+updated: 2026-06-12
+sources: [src/lib/types.ts, src/app/page.tsx, src/app/_components/ProductionTable.tsx, src/app/_components/DowntimeExplanationDialog.tsx]
 ---
 
 # Duruş Kodları ve Alt Türler
 
-Üretim formunda her satırda girilen duruş türleri ve validasyon kuralları. Kaynak: `DURUS_KOLONLARI` (`src/lib/types.ts`).
+Üretim formunda her satırda girilen duruş türleri, alt kategorileri ve validasyon kuralları. Kaynak: `DURUS_KOLONLARI` (`src/lib/types.ts`).
 
-## Duruş Kolonları
+## Duruş Kolonları ve Sütun Yapısı
 
-| Kolon | DB Alanı | Alt Tür Var mı | Açıklama Zorunlu mu |
-|-------|----------|----------------|---------------------|
-| Mola | `mola` | Evet | Hayır |
-| Arıza | `ariza` | Evet | Evet (her türde) |
-| Planlı Duruş | `planli_durus` | Evet | Evet (sadece P1, P2) |
-| Setup ve Ayar | `setup_ve_ayar` | Evet | Evet (her türde) |
-| Takım Değişimi | `takim_degisimi` | Hayır | Hayır |
-| Bir Önceki İstasyon Bekleme | `onceki_istasyon_bekleme` | Hayır | Hayır |
-| Müşteri Kaynaklı Duruş | `musteri_kaynakli_durus` | Evet | Evet (her türde) |
-| Kalite Kaynaklı Duruş | `kalite_kaynakli_durus` | Hayır | Hayır |
+| Kolon | DB Alanı | Alt Tür Var mı | Açıklama Zorunlu mu | Hücre Ayrımı / Özel Durumlar |
+|-------|----------|----------------|---------------------|------------------------------|
+| Mola | `mola` | Evet | Hayır | Tüm hücrelerde ortaktır. |
+| Arıza | `ariza` | Evet | Kısmen | **Pres Hücresi** (Pres Öncesi/Pres/Sonrası) ve **ETM Hücresi** için alt türler özeldir. ETM'de sadece teknik arızalar açıklama gerektirir. |
+| Planlı Duruş | `planli_durus` | Evet | Kısmen | Tüm hücrelerde ortaktır. Sadece **"Planlı Bakım"** için açıklama zorunludur. |
+| Setup ve Ayar / Hazırlık | `setup_ve_ayar` | Evet | Kısmen | **Pres ve ETM Hücresi**'nde kolon adı **Hazırlık**'tır. Pres'te sadece *Kaçak Kontrolü* açıklama gerektirir. ETM'de hiçbir seçenek açıklama gerektirmez. Diğer hücrelerde hep zorunludur. |
+| Takım Değişimi / Holder - Insert Değişim | `takim_degisimi` | Evet (ETM) | Hayır | **Pres Hücresi**'nde gizlenir. **ETM Hücresi**'nde adı **"Holder - Insert Değişim"** olup 4 alt türü (`takim_degisim_turu`) vardır. Diğer hücrelerde standarttır (alt türü yoktur). |
+| Kalıp Demontaj | `kalip_demontaj` | Evet | Hayır | **Yalnızca Pres Hücresi**'nde görünür. |
+| Kalıp Montaj | `kalip_montaj` | Evet | Hayır | **Yalnızca Pres Hücresi**'nde görünür. |
+| Çalışan Makine Sayısı | `calisan_makine_sayisi` | Hayır | Kısmen | **ETM, ROB104, ROB108, ROB109** hücrelerinde görünür. Makine sayısı varsayılan limitin altına düşerse açıklama zorunludur. |
+| Bir Önceki İstasyon Bekleme | `onceki_istasyon_bekleme` | Hayır | Hayır | Tüm hücrelerde ortaktır. |
+| Müşteri Kaynaklı Duruş | `musteri_kaynakli_durus` | Evet | Evet | Tüm hücrelerde ortaktır. |
+| Kalite Kaynaklı Duruş | `kalite_kaynakli_durus` | Hayır | Hayır | Tüm hücrelerde ortaktır. |
 
-## Alt Tür Kodları
+---
 
-### Mola (`mola_turu`)
-| Kod | Anlamı |
-|-----|--------|
-| M1 | — |
-| M2 | — |
+## Alt Tür Seçenekleri
 
-### Arıza (`ariza_turu`)
-| Kod | Anlamı |
-|-----|--------|
-| E | — |
-| A | — |
-| M | — |
-| O | — |
-| Kalite | Kalite kaynaklı arıza/duruş |
-| Belirsiz | Nedeni bilinmiyor |
+### 1. Mola (`mola_turu`)
+* `Çay`
+* `Yemek`
 
-> **Not:** E/A/M/O kodlarının tam açılımları dokümante edilmemiştir. Kullanıcıdan teyit alınmalı.
+### 2. Arıza (`ariza_turu`)
+* **Standart Hücreler (Pres ve ETM Dışı):**
+  * `E` (Elektrik)
+  * `A` (Akışkan)
+  * `M` (Mekanik)
+  * `O` (Ortak)
+  * `Kalite`
+  * `Belirsiz`
+* **Pres Hücresi Özel (Lokasyon Bazlı):**
+  * `Pres Öncesi`, `Pres`, `Pres Sonrası`
+* **ETM Hücresi Özel:**
+  * *Teknik (Açıklama Zorunlu):* `Mekanik`, `Elektrik`, `Akışkan`, `Belirsiz`, `SBU Arıza`, `Calor Konveyör Arıza`, `Robot`
+  * *Operasyonel (Açıklama Gerekmez):* `SBU Parça Boşaltma`, `SBU Parça Yükleme`, `Kesici Takım Yok`, `Bor Yağı Bitti`
 
-### Planlı Duruş (`planli_durus_turu`)
-| Kod | Anlamı | Açıklama Zorunlu |
-|-----|--------|------------------|
-| P1 | — | Evet |
-| P2 | — | Evet |
-| P3 | — | Hayır |
+### 3. Planlı Duruş (`planli_durus_turu`)
+* `Planlı Bakım` (Açıklama ZORUNLU)
+* `Parça Basmama Kararı` (Tüm hücrelerde açıklama gerekmez)
+* `Kasa Alma - Bırakma` (Sadece **ETM Hücresi**, açıklama gerekmez)
 
-### Setup ve Ayar (`setup_turu`)
-| Kod | Anlamı |
-|-----|--------|
-| SA1 | — |
-| SA2 | — |
+### 4. Setup ve Ayar / Hazırlık (`setup_turu`)
+* **Standart Hücreler (Setup ve Ayar):**
+  * `SA1` (Açıklama ZORUNLU), `SA2` (Açıklama ZORUNLU)
+* **Pres Hücresi (Hazırlık):**
+  * `Kalıp Isıtma`, `Fırın Isıtma Bekleme`, `IHU Rejim Bekleme`, `Kalıp Soğuma Bekleme`, `Offset Alma` (Açıklama gerekmez)
+  * `Kaçak Kontrolü` (Açıklama ZORUNLU)
+* **ETM Hücresi (Hazırlık):**
+  * `Parça Ölçüm`, `Otomatik Mod Hazırlık` (Açıklama gerekmez)
 
-### Müşteri Kaynaklı Duruş (`musteri_durus_turu`)
-| Kod | Anlamı |
-|-----|--------|
-| MKB1 | — |
-| MKB2 | — |
-| MKB3 | — |
+### 5. Takım Değişimi (`takim_degisim_turu`)
+* **ETM Hücresi (Holder - Insert Değişim):**
+  * `Holder Değişim`, `Holder Ayar`, `Insert Değişim`, `Punta Değişim` (Açıklama gerekmez)
 
-> **Not:** MKB1/2/3 kodlarının tam açılımları dokümante edilmemiştir.
+### 6. Kalıp Demontaj & Montaj (`kalip_demontaj_turu` / `kalip_montaj_turu`)
+* **Yalnızca Pres Hücresi** için (Açıklama gerekmez):
+  * `HFP Erkek BCE`, `HFP Erkek UpS`, `HFP Dişi`, `HIP Ringler`, `HIP Erkek`
 
-## Validasyon Özeti
+### 7. Müşteri Kaynaklı Duruş (`musteri_durus_turu`)
+* `Utility Eksiği`, `Consumable Eksiği`, `Operatör Bekleme`
+
+---
+
+## Validasyon ve Kaydetme Kuralları
 
 ```
-Duruş süresi > 0 girilmişse → ilgili *_turu alanı seçilmeli
-                    ↓
-Arıza türü seçildiyse → ariza_aciklama zorunlu
-Planlı Duruş P1 veya P2 seçildiyse → planli_durus_aciklama zorunlu
-Setup türü seçildiyse → setup_aciklama zorunlu
-Müşteri türü seçildiyse → musteri_durus_aciklama zorunlu
+Duruş süresi > 0 veya limit altı makine sayısı girilmişse → İlgili alt tür seçimi ZORUNLU
+                                ↓
+Arıza seçildiğinde:
+  - ETM Hücresi'nde operasyonel arıza ise → Açıklama gerekmez
+  - Diğer durumlarda → ariza_aciklama ZORUNLU
+Planlı Duruş seçildiğinde:
+  - Sadece "Planlı Bakım" ise → planli_durus_aciklama ZORUNLU
+  - Diğerlerinde → Açıklama gerekmez
+Setup/Hazırlık seçildiğinde:
+  - ETM Hücresi'nde → Açıklama gerekmez
+  - Pres Hücresi'nde sadece "Kaçak Kontrolü" ise → setup_aciklama ZORUNLU
+  - Diğer tüm hücrelerde → setup_aciklama ZORUNLU
+Makine Sayısı eksik girildiğinde:
+  - Sınırın altına düşüldüyse → calisan_makine_aciklama ZORUNLU
+Müşteri duruş türü seçildiyse → musteri_durus_aciklama ZORUNLU
 ```
 
-## Arıza Giderme Akışı
-
-Arıza kaydedildikten sonra `/ariza` sayfasından çözüme kavuşturulabilir:
-- `ariza_giderildi: true` olarak işaretlenir
-- `ariza_giderilme_aciklama` zorunludur (boş geçilemez)
-- `ariza_giderildi_at` timestamp'i kaydedilir
-- `markArizaResolved` action'ı: yalnızca `ariza > 0` olan satırları günceller
+---
 
 ## İlgili Sayfalar
 
-- [Üretim Formu](uretim-formu.md) — duruşların form içindeki konumu
-- [DB Tabloları](../entities/db-tablolari.md) — `manuf_production_rows` kolon detayları
+- [Üretim Formu](uretim-formu.md) — duruş giriş ekranı ve hücreler
+- [DB Tabloları](../entities/db-tablolari.md) — `manuf_production_rows` tablosu

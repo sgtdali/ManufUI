@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-02
+updated: 2026-06-12
 sources: [supabase/migrations/, src/app/actions.ts, src/app/ariza/actions.ts]
 ---
 
@@ -49,11 +49,18 @@ Saatlik üretim satırları. Her kayıt `record_id` ile `manuf_production_record
 | setup_turu | text | SA1/SA2 |
 | setup_aciklama | text | — |
 | takim_degisimi | integer | Takım değişimi dakikası |
+| kalip_demontaj | integer | Kalıp demontaj dakikası (+20260612) |
+| kalip_demontaj_turu | text | HFP Erkek BCE / HFP Erkek UpS / HFP Dişi / HIP Ringler / HIP Erkek (+20260612) |
+| kalip_montaj | integer | Kalıp montaj dakikası (+20260612) |
+| kalip_montaj_turu | text | HFP Erkek BCE / HFP Erkek UpS / HFP Dişi / HIP Ringler / HIP Erkek (+20260612) |
 | onceki_istasyon_bekleme | integer | Bekleme dakikası |
 | musteri_kaynakli_durus | integer | Müşteri kaynaklı duruş dakikası |
 | musteri_durus_turu | text | MKB1/MKB2/MKB3 |
 | musteri_durus_aciklama | text | (+20260522) |
 | kalite_kaynakli_durus | integer | Kalite kaynaklı duruş dakikası |
+| calisan_makine_sayisi | integer | Çalışan makine sayısı (+20260612) |
+| calisan_makine_aciklama | text | Çalışan makine sayısı eksik açıklaması (+20260612) |
+| takim_degisim_turu | text | Takım değişimi alt türü (ETM: Holder Değişim, Holder Ayar, vb.) (+20260612) |
 
 **Unique constraint**: `(record_id, zaman_dilimi)` — upsert conflict key.
 
@@ -150,4 +157,3 @@ Gantt planlama ve simülasyon ekranındaki günlük elle girilen overrides (vard
 - [Hücreler](hucreler.md) — hücre listesi ve akışı
 - [WIP Hesabı](../systems/wip-hesabi.md) — simülasyon ve parametre kullanımı
 - [Duruşlar](../systems/duruslar.md) — duruş kolon kodları
-

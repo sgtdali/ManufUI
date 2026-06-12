@@ -1,5 +1,5 @@
 ---
-updated: 2026-05-28
+updated: 2026-06-12
 sources: [src/lib/types.ts, src/app/schedule/overview/constants.ts]
 ---
 
@@ -12,17 +12,17 @@ sources: [src/lib/types.ts, src/app/schedule/overview/constants.ts]
 | Hücre | Sorumlu |
 |-------|---------|
 | Pres Hücresi | Musa Akyol |
-| ETM Hücresi | İbrahim Çetinbak |
+| ETM Hücresi | Çağrı Can Çolak |
 | ROB104 Hücresi | Suat Tunç |
 | ROB108 Hücresi | Suat Tunç |
-| Flowform Hücresi | Gökalp Atmaca |
-| N602 Hücresi | Gökalp Atmaca |
-| N603 Hücresi | Gökalp Atmaca |
+| Flowform Hücresi | Yücel Kıroğlu |
+| N602 Hücresi | Yücel Kıroğlu |
+| N603 Hücresi | Yücel Kıroğlu |
 | ROB109 Hücresi | Mücahit Toptaş |
 | Quench Hücresi | Calor |
 | ROB110-111 Hücresi | Taner Çelik |
-| Fosfat Hücresi | Halil Kesit |
-| Boya Hücresi | Halil Kesit |
+| Fosfat Hücresi | Ahmet Hakan Akın |
+| Boya Hücresi | Ahmet Hakan Akın |
 
 Sorumlular `BOLUM_SORUMLU` haritasında tanımlıdır (`src/lib/types.ts`). Üretim formu açılırken bölüm seçilince otomatik dolar.
 

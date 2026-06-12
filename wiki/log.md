@@ -5,6 +5,28 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-12] update | ETM Hücresi Sütun Özelleştirmeleri, Açıklama Muafiyetleri ve Zaman Dilimleri Güncellemesi
+
+**Yapılanlar:**
+- **Çalışan Makine Sayısı Sütunu:** ETM, ROB104, ROB108 ve ROB109 hücreleri için `calisan_makine_sayisi` sütunu eklendi ve varsayılan limitler (2, 2, 6, 2) tanımlandı. Bu limitlerin altına düşüldüğünde zorunlu `calisan_makine_aciklama` validasyonu kuruldu.
+- **ETM Arıza Özelleştirmesi:** ETM için teknik ve operasyonel arıza seçenekleri tek sütunda toplandı. Operasyonel duruşlar için açıklama dialog modalı devre dışı bırakıldı ve açıklama gereksinimi kaldırıldı.
+- **ETM "Holder - Insert Değişim" Sütunu:** Takım Değişimi sütunu ETM'de "Holder - Insert Değişim" olarak adlandırıldı; 4 alt tür tanımlandı ve açıklama gereksinimi kaldırıldı. Veritabanına `takim_degisim_turu` sütunu eklenerek Excel export'a bağlandı.
+- **Hazırlık (Setup ve Ayar) Sütunu:** ETM Hücresi'nde Setup ve Ayar sütunu **Hazırlık** olarak isimlendirildi. Seçenekler `"Parça Ölçüm"` ve `"Otomatik Mod Hazırlık"` olarak ayarlanıp açıklama dialogu ve zorunluluğu tamamen kaldırıldı.
+- **Planlı Duruş "Parça Basmama Kararı" & "Kasa Alma - Bırakma" Muafiyetleri:** Tüm hücreler genelinde "Parça Basmama Kararı" seçeneği; ETM özelinde ise eklenen **"Kasa Alma - Bırakma"** seçeneği açıklama modalından ve zorunluluk kontrolünden muaf tutuldu. Artık sadece "Planlı Bakım" açıklaması zorunludur.
+- **Hafta İçi Zaman Dilimleri & Vardiya Saatleri:** Hafta içi zaman dilimleri `08:00 - 17:00` olacak şekilde kaydırıldı, günlük vardiya süresi 540 dakika (9 saat) olarak güncellendi.
+- **Excel Aktarım Entegrasyonu:** Tüm yeni eklenen sütunlar (`calisan_makine_sayisi`, `calisan_makine_aciklama`, `takim_degisim_turu`) Excel/API çıktısına dahil edildi.
+
+## [2026-06-12] update | Hücre Sorumluları ve Pres Hücresi Duruş Kategorileri Revizyonu
+
+**Yapılanlar:**
+- **Sorumlu İsimleri Güncellendi:** Gökalp Atmaca yerine Yücel Kıroğlu, İbrahim Çetinbak yerine Çağrı Can Çolak, Halil Kesit yerine Ahmet Hakan Akın hücre sorumlusu olarak tanımlandı. `hucreler.md` wiki belgesi güncellendi.
+- **Mola & Müşteri Duruş Seçenekleri:** Mola alt türleri `Çay` ve `Yemek` olarak; Müşteri duruş kodları `Utility Eksiği`, `Consumable Eksiği` ve `Operatör Bekleme` olarak güncellendi.
+- **Duruş Kolon Dondurma (Sticky Sürgüsü):** Tablo kaydırıldığında Zaman Dilimi sütununun en solda sabit kalması ve arkasından geçen verilerin görünmemesi için CSS/Tailwind güncellemeleri yapıldı.
+- **Pres Hücresi Arıza Kırılımı:** Pres Hücresi için arıza türü seçenekleri lokasyon bazlı olarak `Pres Öncesi`, `Pres` ve `Pres Sonrası` şeklinde yapılandırıldı. Açıklama dialog penceresinde bu bölgelere özel teknik alt kategoriler (Robot, Hadde, Akışkan, Kalıp vb.) listelenerek kaydedilen arıza açıklamasına ön ek olarak eklendi. `/ariza` sayfasındaki tür seçimi de bu mantığa adapte edildi.
+- **Pres Hücresi Hazırlık (Setup) Kolonu:** Sadece Pres Hücresi için "Setup ve Ayar" sütunu **Hazırlık** olarak adlandırıldı. Altındaki seçenekler Pres-spesifik adımlarla değiştirildi. *Kaçak Kontrolü* dışındaki seçenekler için açıklama dialog penceresi tamamen devre dışı bırakıldı ve açıklama yazma zorunluluğu kaldırıldı.
+- **Kalıp Montaj & Demontaj Kolonları:** Pres Hücresi'ndeki tekli "Takım Değişimi" sütunu gizlenerek, yan yana çalışan **Kalıp Demontaj** ve **Kalıp Montaj** sütunları eklendi. Veritabanına bu sütunlar için `kalip_demontaj`, `kalip_demontaj_turu`, `kalip_montaj`, `kalip_montaj_turu` alanları eklendi, yeni SQL migration dosyası oluşturuldu. Excel ve API export fonksiyonları bu yeni sütunları aktaracak şekilde genişletildi.
+- İlgili tüm wiki dosyaları (`duruslar.md`, `db-tablolari.md`, `uretim-formu.md`, `index.md`) güncellendi ve `npx tsc --noEmit` ile projenin sorunsuz derlendiği doğrulandı.
+
 ## [2026-06-02] summary | Schedule ve ETM planlama guncellemeleri
 
 **Ozet:**
