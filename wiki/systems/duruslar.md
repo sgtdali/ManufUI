@@ -41,6 +41,8 @@ sources: [src/lib/types.ts, src/app/page.tsx, src/app/_components/ProductionTabl
   * `Belirsiz`
 * **Pres Hücresi Özel (Lokasyon Bazlı):**
   * `Pres Öncesi`, `Pres`, `Pres Sonrası`
+  * Her lokasyon seçildiğinde açıklama dialog'u açılır ve lokasyona özel alt kategori + detay metin kaydedilir (`[AltKategori] metin` formatında).
+  * **"Hidrolik Yağ Sıcaklık Alarmı"** (yalnızca `Pres` lokasyonunda): Detaylı açıklama zorunlu değildir; dialog'da textarea gizlenir, kayıt `[Hidrolik Yağ Sıcaklık Alarmı]` olarak saklanır.
 * **ETM Hücresi Özel:**
   * *Teknik (Açıklama Zorunlu):* `Mekanik`, `Elektrik`, `Akışkan`, `Belirsiz`, `SBU Arıza`, `Calor Konveyör Arıza`, `Robot`
   * *Operasyonel (Açıklama Gerekmez):* `SBU Parça Boşaltma`, `SBU Parça Yükleme`, `Kesici Takım Yok`, `Bor Yağı Bitti`

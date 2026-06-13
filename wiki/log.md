@@ -5,6 +5,16 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-13] update | Pres Arıza "Hidrolik Yağ Sıcaklık Alarmı" Alt Kategorisi
+
+**Yapılanlar:**
+- `SUB_CATEGORIES["Pres"]` listesine `"Hidrolik Yağ Sıcaklık Alarmı"` seçeneği eklendi (Kalıp ile Diğer/Belirsiz arasına).
+- `NO_DETAIL_REQUIRED` set'i oluşturuldu; bu seçenek seçildiğinde "Detaylı Açıklama" textarea'sı dialog'da gizlenir, kullanıcı direkt Tamam'a basabilir.
+- Kayıt `[Hidrolik Yağ Sıcaklık Alarmı]` formatında saklanır — validasyon geçer, trailing space sorunu giderildi.
+- Değişiklik yeri: `src/app/_components/DowntimeExplanationDialog.tsx`
+
+---
+
 ## [2026-06-13] update | Quench Hücresi Günlük Veri Girişi ve Detaylı Performans Paneli (/dashboardy) Entegrasyonu
 
 **Yapılanlar:**
