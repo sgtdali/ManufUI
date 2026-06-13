@@ -33,6 +33,7 @@ const SUB_CATEGORIES: Record<string, string[]> = {
     "Akışkan",
     "Otomasyon",
     "Kalıp",
+    "Hidrolik Yağ Sıcaklık Alarmı",
     "Diğer / Belirsiz"
   ],
   "Pres Sonrası": [
@@ -42,6 +43,8 @@ const SUB_CATEGORIES: Record<string, string[]> = {
     "Diğer / Belirsiz"
   ]
 };
+
+const NO_DETAIL_REQUIRED = new Set(["Hidrolik Yağ Sıcaklık Alarmı"]);
 
 export function DowntimeExplanationDialog({
   dialogData,
@@ -55,6 +58,8 @@ export function DowntimeExplanationDialog({
   const mainCategory = dialogData?.selectedAltTur || "";
   const isPressAriza = mainCategory in SUB_CATEGORIES;
   const subCats = isPressAriza ? SUB_CATEGORIES[mainCategory] : [];
+  const activeSubCat = subCategory || (subCats.length > 0 ? subCats[0] : "");
+  const detailRequired = !NO_DETAIL_REQUIRED.has(activeSubCat);
 
   useEffect(() => {
     if (dialogData) {
@@ -76,10 +81,14 @@ export function DowntimeExplanationDialog({
   if (!dialogData) return null;
 
   const handleConfirm = () => {
-    const selectedSub = subCategory || (subCats.length > 0 ? subCats[0] : "");
-    const combinedText = (isPressAriza && selectedSub)
-      ? `[${selectedSub}] ${detail.trim()}`
-      : detail.trim();
+    const selectedSub = activeSubCat;
+    let combinedText: string;
+    if (isPressAriza && selectedSub) {
+      const trimmedDetail = detail.trim();
+      combinedText = trimmedDetail ? `[${selectedSub}] ${trimmedDetail}` : `[${selectedSub}]`;
+    } else {
+      combinedText = detail.trim();
+    }
     onConfirm(combinedText);
   };
 
@@ -111,18 +120,20 @@ export function DowntimeExplanationDialog({
               </Select>
             </div>
           )}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
-              Detaylı Açıklama
-            </label>
-            <Textarea
-              rows={4}
-              placeholder="Duruş gerekçesini detaylıca açıklayınız..."
-              value={detail}
-              className="text-xs font-semibold text-zinc-700 focus:ring-1 focus:ring-blue-500"
-              onChange={(e) => setDetail(e.target.value)}
-            />
-          </div>
+          {detailRequired && (
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider block">
+                Detaylı Açıklama
+              </label>
+              <Textarea
+                rows={4}
+                placeholder="Duruş gerekçesini detaylıca açıklayınız..."
+                value={detail}
+                className="text-xs font-semibold text-zinc-700 focus:ring-1 focus:ring-blue-500"
+                onChange={(e) => setDetail(e.target.value)}
+              />
+            </div>
+          )}
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} className="text-xs font-bold">
