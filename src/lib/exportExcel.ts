@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { getZamanDilimleriForDate } from "@/lib/types";
+import { getZamanDilimleriForDate, getZamanDilimleriForCellAndDate } from "@/lib/types";
 
 type RawRow = Record<string, unknown>;
 type RawRecord = {
@@ -92,7 +92,7 @@ export async function exportToExcel(records: RawRecord[]) {
                 (((a.sira_no as number | null) ?? 0) -
                   ((b.sira_no as number | null) ?? 0))
             )
-        : getZamanDilimleriForDate(record.tarih).map(
+        : getZamanDilimleriForCellAndDate(record.bolum, record.tarih).map(
             (z) => ({ sira_no: z.sira_no, zaman_dilimi: z.label } as RawRow)
           );
 

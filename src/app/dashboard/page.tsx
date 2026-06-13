@@ -237,6 +237,12 @@ export default async function DashboardPage({
               Arıza detay
             </Link>
             <Link
+              className="rounded-md border border-indigo-700 bg-indigo-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-800"
+              href="/dashboardy"
+            >
+              Performans Paneli
+            </Link>
+            <Link
               className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
               href="/"
             >

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getZamanDilimleriForDate } from "@/lib/types";
+import { getZamanDilimleriForDate, getZamanDilimleriForCellAndDate } from "@/lib/types";
 import ExcelJS from "exceljs";
 
 const KOLONLAR = [
@@ -98,7 +98,7 @@ export async function GET() {
                 ((a.sira_no as number | null) ?? 0) -
                 ((b.sira_no as number | null) ?? 0)
             )
-        : getZamanDilimleriForDate(record.tarih).map(
+        : getZamanDilimleriForCellAndDate(record.bolum, record.tarih).map(
             (z) => ({ sira_no: z.sira_no, zaman_dilimi: z.label } as DbRow)
           );
 

@@ -135,6 +135,15 @@ export function FormHeader({
               Dashboard
             </Button>
           </Link>
+          <Link href="/dashboardy" className="block">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs font-bold"
+            >
+              Performans Paneli
+            </Button>
+          </Link>
         </div>
       </CardContent>
     </Card>

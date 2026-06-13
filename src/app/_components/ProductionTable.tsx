@@ -17,6 +17,7 @@ import {
   DURUS_KOLONLARI,
   MAKINE_SAYISI_DEFAULTS,
   ETM_ARIZA_TURLER,
+  ROB_ARIZA_TURLER,
 } from "@/lib/types";
 import {
   getEnteredDowntimeMinutes,
@@ -33,6 +34,7 @@ type Props = {
   onOpenCalisanMakineDialog?: (rowIndex: number, val: number | null) => void;
   onSubmit: (e: any) => void;
   bolum: string;
+  tarih?: string;
 };
 
 function toNum(val: string): number | null {
@@ -50,10 +52,13 @@ export function ProductionTable({
   onOpenCalisanMakineDialog,
   onSubmit,
   bolum,
+  tarih,
 }: Props) {
   const visibleColumns = DURUS_KOLONLARI.filter((column) => {
     if (bolum === "Pres Hücresi") {
       return column.key !== "takim_degisimi";
+    } else if (bolum === "Quench Hücresi") {
+      return column.key !== "kalip_demontaj" && column.key !== "kalip_montaj" && column.key !== "setup_ve_ayar";
     } else {
       return column.key !== "kalip_demontaj" && column.key !== "kalip_montaj";
     }
@@ -73,6 +78,9 @@ export function ProductionTable({
           { code: "Punta Değişim" },
         ],
       };
+    }
+    if (bolum === "Quench Hücresi" && column.key === "takim_degisimi") {
+      return { ...column, label: "Rejim Bekleme" };
     }
     return column;
   });
@@ -143,7 +151,7 @@ export function ProductionTable({
                         />
                         {(() => {
                           const r = watchedRows?.[i];
-                          const requiredDowntime = r ? getRequiredDowntimeMinutes(r) : 0;
+                          const requiredDowntime = r ? getRequiredDowntimeMinutes(r, bolum, tarih) : 0;
                           const enteredDowntime = r ? getEnteredDowntimeMinutes(r) : 0;
                           const remainingDowntime = Math.max(requiredDowntime - enteredDowntime, 0);
 
@@ -220,9 +228,10 @@ export function ProductionTable({
                       const val = watchedRows?.[i]?.[k.key] as number | null;
                       const hasValue = val != null && val > 0;
                       const r = watchedRows?.[i];
-                      const requiredDowntime = r ? getRequiredDowntimeMinutes(r) : 0;
+                      const requiredDowntime = r ? getRequiredDowntimeMinutes(r, bolum, tarih) : 0;
                       const enteredDowntime = r ? getEnteredDowntimeMinutes(r) : 0;
                       const needsDowntime = requiredDowntime > enteredDowntime;
+                      const maxVal = bolum === "Quench Hücresi" ? 540 : 60;
 
                       return (
                         <td
@@ -233,7 +242,7 @@ export function ProductionTable({
                             <Input
                               type="number"
                               min={0}
-                              max={60}
+                              max={maxVal}
                               className="h-8 text-center w-16 text-xs font-semibold"
                               placeholder=""
                               {...register(
@@ -271,6 +280,26 @@ export function ProductionTable({
                                     { code: "Kasa Alma - Bırakma" },
                                   ];
                                 }
+                              } else if (["ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(bolum || "")) {
+                                if (k.key === "ariza") {
+                                  options = ROB_ARIZA_TURLER;
+                                }
+                              }
+
+                              const hasKasaAlmaOption = [
+                                "ETM Hücresi",
+                                "ROB104 Hücresi",
+                                "ROB105 Hücresi",
+                                "Flowform Hücresi",
+                                "N602 Hücresi",
+                                "N603 Hücresi",
+                              ].includes(bolum || "");
+                              if (k.key === "planli_durus" && hasKasaAlmaOption) {
+                                options = [
+                                  { code: "Planlı Bakım" },
+                                  { code: "Parça Basmama Kararı" },
+                                  { code: "Kasa Alma - Bırakma" },
+                                ];
                               }
                               return (
                                 <Controller

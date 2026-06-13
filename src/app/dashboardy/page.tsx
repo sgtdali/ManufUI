@@ -1,0 +1,275 @@
+"use client";
+
+import { useState, useEffect, startTransition } from "react";
+import Link from "next/link";
+import { loadProductionSumByDateRange } from "../actions";
+
+const DISPLAY_CELLS = [
+  "Pres Hücresi",
+  "ETM Hücresi",
+  "ROB104 Hücresi",
+  "ROB108 Hücresi",
+  "Flowform Hücresi",
+  "N602-N603 Hücresi",
+  "ROB109 Hücresi",
+  "Quench Hücresi",
+  "ROB110-111 Hücresi",
+  "Fosfat Hücresi",
+  "Boya Hücresi",
+];
+import { 
+  Calendar, 
+  TrendingUp, 
+  ArrowLeft, 
+  RotateCw,
+  LayoutDashboard
+} from "lucide-react";
+
+export default function DashboardyPage() {
+  const [startDate, setStartDate] = useState<string>(() => {
+    const d = new Date();
+    // Default to 1st of current month
+    d.setDate(1);
+    return d.toISOString().split("T")[0];
+  });
+  
+  const [endDate, setEndDate] = useState<string>(() => {
+    return new Date().toISOString().split("T")[0];
+  });
+
+  const [data, setData] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = (start: string, end: string) => {
+    setLoading(true);
+    startTransition(async () => {
+      try {
+        const res = await loadProductionSumByDateRange(start, end);
+        if (res) {
+          setData(res);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
+
+  useEffect(() => {
+    fetchData(startDate, endDate);
+  }, [startDate, endDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Quick Presets
+  const setPreset = (days: number) => {
+    const end = new Date();
+    const start = new Date();
+    if (days === 0) {
+      // This month
+      start.setDate(1);
+    } else {
+      start.setDate(end.getDate() - days);
+    }
+    const startStr = start.toISOString().split("T")[0];
+    const endStr = end.toISOString().split("T")[0];
+    setStartDate(startStr);
+    setEndDate(endStr);
+  };
+
+  // Sum of all cells
+  const totalProduction = Object.values(data).reduce((a, b) => a + b, 0);
+  const totalTarget = DISPLAY_CELLS.length * 2000;
+  const overallPercentage = Math.min(Math.round((totalProduction / totalTarget) * 100), 100);
+
+  return (
+    <div className="min-h-screen bg-[#fafafa] text-zinc-900 pb-16 font-sans">
+      {/* Header */}
+      <header className="bg-white border-b border-zinc-200/80 sticky top-0 z-40 backdrop-blur-md bg-white/95">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/"
+              className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
+              title="Form Sayfasına Dön"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+            <div className="h-6 w-[1px] bg-zinc-200" />
+            <div className="flex items-center gap-2">
+              <LayoutDashboard className="h-5 w-5 text-indigo-600" />
+              <h1 className="text-lg font-bold tracking-tight text-zinc-900">
+                Detaylı Performans Paneli (/dashboardy)
+              </h1>
+            </div>
+          </div>
+          
+          <Link
+            href="/dashboard"
+            className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 px-3 py-2 rounded-lg hover:bg-zinc-100 transition-all border border-zinc-200 bg-zinc-50"
+          >
+            Standart OEE Dashboard
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        
+        {/* Date Range Picker Panel */}
+        <section className="bg-white rounded-2xl border border-zinc-200/80 p-6 shadow-sm mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div>
+              <h2 className="text-base font-bold text-zinc-800 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-zinc-500" />
+                Tarih Aralığı Seçimi
+              </h2>
+              <p className="text-xs text-zinc-500 mt-1">
+                Seçilen tarih aralığındaki gerçekleşen toplam üretim adetlerini görüntülersiniz.
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Presets */}
+              <button 
+                onClick={() => setPreset(7)}
+                className="text-xs px-3 py-1.5 font-medium rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:scale-95 transition-all"
+              >
+                Son 7 Gün
+              </button>
+              <button 
+                onClick={() => setPreset(30)}
+                className="text-xs px-3 py-1.5 font-medium rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:scale-95 transition-all"
+              >
+                Son 30 Gün
+              </button>
+              <button 
+                onClick={() => setPreset(0)}
+                className="text-xs px-3 py-1.5 font-medium rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 active:scale-95 transition-all"
+              >
+                Bu Ay
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold text-zinc-600">Başlangıç:</label>
+                <input 
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-bold text-zinc-600">Bitiş:</label>
+                <input 
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="px-3 py-1.5 border border-zinc-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+              
+              <button
+                onClick={() => fetchData(startDate, endDate)}
+                className="p-2 border border-zinc-200 rounded-lg hover:bg-zinc-50 active:scale-95 transition-all"
+                title="Yenile"
+              >
+                <RotateCw className={`h-4 w-4 text-zinc-500 ${loading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Global Summary Card */}
+        <section className="bg-gradient-to-r from-indigo-900 to-indigo-950 text-white rounded-2xl border border-indigo-950 p-6 shadow-md mb-8 relative overflow-hidden">
+          <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-12 translate-y-12">
+            <TrendingUp className="h-64 w-64" />
+          </div>
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-200/80 bg-indigo-800/40 px-2.5 py-1 rounded-full border border-indigo-700/50">
+                Genel Toplam Durumu
+              </span>
+              <h2 className="text-3xl font-extrabold tracking-tight mt-3">
+                {totalProduction.toLocaleString("tr-TR")} <span className="text-indigo-300 font-light text-xl">/ {totalTarget.toLocaleString("tr-TR")}</span>
+              </h2>
+            </div>
+
+            <div className="flex-1 max-w-md">
+              <div className="flex items-center justify-between text-xs font-bold mb-2">
+                <span className="text-indigo-200">Kümülatif İlerleme</span>
+                <span className="text-indigo-100">{overallPercentage}%</span>
+              </div>
+              <div className="h-3 w-full bg-indigo-950/80 rounded-full overflow-hidden border border-indigo-800/30 p-[2px]">
+                <div 
+                  className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${overallPercentage}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Cells Rows Table */}
+        <section className="relative bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-sm">
+          {loading && (
+            <div className="absolute inset-0 bg-white/40 backdrop-blur-xs flex items-center justify-center z-10" />
+          )}
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-zinc-50/70 border-b border-zinc-200/85 text-zinc-600 text-[10px] font-bold uppercase tracking-wider">
+                  <th className="py-4 px-6">Hücre Adı</th>
+                  <th className="py-4 px-6 text-center">Toplam Üretim / Hedef</th>
+                  <th className="py-4 px-6">Performans (% / İlerleme)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {DISPLAY_CELLS.map((cell) => {
+                  const produced = cell === "N602-N603 Hücresi"
+                    ? (data["N602 Hücresi"] ?? 0) + (data["N603 Hücresi"] ?? 0)
+                    : (data[cell] ?? 0);
+                  const target = 2000;
+                  const percentage = Math.round((produced / target) * 100);
+                  const isTargetAchieved = produced >= target;
+                  
+                  let progressColorClass = "from-red-500 to-rose-500";
+
+                  if (isTargetAchieved) {
+                    progressColorClass = "from-emerald-500 to-teal-500";
+                  } else if (produced >= 1000) {
+                    progressColorClass = "from-amber-500 to-orange-500";
+                  }
+
+                  return (
+                    <tr key={cell} className="hover:bg-zinc-50/50 transition-colors group">
+                      <td className="py-4 px-6 font-bold text-sm text-zinc-800 group-hover:text-indigo-600 transition-colors">
+                        {cell}
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <span className="text-sm font-black text-zinc-800">{produced.toLocaleString("tr-TR")}</span>
+                        <span className="text-xs text-zinc-400 font-medium ml-1">/ 2.000</span>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-4 max-w-md">
+                          <span className="text-xs font-bold text-zinc-600 min-w-[36px]">{percentage}%</span>
+                          <div className="h-2 flex-1 bg-zinc-100 rounded-full overflow-hidden border border-zinc-200/30 p-[1px]">
+                            <div 
+                              className={`h-full bg-gradient-to-r ${progressColorClass} rounded-full transition-all duration-500 ease-out`}
+                              style={{ width: `${Math.min(percentage, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}

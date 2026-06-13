@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-12
+updated: 2026-06-13
 sources: [src/lib/types.ts, src/app/page.tsx, src/app/_components/ProductionTable.tsx, src/app/_components/DowntimeExplanationDialog.tsx]
 ---
 
@@ -12,10 +12,10 @@ sources: [src/lib/types.ts, src/app/page.tsx, src/app/_components/ProductionTabl
 | Kolon | DB Alanı | Alt Tür Var mı | Açıklama Zorunlu mu | Hücre Ayrımı / Özel Durumlar |
 |-------|----------|----------------|---------------------|------------------------------|
 | Mola | `mola` | Evet | Hayır | Tüm hücrelerde ortaktır. |
-| Arıza | `ariza` | Evet | Kısmen | **Pres Hücresi** (Pres Öncesi/Pres/Sonrası) ve **ETM Hücresi** için alt türler özeldir. ETM'de sadece teknik arızalar açıklama gerektirir. |
+| Arıza | `ariza` | Evet | Kısmen | **Pres Hücresi**, **ETM Hücresi** ve **ROB104, ROB108, ROB109 Hücreleri** için alt türler özeldir. Teknik arızalar açıklama gerektirirken operasyonel arızalar gerektirmez. |
 | Planlı Duruş | `planli_durus` | Evet | Kısmen | Tüm hücrelerde ortaktır. Sadece **"Planlı Bakım"** için açıklama zorunludur. |
-| Setup ve Ayar / Hazırlık | `setup_ve_ayar` | Evet | Kısmen | **Pres ve ETM Hücresi**'nde kolon adı **Hazırlık**'tır. Pres'te sadece *Kaçak Kontrolü* açıklama gerektirir. ETM'de hiçbir seçenek açıklama gerektirmez. Diğer hücrelerde hep zorunludur. |
-| Takım Değişimi / Holder - Insert Değişim | `takim_degisimi` | Evet (ETM) | Hayır | **Pres Hücresi**'nde gizlenir. **ETM Hücresi**'nde adı **"Holder - Insert Değişim"** olup 4 alt türü (`takim_degisim_turu`) vardır. Diğer hücrelerde standarttır (alt türü yoktur). |
+| Setup ve Ayar / Hazırlık | `setup_ve_ayar` | Evet | Kısmen | **Pres ve ETM Hücresi**'nde kolon adı **Hazırlık**'tır. Pres'te sadece *Kaçak Kontrolü* açıklama gerektirir. ETM'de hiçbir seçenek açıklama gerektirmez. Diğer hücrelerde hep zorunludur. **Quench Hücresi**'nde bu sütun gizlenir. |
+| Takım Değişimi / Holder - Insert Değişim / Rejim Bekleme | `takim_degisimi` | Evet (ETM) | Hayır | **Pres Hücresi**'nde gizlenir. **ETM Hücresi**'nde adı **"Holder - Insert Değişim"** (4 alt tür) olur. **Quench Hücresi**'nde adı **"Rejim Bekleme"**'dir (açıklama veya alt tür yok). Diğerlerinde standarttır. |
 | Kalıp Demontaj | `kalip_demontaj` | Evet | Hayır | **Yalnızca Pres Hücresi**'nde görünür. |
 | Kalıp Montaj | `kalip_montaj` | Evet | Hayır | **Yalnızca Pres Hücresi**'nde görünür. |
 | Çalışan Makine Sayısı | `calisan_makine_sayisi` | Hayır | Kısmen | **ETM, ROB104, ROB108, ROB109** hücrelerinde görünür. Makine sayısı varsayılan limitin altına düşerse açıklama zorunludur. |
@@ -32,7 +32,7 @@ sources: [src/lib/types.ts, src/app/page.tsx, src/app/_components/ProductionTabl
 * `Yemek`
 
 ### 2. Arıza (`ariza_turu`)
-* **Standart Hücreler (Pres ve ETM Dışı):**
+* **Standart Hücreler (Pres, ETM, ROB104, ROB108, ROB109 Dışı):**
   * `E` (Elektrik)
   * `A` (Akışkan)
   * `M` (Mekanik)
@@ -44,11 +44,14 @@ sources: [src/lib/types.ts, src/app/page.tsx, src/app/_components/ProductionTabl
 * **ETM Hücresi Özel:**
   * *Teknik (Açıklama Zorunlu):* `Mekanik`, `Elektrik`, `Akışkan`, `Belirsiz`, `SBU Arıza`, `Calor Konveyör Arıza`, `Robot`
   * *Operasyonel (Açıklama Gerekmez):* `SBU Parça Boşaltma`, `SBU Parça Yükleme`, `Kesici Takım Yok`, `Bor Yağı Bitti`
+* **ROB104, ROB108, ROB109 Hücreleri Özel:**
+  * *Teknik (Açıklama Zorunlu):* `Mekanik`, `Elektrik`, `Akışkan`, `Belirsiz`, `Robot`
+  * *Operasyonel (Açıklama Gerekmez):* `Talaş Arabası Dolu`, `Manuel İşlemler`, `Kesici Takım Yok`, `Bor Yağı Bitti`
 
 ### 3. Planlı Duruş (`planli_durus_turu`)
 * `Planlı Bakım` (Açıklama ZORUNLU)
 * `Parça Basmama Kararı` (Tüm hücrelerde açıklama gerekmez)
-* `Kasa Alma - Bırakma` (Sadece **ETM Hücresi**, açıklama gerekmez)
+* `Kasa Alma - Bırakma` (Sadece **ETM, ROB104, ROB105, Flowform, N602, N603 Hücreleri**, açıklama gerekmez)
 
 ### 4. Setup ve Ayar / Hazırlık (`setup_turu`)
 * **Standart Hücreler (Setup ve Ayar):**

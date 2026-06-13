@@ -12,6 +12,7 @@ import {
   MAKINE_SAYISI_DEFAULTS,
   ETM_ARIZA_TURLER,
   getZamanDilimleriForDate,
+  getZamanDilimleriForCellAndDate,
   type ZamanDilimi,
   type ProductionRow,
   type AciklamaDialogType,
@@ -114,7 +115,7 @@ function applyRecordToForm(
               kalite_kaynakli_durus: row.kalite_kaynakli_durus as number | null,
             };
           })
-      : buildEmptyRows(getZamanDilimleriForDate(tarih), bolum);
+      : buildEmptyRows(getZamanDilimleriForCellAndDate(bolum, tarih), bolum);
   return {
     bolum,
     sorumlu: (record.sorumlu as string) ?? "",
@@ -132,7 +133,7 @@ export default function ProductionFormPage() {
         bolum: "",
         sorumlu: "",
         tarih: today,
-        rows: buildEmptyRows(getZamanDilimleriForDate(today)),
+        rows: buildEmptyRows(getZamanDilimleriForCellAndDate(undefined, today)),
       },
     });
 
@@ -148,7 +149,7 @@ export default function ProductionFormPage() {
   const bolum = watch("bolum");
   const tarih = watch("tarih");
   const watchedRows = watch("rows");
-  const zamanDilimleri = getZamanDilimleriForDate(tarih);
+  const zamanDilimleri = getZamanDilimleriForCellAndDate(bolum, tarih);
   const tableRows =
     watchedRows && watchedRows.length > 0
       ? watchedRows
@@ -175,7 +176,7 @@ export default function ProductionFormPage() {
           bolum,
           sorumlu: BOLUM_SORUMLU[bolum] ?? "",
           tarih,
-          rows: buildEmptyRows(getZamanDilimleriForDate(tarih), bolum),
+          rows: buildEmptyRows(getZamanDilimleriForCellAndDate(bolum, tarih), bolum),
         });
       }
     });
@@ -259,8 +260,11 @@ export default function ProductionFormPage() {
     const aciklamaEksik: string[] = [];
     data.rows.forEach((row) => {
       const isEtmCell = data.bolum === "ETM Hücresi";
+      const isRobCell = ["ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(data.bolum || "");
       const isArizaExplanationRequired = isEtmCell
         ? ["Mekanik", "Elektrik", "Akışkan", "SBU Arıza", "Calor Konveyör Arıza", "Robot"].includes(row.ariza_turu || "")
+        : isRobCell
+        ? ["Mekanik", "Elektrik", "Akışkan", "Belirsiz", "Robot"].includes(row.ariza_turu || "")
         : !!row.ariza_turu;
       if (isArizaExplanationRequired && !row.ariza_aciklama?.trim())
         aciklamaEksik.push(`${row.zaman_dilimi} → Arıza açıklaması`);
@@ -318,8 +322,11 @@ export default function ProductionFormPage() {
   const handleOpenAciklamaDialog = useCallback((rowIndex: number, k: typeof DURUS_KOLONLARI[number], val: string) => {
     if (k.key === "ariza") {
       const isEtmCell = bolum === "ETM Hücresi";
+      const isRobCell = ["ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(bolum || "");
       const shouldOpen = isEtmCell
         ? ["Mekanik", "Elektrik", "Akışkan", "SBU Arıza", "Calor Konveyör Arıza", "Robot"].includes(val)
+        : isRobCell
+        ? ["Mekanik", "Elektrik", "Akışkan", "Belirsiz", "Robot"].includes(val)
         : true;
       if (shouldOpen) {
         setAciklamaDialog({
@@ -419,6 +426,7 @@ export default function ProductionFormPage() {
           onOpenCalisanMakineDialog={handleOpenCalisanMakineDialog}
           onSubmit={handleSubmit(onSubmit)}
           bolum={bolum}
+          tarih={tarih}
         />
       </div>
 

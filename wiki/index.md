@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-12
+updated: 2026-06-13
 sources: []
 ---
 
@@ -35,6 +35,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 **Sayfalar ve rotaları:**
 - `/` → Günlük üretim formu
 - `/dashboard` → Dashboard (henüz incelenmedi)
+- `/dashboardy` → Detaylı kümülatif performans ve hedef izleme paneli
 - `/schedule` → Pres simülasyonu ve planlama
 - `/schedule/overview` → WIP hücre görünümü
 - `/ariza` → Arıza takibi ve giderme

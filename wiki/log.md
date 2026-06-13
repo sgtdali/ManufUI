@@ -5,6 +5,17 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-13] update | Quench Hücresi Günlük Veri Girişi ve Detaylı Performans Paneli (/dashboardy) Entegrasyonu
+
+**Yapılanlar:**
+- **Quench Hücresi Günlük Form Özelleştirmesi:** Saatlik dilimler yerine tek bir `"Günlük"` zaman dilimi satırı getirildi. Sütunlardan "Setup ve Ayar" kaldırıldı, "Takım Değişimi" ise "Rejim Bekleme" olarak adlandırıldı (alt tür ve açıklama zorunluluğu yok).
+- **Duruş Validasyon Güncellemesi:** Zaman dilimi `"Günlük"` olan Quench hücresi için minimum girilmesi gereken duruş dakikası hesaplaması, 60 dakika yerine hafta içi 540 dakika, hafta sonu (Cuma/Cumartesi) 480 dakika üzerinden orantılanacak şekilde ölçeklendirildi. Tekil duruş giriş sınırları Quench için 540 dakikaya yükseltildi.
+- **Detaylı Performans Paneli (`/dashboardy`):** Tarih aralığı seçici (Date Range Picker), hızlı preset butonları (Son 7 gün, Son 30 gün, Bu ay), kümülatif ilerleme çubuğu ve hücre bazlı gerçekleşen/hedef ilerlemesini gösteren satır tablosu entegre edildi.
+- **N602 ve N603 Hücre Birleşimi:** `/dashboardy` sayfasında N602 ve N603 hücreleri birleştirilerek tek satırda "N602-N603 Hücresi" olarak, toplam hedef 2000 adet olacak şekilde gösterildi.
+- **Arayüz Temizliği:** Dashboard üzerindeki sorumlu bilgileri, kritik seviye uyarıları, alt başlıklar ve açıklama metinleri kullanıcı geri bildirimlerine göre kaldırıldı.
+- **Planlı Duruş "Kasa Alma - Bırakma" Seçeneği:** ROB104, ROB105, Flowform (F420), N602 ve N603 hücrelerinin planlı duruş alt kategorilerine "Kasa Alma - Bırakma" seçeneği eklendi. Bu seçenek seçildiğinde herhangi bir açıklama zorunluluğu bulunmamaktadır.
+- **ROB Hücreleri Arıza Alt Kategorileri Özelleştirmesi:** ROB104, ROB108 ve ROB109 hücrelerinin arıza alt kategorileri görseldeki gibi özelleştirildi: `Mekanik`, `Elektrik`, `Akışkan`, `Belirsiz`, `Robot`, `Talaş Arabası Dolu`, `Manuel İşlemler`, `Kesici Takım Yok`, `Bor Yağı Bitti`. Teknik arızalarda açıklama zorunlu tutulurken, operasyonel arızalarda (Talaş Arabası Dolu, Manuel İşlemler, vb.) açıklama dialogu ve zorunluluğu kaldırıldı.
+
 ## [2026-06-12] update | ETM Hücresi Sütun Özelleştirmeleri, Açıklama Muafiyetleri ve Zaman Dilimleri Güncellemesi
 
 **Yapılanlar:**

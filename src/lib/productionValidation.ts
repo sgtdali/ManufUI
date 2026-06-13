@@ -21,7 +21,7 @@ function positiveNumber(value: unknown) {
     : 0;
 }
 
-export function getRequiredDowntimeMinutes(row: ProductionRow) {
+export function getRequiredDowntimeMinutes(row: ProductionRow, bolum?: string, tarih?: string | null) {
   const hedef = positiveNumber(row.hedef_uretim_adeti);
   if (hedef <= 0) return 0;
 
@@ -29,7 +29,17 @@ export function getRequiredDowntimeMinutes(row: ProductionRow) {
   const eksikAdet = Math.max(hedef - uretim, 0);
   if (eksikAdet <= 0) return 0;
 
-  return Math.ceil(eksikAdet * (60 / hedef));
+  let slotMinutes = 60;
+  if (row.zaman_dilimi === "Günlük") {
+    if (tarih) {
+      const day = new Date(`${tarih}T00:00:00`).getDay();
+      slotMinutes = (day === 5 || day === 6) ? 480 : 540;
+    } else {
+      slotMinutes = 540;
+    }
+  }
+
+  return Math.ceil(eksikAdet * (slotMinutes / hedef));
 }
 
 export function getEnteredDowntimeMinutes(row: ProductionRow) {
@@ -47,7 +57,7 @@ export function validateTargetDowntime(data: ProductionFormData) {
     if (hedef <= 0) return;
 
     const uretim = positiveNumber(row.uretim_adeti);
-    const gerekliDakika = getRequiredDowntimeMinutes(row);
+    const gerekliDakika = getRequiredDowntimeMinutes(row, data.bolum, data.tarih);
     if (gerekliDakika <= 0) return;
 
     const girilenDakika = getEnteredDowntimeMinutes(row);

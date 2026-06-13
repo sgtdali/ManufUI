@@ -108,3 +108,54 @@ export async function loadProductionRecord(bolum: string, tarih: string) {
   if (error) return null;
   return record;
 }
+
+export async function loadProductionSumByDateRange(startDate: string, endDate: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("manuf_production_records")
+    .select("bolum, tarih, id, manuf_production_rows(uretim_adeti)")
+    .gte("tarih", startDate)
+    .lte("tarih", endDate);
+
+  if (error) {
+    console.error("Error loading production sum:", error);
+    return null;
+  }
+
+  const sumByCell: Record<string, number> = {};
+  
+  const BOLUMLER = [
+    "Pres Hücresi",
+    "ETM Hücresi",
+    "ROB104 Hücresi",
+    "ROB108 Hücresi",
+    "Flowform Hücresi",
+    "N602 Hücresi",
+    "N603 Hücresi",
+    "ROB109 Hücresi",
+    "Quench Hücresi",
+    "ROB110-111 Hücresi",
+    "Fosfat Hücresi",
+    "Boya Hücresi"
+  ];
+  
+  BOLUMLER.forEach(cell => {
+    sumByCell[cell] = 0;
+  });
+
+  data?.forEach(record => {
+    const rows = record.manuf_production_rows as { uretim_adeti: number | null }[] | null;
+    let recordSum = 0;
+    rows?.forEach(row => {
+      recordSum += row.uretim_adeti || 0;
+    });
+    if (sumByCell[record.bolum] !== undefined) {
+      sumByCell[record.bolum] += recordSum;
+    } else {
+      sumByCell[record.bolum] = recordSum;
+    }
+  });
+
+  return sumByCell;
+}

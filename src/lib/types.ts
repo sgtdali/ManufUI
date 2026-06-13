@@ -144,6 +144,13 @@ export function getZamanDilimleriForDate(tarih: string | null | undefined) {
   return ZAMAN_DILIMLERI;
 }
 
+export function getZamanDilimleriForCellAndDate(bolum: string | null | undefined, tarih: string | null | undefined) {
+  if (bolum === "Quench Hücresi") {
+    return [{ sira_no: 1, label: "Günlük" }];
+  }
+  return getZamanDilimleriForDate(tarih);
+}
+
 export type AltTurOption = { code: string };
 
 export const ETM_ARIZA_TURLER: AltTurOption[] = [
@@ -156,6 +163,18 @@ export const ETM_ARIZA_TURLER: AltTurOption[] = [
   { code: "Robot" },
   { code: "SBU Parça Boşaltma" },
   { code: "SBU Parça Yükleme" },
+  { code: "Kesici Takım Yok" },
+  { code: "Bor Yağı Bitti" },
+];
+
+export const ROB_ARIZA_TURLER: AltTurOption[] = [
+  { code: "Mekanik" },
+  { code: "Elektrik" },
+  { code: "Akışkan" },
+  { code: "Belirsiz" },
+  { code: "Robot" },
+  { code: "Talaş Arabası Dolu" },
+  { code: "Manuel İşlemler" },
   { code: "Kesici Takım Yok" },
   { code: "Bor Yağı Bitti" },
 ];

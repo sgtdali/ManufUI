@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-12
+updated: 2026-06-13
 sources: [src/app/page.tsx, src/app/actions.ts, src/lib/types.ts, src/lib/productionValidation.ts, src/app/_components/ProductionTable.tsx]
 ---
 
@@ -17,13 +17,14 @@ Ana sayfa (`/`). Günlük üretim verilerinin saatlik dilimler halinde girildiğ
 
 ## Zaman Dilimleri
 
-Pazartesi–Perşembe (9 satır):
-`08:00–09:00`, `09:00–10:00`, `10:00–11:00`, `11:00–12:00`, `12:00–13:00`, `13:00–14:00`, `14:00–15:00`, `15:00–16:00`, `16:00–17:00`
+Standart hücreler için zaman dilimleri:
+* **Pazartesi–Perşembe (9 satır):** `08:00–09:00`, `09:00–10:00`, `10:00–11:00`, `11:00–12:00`, `12:00–13:00`, `13:00–14:00`, `14:00–15:00`, `15:00–16:00`, `16:00–17:00`
+* **Cuma–Cumartesi (8 satır):** `09:00–10:00`, `10:00–11:00`, `11:00–12:00`, `12:00–13:00`, `13:00–14:00`, `14:00–15:00`, `15:00–16:00`, `16:00–17:00`
 
-Cuma–Cumartesi (8 satır):
-`09:00–10:00`, `10:00–11:00`, `11:00–12:00`, `12:00–13:00`, `13:00–14:00`, `14:00–15:00`, `15:00–16:00`, `16:00–17:00`
+**Quench Hücresi** için zaman dilimleri:
+* Sadece tek bir satır üretilir ve zaman dilimi label'ı `"Günlük"` olarak ayarlanır.
 
-Hangi set kullanılacağı `getZamanDilimleriForDate(tarih)` fonksiyonu ile belirlenir (`src/lib/types.ts`).
+Hangi setin kullanılacağı `getZamanDilimleriForCellAndDate(bolum, tarih)` yardımcı fonksiyonu ile belirlenir (`src/lib/types.ts`).
 
 ## Tablo Kolonları
 
@@ -38,10 +39,10 @@ Her satırda şu alanlar bulunur (Seçili hücreye göre kolonlar dinamikleşir)
 | Kalan Dakika göstergesi | — | Hesaplanan, salt gösterim | Tüm |
 | Müşteri Var | `musteri_var` | Checkbox | Tüm |
 | Mola | `mola` + `mola_turu` | Dakika + alt tür (Çay/Yemek) | Tüm |
-| Arıza | `ariza` + `ariza_turu` + `ariza_aciklama` | Dakika + alt tür + açıklama | ETM ve Pres özel |
-| Planlı Duruş | `planli_durus` + `planli_durus_turu` + `planli_durus_aciklama` | Dakika + alt tür + açıklama | Tüm (ETM'de ek alt tür) |
-| Setup ve Ayar / Hazırlık | `setup_ve_ayar` + `setup_turu` + `setup_aciklama` | Dakika + alt tür + açıklama | Pres ve ETM'de adı **Hazırlık**'tır. |
-| Takım Değişimi / Holder - Insert Değişim | `takim_degisimi` | Dakika, alt tür yok / ETM'de var | **Pres Dışı** (ETM'de adı farklıdır) |
+| Arıza | `ariza` + `ariza_turu` + `ariza_aciklama` | Dakika + alt tür + açıklama | ETM, Pres, ROB104, ROB108, ROB109 özel |
+| Planlı Duruş | `planli_durus` + `planli_durus_turu` + `planli_durus_aciklama` | Dakika + alt tür + açıklama | Tüm (ETM, ROB104, ROB105, Flowform, N602, N603 hücrelerinde ek "Kasa Alma - Bırakma" alt türü vardır) |
+| Setup ve Ayar / Hazırlık | `setup_ve_ayar` + `setup_turu` + `setup_aciklama` | Dakika + alt tür + açıklama | Pres ve ETM'de adı **Hazırlık**'tır. **Quench Hücresi**'nde bu sütun gizlenir. |
+| Takım Değişimi / Holder - Insert Değişim / Rejim Bekleme | `takim_degisimi` | Dakika, alt tür yok / ETM'de var | **Pres Dışı** (ETM'de Holder-Insert Değişim, Quench'te **Rejim Bekleme** adını alır) |
 | Kalıp Demontaj | `kalip_demontaj` + `kalip_demontaj_turu` | Dakika + alt tür | **Sadece Pres** |
 | Kalıp Montaj | `kalip_montaj` + `kalip_montaj_turu` | Dakika + alt tür | **Sadece Pres** |
 | Çalışan Makine Sayısı | `calisan_makine_sayisi` + `calisan_makine_aciklama` | Çalışan makine sayısı + açıklama | **ETM, ROB104, ROB108, ROB109** |
@@ -88,6 +89,7 @@ Duruş süresi > 0 girilmişse ilgili `*_turu` alanı dolu olmalı:
 ### Açıklama Zorunluluğu
 - `ariza_turu` seçilmişse:
   - ETM Hücresi'nde sadece teknik arızalar ise → `ariza_aciklama` zorunlu
+  - ROB104, ROB108, ROB109 Hücrelerinde sadece teknik arızalar (`Mekanik`, `Elektrik`, `Akışkan`, `Belirsiz`, `Robot`) ise → `ariza_aciklama` zorunlu
   - Diğer hücrelerde → `ariza_aciklama` zorunlu
 - `planli_durus_turu` seçilmişse:
   - Sadece **"Planlı Bakım"** ise → `planli_durus_aciklama` zorunlu (Parça Basmama Kararı veya Kasa Alma - Bırakma gerekmez)
@@ -100,9 +102,15 @@ Duruş süresi > 0 girilmişse ilgili `*_turu` alanı dolu olmalı:
 
 ### Hedef/Gerçekleşen Fark Validasyonu
 `validateTargetDowntime` (`src/lib/productionValidation.ts`):
-- Hedef > Gerçekleşen ise eksik adet için duruş girilmeli
-- Gerekli dakika = `ceil(eksikAdet × (60 / hedef))`
+- Hedef > Gerçekleşen ise eksik adet için duruş girilmeli.
+- Gerekli dakika hesabı:
+  - Standart hücreler (saatlik): `ceil(eksikAdet × (60 / hedef))`
+  - **Quench Hücresi** (günlük): Zaman dilimi `"Günlük"` olduğu için vardiya süresi baz alınır. Hafta içi `540` dakika, Cuma-Cumartesi `480` dakika kullanılarak hesaplama yapılır: `ceil(eksikAdet × (vardiyaSüresi / hedef))`.
 - Girilen toplam duruş dakikası bu değerin altındaysa kayıt reddedilir. (Kalıp Demontaj ve Kalıp Montaj dakikaları da toplam girilen duruşa dahildir.)
+
+### Duruş Süresi Giriş Sınırları
+- Standart saatlik satırlar için her bir duruş alanı maksimum **60 dakika** ile sınırlıdır.
+- **Quench Hücresi** günlük satırı için tekil duruş alanları vardiya süresini kapsayacak şekilde maksimum **540 dakika** olarak sınırlandırılmıştır.
 
 ---
 
