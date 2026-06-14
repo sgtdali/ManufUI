@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-13
+updated: 2026-06-14
 sources: [src/app/page.tsx, src/app/actions.ts, src/lib/types.ts, src/lib/productionValidation.ts, src/app/_components/ProductionTable.tsx]
 ---
 
@@ -117,5 +117,4 @@ Duruş süresi > 0 girilmişse ilgili `*_turu` alanı dolu olmalı:
 ## Diğer Butonlar
 
 - **Yenile**: Manuel yeniden yükleme
-- **Excel'e Aktar**: `/api/export` endpoint'i (download)
-- **Dashboard**: `/dashboard` sayfasına link
+- **Dashboard**: `/dashboard` OEE sayfasına yönlendirme linki (Excel'e Aktar ve Performans Paneli butonları kaldırılmıştır)

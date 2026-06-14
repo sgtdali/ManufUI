@@ -26,6 +26,7 @@ import { FormHeader } from "./_components/FormHeader";
 import { ProductionTable } from "./_components/ProductionTable";
 import { DowntimeExplanationDialog } from "./_components/DowntimeExplanationDialog";
 import { OverwriteConfirmDialog } from "./_components/OverwriteConfirmDialog";
+import { OneriKayitDialog } from "./_components/OneriKayitDialog";
 
 // AciklamaDialogType is imported from @/lib/types
 
@@ -141,6 +142,7 @@ export default function ProductionFormPage() {
   const [autoLoading, setAutoLoading] = useState(false);
   const [hasExistingRecord, setHasExistingRecord] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [oneriDialogOpen, setOneriDialogOpen] = useState(false);
   const pendingDataRef = useRef<ProductionFormData | null>(null);
 
   // Açıklama dialog state
@@ -413,6 +415,7 @@ export default function ProductionFormPage() {
           bolum={bolum}
           tarih={tarih}
           onManualLoad={handleManualLoad}
+          onOpenOneriDialog={() => setOneriDialogOpen(true)}
         />
 
         {/* Üretim Tablosu Bileşeni */}
@@ -453,6 +456,12 @@ export default function ProductionFormPage() {
         bolum={getValues("bolum")}
         tarih={getValues("tarih")}
         onConfirm={handleConfirmUpdate}
+      />
+
+      {/* Öneri Kayıt Dialog Bileşeni */}
+      <OneriKayitDialog
+        isOpen={oneriDialogOpen}
+        onClose={() => setOneriDialogOpen(false)}
       />
     </div>
   );

@@ -24,6 +24,7 @@ type Props = {
   bolum: string;
   tarih: string;
   onManualLoad: () => void;
+  onOpenOneriDialog: () => void;
 };
 
 export function FormHeader({
@@ -35,6 +36,7 @@ export function FormHeader({
   bolum,
   tarih,
   onManualLoad,
+  onOpenOneriDialog,
 }: Props) {
   return (
     <Card className="border-zinc-200 shadow-sm rounded-xl">
@@ -117,15 +119,6 @@ export function FormHeader({
           >
             {autoLoading ? "Yükleniyor..." : "Yenile"}
           </Button>
-          <Link href="/api/export" download className="block">
-            <Button
-              type="button"
-              variant="outline"
-              className="border-green-200 text-green-700 hover:bg-green-50 text-xs font-bold"
-            >
-              Excel&apos;e Aktar
-            </Button>
-          </Link>
           <Link href="/dashboard" className="block">
             <Button
               type="button"
@@ -135,15 +128,14 @@ export function FormHeader({
               Dashboard
             </Button>
           </Link>
-          <Link href="/dashboardy" className="block">
-            <Button
-              type="button"
-              variant="outline"
-              className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs font-bold"
-            >
-              Performans Paneli
-            </Button>
-          </Link>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onOpenOneriDialog}
+            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs font-bold"
+          >
+            Öneri Kayıt
+          </Button>
         </div>
       </CardContent>
     </Card>

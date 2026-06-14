@@ -5,6 +5,13 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-14] update | Ana Form Ekranından Butonların Kaldırılması ve Dashboardy Varsayılan Tarih Aralığı
+
+**Yapılanlar:**
+- **Buton Kaldırma:** Ana günlük üretim formu üst bilgi kartından (`FormHeader.tsx`) "Excel'e Aktar" (Export to Excel) ve "Performans Paneli" (/dashboardy) butonları kaldırıldı.
+- **Varsayılan Tarih Aralığı:** Detaylı Performans Paneli (`/dashboardy`) başlangıç ve bitiş tarihleri varsayılan olarak `14.06.2026` ve `09.07.2026` olacak şekilde ayarlandı.
+- **Wiki ve Doküman Güncellemesi:** `wiki/systems/uretim-formu.md` ve `walkthrough.md` belgeleri butonların kaldırılması doğrultusunda güncellendi.
+
 ## [2026-06-13] update | Pres Arıza "Hidrolik Yağ Sıcaklık Alarmı" Alt Kategorisi
 
 **Yapılanlar:**

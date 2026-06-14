@@ -38,38 +38,45 @@ export async function saveProductionRecord(data: ProductionFormData) {
   }
 
   // Satırları upsert et
-  const rows = data.rows.map((row) => ({
-    record_id: record.id,
-    sira_no: row.sira_no,
-    zaman_dilimi: row.zaman_dilimi,
-    hedef_uretim_adeti: row.hedef_uretim_adeti,
-    uretim_adeti: row.uretim_adeti,
-    musteri_var: row.musteri_var,
-    mola: row.mola,
-    mola_turu: row.mola_turu,
-    ariza: row.ariza,
-    ariza_turu: row.ariza_turu,
-    ariza_aciklama: row.ariza_aciklama,
-    planli_durus: row.planli_durus,
-    planli_durus_turu: row.planli_durus_turu,
-    planli_durus_aciklama: row.planli_durus_aciklama,
-    setup_ve_ayar: row.setup_ve_ayar,
-    setup_turu: row.setup_turu,
-    setup_aciklama: row.setup_aciklama,
-    takim_degisimi: row.takim_degisimi,
-    takim_degisim_turu: row.takim_degisim_turu,
-    kalip_demontaj: row.kalip_demontaj,
-    kalip_demontaj_turu: row.kalip_demontaj_turu,
-    kalip_montaj: row.kalip_montaj,
-    kalip_montaj_turu: row.kalip_montaj_turu,
-    calisan_makine_sayisi: row.calisan_makine_sayisi,
-    calisan_makine_aciklama: row.calisan_makine_aciklama,
-    onceki_istasyon_bekleme: row.onceki_istasyon_bekleme,
-    musteri_kaynakli_durus: row.musteri_kaynakli_durus,
-    musteri_durus_turu: row.musteri_durus_turu,
-    musteri_durus_aciklama: row.musteri_durus_aciklama,
-    kalite_kaynakli_durus: row.kalite_kaynakli_durus,
-  }));
+  const rows = data.rows.map((row) => {
+    const r: any = {
+      record_id: record.id,
+      sira_no: row.sira_no,
+      zaman_dilimi: row.zaman_dilimi,
+      hedef_uretim_adeti: row.hedef_uretim_adeti,
+      uretim_adeti: row.uretim_adeti,
+      musteri_var: row.musteri_var,
+      mola: row.mola,
+      mola_turu: row.mola_turu,
+      ariza: row.ariza,
+      ariza_turu: row.ariza_turu,
+      ariza_aciklama: row.ariza_aciklama,
+      planli_durus: row.planli_durus,
+      planli_durus_turu: row.planli_durus_turu,
+      planli_durus_aciklama: row.planli_durus_aciklama,
+      setup_ve_ayar: row.setup_ve_ayar,
+      setup_turu: row.setup_turu,
+      setup_aciklama: row.setup_aciklama,
+      takim_degisimi: row.takim_degisimi,
+      takim_degisim_turu: row.takim_degisim_turu,
+      kalip_demontaj: row.kalip_demontaj,
+      kalip_demontaj_turu: row.kalip_demontaj_turu,
+      kalip_montaj: row.kalip_montaj,
+      kalip_montaj_turu: row.kalip_montaj_turu,
+      onceki_istasyon_bekleme: row.onceki_istasyon_bekleme,
+      musteri_kaynakli_durus: row.musteri_kaynakli_durus,
+      musteri_durus_turu: row.musteri_durus_turu,
+      musteri_durus_aciklama: row.musteri_durus_aciklama,
+      kalite_kaynakli_durus: row.kalite_kaynakli_durus,
+    };
+
+    if (["ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(data.bolum || "")) {
+      r.calisan_makine_sayisi = row.calisan_makine_sayisi;
+      r.calisan_makine_aciklama = row.calisan_makine_aciklama;
+    }
+
+    return r;
+  });
 
   const { error: rowsError } = await supabase
     .from("manuf_production_rows")
@@ -158,4 +165,24 @@ export async function loadProductionSumByDateRange(startDate: string, endDate: s
   });
 
   return sumByCell;
+}
+
+export async function saveSuggestion(bolum: string, onerisi: string) {
+  if (!bolum || !onerisi?.trim()) {
+    return { success: false, error: "Hücre seçimi ve öneri açıklaması zorunludur." };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_suggestions")
+    .insert({
+      bolum,
+      onerisi: onerisi.trim()
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  return { success: true, id: data.id };
 }
