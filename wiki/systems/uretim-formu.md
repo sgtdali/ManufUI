@@ -49,7 +49,7 @@ Her satırda şu alanlar bulunur (Seçili hücreye göre kolonlar dinamikleşir)
 | Bir Önceki İstasyon Bekleme | `onceki_istasyon_bekleme` | Dakika, alt tür yok | Tüm |
 | Müşteri Kaynaklı Duruş | `musteri_kaynakli_durus` + `musteri_durus_turu` + `musteri_durus_aciklama` | Dakika + alt tür + açıklama | Tüm |
 | Kalite Kaynaklı Duruş | `kalite_kaynakli_durus` | Dakika, alt tür yok | Tüm |
-| Hedef Üretim | `hedef_uretim_adeti` | Sağ sütunda | Tüm |
+| Hedef Üretim | `hedef_uretim_adeti` | Sağ sütunda. Pres, ETM, ROB104 ve ROB108 hücrelerinde cuma ve cumartesi günleri hariç varsayılan olarak `20` değerini alır ve salt okunurdur. | Tüm |
 
 Duruş alt türleri detayları için bkz. [Duruşlar](duruslar.md).
 
@@ -100,13 +100,23 @@ Duruş süresi > 0 girilmişse ilgili `*_turu` alanı dolu olmalı:
 - Çalışan makine sayısı sınırın (ETM: 2, ROB104: 2, ROB108: 6, ROB109: 2) altındaysa → `calisan_makine_aciklama` zorunlu
 - `musteri_durus_turu` seçilmişse → `musteri_durus_aciklama` zorunlu
 
-### Hedef/Gerçekleşen Fark Validasyonu
+### Hedef/Gerçekleşen Fark Validasyonu & Kademeli Kayıt (Progressive Validation)
 `validateTargetDowntime` (`src/lib/productionValidation.ts`):
 - Hedef > Gerçekleşen ise eksik adet için duruş girilmeli.
+- **Kademeli Doğrulama Kuralları:**
+  - Formun gün içinde (örneğin saatlik veri girişleri sırasında) kaydedilebilmesi için validasyon sadece en son doldurulmuş satıra (`lastActiveIndex`) kadar yapılır.
+  - Bir satırın aktif (veri girilmiş) sayılması için üretim adetinin doldurulmuş olması (`uretim_adeti !== null`) veya duruş sürelerinden en az birinin girilmiş olması (`enteredDowntime > 0`) gerekir. "Müşteri Var" seçeneği bu aktiflik kontrolünün dışındadır.
+  - Son aktif satırdan sonra gelen gelecek saatler doğrulamadan muaf tutulur.
+  - Kullanıcı arada bir saati boş geçip altındaki saatleri doldurursa, atlanan satır son aktif satırdan önce kaldığı için validasyon hatası üretilir.
 - Gerekli dakika hesabı:
   - Standart hücreler (saatlik): `ceil(eksikAdet × (60 / hedef))`
   - **Quench Hücresi** (günlük): Zaman dilimi `"Günlük"` olduğu için vardiya süresi baz alınır. Hafta içi `540` dakika, Cuma-Cumartesi `480` dakika kullanılarak hesaplama yapılır: `ceil(eksikAdet × (vardiyaSüresi / hedef))`.
 - Girilen toplam duruş dakikası bu değerin altındaysa kayıt reddedilir. (Kalıp Demontaj ve Kalıp Montaj dakikaları da toplam girilen duruşa dahildir.)
+
+### Kalan Süre Rozetlerinin Gösterimi (`ProductionTable.tsx`)
+- Arayüzdeki "Kalan Süre" rozetleri de kademeli validasyon mantığıyla çalışır:
+  - **Doğrulanan Satırlar (Dizini <= `lastActiveIndex` olanlar):** Aralardaki atlanmış boş satırlar da dahil olmak üzere, bu aralıktaki tüm satırlarda kalan duruş süresi hesaplanır ve eksik girildiyse kırmızı renkli `"Kalan X dk"` rozetiyle kullanıcı uyarılır.
+  - **Doğrulanmayan Satırlar (Gelecek Saatler):** Son aktif satırdan sonra gelen tüm satırlar için rozet alanı nötr gri renkte ve `-` (tire) simgesiyle gösterilir.
 
 ### Duruş Süresi Giriş Sınırları
 - Standart saatlik satırlar için her bir duruş alanı maksimum **60 dakika** ile sınırlıdır.
@@ -118,3 +128,4 @@ Duruş süresi > 0 girilmişse ilgili `*_turu` alanı dolu olmalı:
 
 - **Yenile**: Manuel yeniden yükleme
 - **Dashboard**: `/dashboard` OEE sayfasına yönlendirme linki (Excel'e Aktar ve Performans Paneli butonları kaldırılmıştır)
+- **Öneri Kayıt**: Tıklandığında `OneriKayitDialog` popup penceresini açar. Kullanıcıdan bir hücre seçmesi (formdakinden bağımsız) ve öneri girmesi istenir. Her iki alanın da doldurulması mecburi olup, veriler `saveSuggestion` server action'ı vasıtasıyla `manuf_suggestions` tablosuna kaydedilir.

@@ -52,13 +52,27 @@ export function getEnteredDowntimeMinutes(row: ProductionRow) {
 export function validateTargetDowntime(data: ProductionFormData) {
   const issues: TargetDowntimeIssue[] = [];
 
-  data.rows.forEach((row) => {
+  // Find the last index of a row that has user input (uretim_adeti is not null, or some downtime is entered)
+  let lastActiveIndex = -1;
+  for (let i = data.rows.length - 1; i >= 0; i--) {
+    const row = data.rows[i];
+    const hasUretim = row.uretim_adeti !== null;
+    const hasDowntime = getEnteredDowntimeMinutes(row) > 0;
+    if (hasUretim || hasDowntime) {
+      lastActiveIndex = i;
+      break;
+    }
+  }
+
+  // Validate only rows from index 0 up to lastActiveIndex
+  for (let i = 0; i <= lastActiveIndex; i++) {
+    const row = data.rows[i];
     const hedef = positiveNumber(row.hedef_uretim_adeti);
-    if (hedef <= 0) return;
+    if (hedef <= 0) continue;
 
     const uretim = positiveNumber(row.uretim_adeti);
     const gerekliDakika = getRequiredDowntimeMinutes(row, data.bolum, data.tarih);
-    if (gerekliDakika <= 0) return;
+    if (gerekliDakika <= 0) continue;
 
     const girilenDakika = getEnteredDowntimeMinutes(row);
     if (girilenDakika < gerekliDakika) {
@@ -71,7 +85,7 @@ export function validateTargetDowntime(data: ProductionFormData) {
         girilenDakika,
       });
     }
-  });
+  }
 
   return issues;
 }

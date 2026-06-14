@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-12
+updated: 2026-06-14
 sources: [supabase/migrations/, src/app/actions.ts, src/app/ariza/actions.ts]
 ---
 
@@ -151,6 +151,17 @@ Gantt planlama ve simülasyon ekranındaki günlük elle girilen overrides (vard
 | updated_at | timestamptz | — |
 
 **Unique constraint**: `(tarih, bolum)`.
+
+## manuf_suggestions
+
+Kullanıcılar tarafından form ekranındaki "Öneri Kayıt" butonu aracılığıyla girilen öneriler.
+
+| Kolon | Tip | Açıklama |
+|-------|-----|----------|
+| id | uuid | PK |
+| bolum | text | Seçilen hücre adı |
+| onerisi | text | Girilen öneri metni |
+| created_at | timestamptz | Oluşturulma tarihi |
 
 ## İlgili Sayfalar
 

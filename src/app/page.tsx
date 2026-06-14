@@ -32,12 +32,21 @@ import { OneriKayitDialog } from "./_components/OneriKayitDialog";
 
 function buildEmptyRows(
   zamanDilimleri: ZamanDilimi[] = ZAMAN_DILIMLERI,
-  bolum?: string
+  bolum?: string,
+  tarih?: string
 ): ProductionFormData["rows"] {
+  const isTargetDefault20 = bolum && ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi"].includes(bolum);
+  let isWeekend = false;
+  if (tarih) {
+    const day = new Date(`${tarih}T00:00:00`).getDay();
+    isWeekend = (day === 5 || day === 6);
+  }
+  const defaultTarget = (isTargetDefault20 && !isWeekend) ? 20 : null;
+
   return zamanDilimleri.map((z) => ({
     sira_no: z.sira_no,
     zaman_dilimi: z.label,
-    hedef_uretim_adeti: null,
+    hedef_uretim_adeti: defaultTarget,
     uretim_adeti: null,
     musteri_var: false,
     mola: null,
@@ -72,6 +81,11 @@ function applyRecordToForm(
   bolum: string,
   tarih: string
 ): ProductionFormData {
+  const isTargetDefault20 = ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi"].includes(bolum);
+  const day = new Date(`${tarih}T00:00:00`).getDay();
+  const isWeekend = (day === 5 || day === 6);
+  const isTargetReadOnly = isTargetDefault20 && !isWeekend;
+
   const rows = (record.manuf_production_rows as Record<string, unknown>[] ?? []);
   const loadedRows =
     rows.length > 0
@@ -84,10 +98,11 @@ function applyRecordToForm(
           )
           .map((found, index) => {
             const row = found as Record<string, number | string | boolean | null>;
+            const targetVal = isTargetReadOnly ? 20 : (row.hedef_uretim_adeti as number | null);
             return {
               sira_no: (row.sira_no as number | null) ?? index + 1,
               zaman_dilimi: (row.zaman_dilimi as string | null) ?? "",
-              hedef_uretim_adeti: row.hedef_uretim_adeti as number | null,
+              hedef_uretim_adeti: targetVal,
               uretim_adeti: row.uretim_adeti as number | null,
               musteri_var: row.musteri_var === true,
               mola: row.mola as number | null,
@@ -116,7 +131,7 @@ function applyRecordToForm(
               kalite_kaynakli_durus: row.kalite_kaynakli_durus as number | null,
             };
           })
-      : buildEmptyRows(getZamanDilimleriForCellAndDate(bolum, tarih), bolum);
+      : buildEmptyRows(getZamanDilimleriForCellAndDate(bolum, tarih), bolum, tarih);
   return {
     bolum,
     sorumlu: (record.sorumlu as string) ?? "",
@@ -134,7 +149,7 @@ export default function ProductionFormPage() {
         bolum: "",
         sorumlu: "",
         tarih: today,
-        rows: buildEmptyRows(getZamanDilimleriForCellAndDate(undefined, today)),
+        rows: buildEmptyRows(getZamanDilimleriForCellAndDate(undefined, today), undefined, today),
       },
     });
 
@@ -178,7 +193,7 @@ export default function ProductionFormPage() {
           bolum,
           sorumlu: BOLUM_SORUMLU[bolum] ?? "",
           tarih,
-          rows: buildEmptyRows(getZamanDilimleriForCellAndDate(bolum, tarih), bolum),
+          rows: buildEmptyRows(getZamanDilimleriForCellAndDate(bolum, tarih), bolum, tarih),
         });
       }
     });
@@ -200,7 +215,7 @@ export default function ProductionFormPage() {
         bolum,
         sorumlu: BOLUM_SORUMLU[bolum] ?? "",
         tarih,
-        rows: buildEmptyRows(getZamanDilimleriForDate(tarih), bolum),
+        rows: buildEmptyRows(getZamanDilimleriForDate(tarih), bolum, tarih),
       });
       return;
     }

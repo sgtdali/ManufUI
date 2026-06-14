@@ -23,6 +23,7 @@ import {
   getEnteredDowntimeMinutes,
   getRequiredDowntimeMinutes,
 } from "@/lib/productionValidation";
+import { cn } from "@/lib/utils";
 
 type Props = {
   register: UseFormRegister<ProductionFormData>;
@@ -54,6 +55,28 @@ export function ProductionTable({
   bolum,
   tarih,
 }: Props) {
+  const isTargetDefault20 = bolum && ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi"].includes(bolum);
+  let isWeekend = false;
+  if (tarih) {
+    const day = new Date(`${tarih}T00:00:00`).getDay();
+    isWeekend = (day === 5 || day === 6);
+  }
+  const isTargetReadOnly = !!(isTargetDefault20 && !isWeekend);
+
+  // Find the last index of a row that has user input
+  let lastActiveIndex = -1;
+  if (watchedRows) {
+    for (let idx = watchedRows.length - 1; idx >= 0; idx--) {
+      const r = watchedRows[idx];
+      const hasUretim = r.uretim_adeti !== null;
+      const enteredDowntime = getEnteredDowntimeMinutes(r);
+      if (hasUretim || enteredDowntime > 0) {
+        lastActiveIndex = idx;
+        break;
+      }
+    }
+  }
+
   const visibleColumns = DURUS_KOLONLARI.filter((column) => {
     if (bolum === "Pres Hücresi") {
       return column.key !== "takim_degisimi";
@@ -151,9 +174,26 @@ export function ProductionTable({
                         />
                         {(() => {
                           const r = watchedRows?.[i];
-                          const requiredDowntime = r ? getRequiredDowntimeMinutes(r, bolum, tarih) : 0;
+                          const hasUretim = r && r.uretim_adeti !== null;
                           const enteredDowntime = r ? getEnteredDowntimeMinutes(r) : 0;
+                          const isTouched = hasUretim || enteredDowntime > 0;
+                          const isValidated = i <= lastActiveIndex;
+
+                          const requiredDowntime = (isValidated || isTouched) && r
+                            ? getRequiredDowntimeMinutes(r, bolum, tarih)
+                            : 0;
                           const remainingDowntime = Math.max(requiredDowntime - enteredDowntime, 0);
+
+                          if (!isValidated && !isTouched) {
+                            return (
+                              <span
+                                className="inline-flex h-8 min-w-20 items-center justify-center rounded border border-zinc-200 bg-zinc-50 text-zinc-400 text-[10px] font-bold uppercase tracking-wider"
+                                title="Henüz veri girilmedi"
+                              >
+                                -
+                              </span>
+                            );
+                          }
 
                           return (
                             <span
@@ -290,6 +330,7 @@ export function ProductionTable({
                                 "ETM Hücresi",
                                 "ROB104 Hücresi",
                                 "ROB105 Hücresi",
+                                "ROB108 Hücresi",
                                 "Flowform Hücresi",
                                 "N602 Hücresi",
                                 "N603 Hücresi",
@@ -336,7 +377,11 @@ export function ProductionTable({
                       <Input
                         type="number"
                         min={0}
-                        className="h-8 text-center w-20 mx-auto text-xs font-semibold"
+                        readOnly={isTargetReadOnly}
+                        className={cn(
+                          "h-8 text-center w-20 mx-auto text-xs font-semibold",
+                          isTargetReadOnly && "bg-zinc-100 cursor-not-allowed select-none opacity-80"
+                        )}
                         placeholder=""
                         {...register(`rows.${i}.hedef_uretim_adeti`, {
                           setValueAs: toNum,

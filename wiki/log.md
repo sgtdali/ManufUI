@@ -5,12 +5,25 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
-## [2026-06-14] update | Ana Form Ekranından Butonların Kaldırılması ve Dashboardy Varsayılan Tarih Aralığı
+## [2026-06-14] update | Hedef Üretim Özelleştirmesi ve Kademeli/İlerici Validasyon Sistemi
+
+**Yapılanlar:**
+- **Hedef Üretim Özelleştirmesi:** Pres, ETM, ROB104 ve ROB108 hücreleri için hedef üretim adeti cuma ve cumartesi günleri hariç her saat için varsayılan olarak `20` yapıldı ve bu giriş alanları salt okunur (read-only) yapılarak görsel olarak gri arka plan ve engelli imleç (`bg-zinc-100 cursor-not-allowed`) uygulandı. Hafta sonu (cuma ve cumartesi) ise bu alanlar serbestçe girilip düzenlenebilmektedir.
+- **Kademeli Kayıt (Progressive Validation):** Kullanıcıların gün ortasında asenkron saatlik veri kaydedebilmesi için `validateTargetDowntime` fonksiyonu güncellendi. Sistem kullanıcının veri girdiği en son satırı (`lastActiveIndex`) bulur ve sadece gün başlangıcından bu satıra kadar olan satırları doğrular. Son aktif satırdan sonraki gelecek saatler doğrulamadan muaf tutulur.
+- **Aktif Satır Kriterleri:** Bir satırın aktif/touched sayılması için `uretim_adeti !== null` olması veya duruş dakikalarının girilmiş olması (`enteredDowntime > 0`) esas alındı. "Müşteri Var" checkbox'ı bu kontrolden hariç tutuldu.
+- **Kalan Süre Rozet Davranışı:** Arayüzdeki rozet gösterimi güncellendi. Doğrulanan aralıkta kalan (ve aralardaki atlanmış boş satırlar da dahil olmak üzere) tüm satırlar için hesaplanmış gerekli duruş süreleri (örn. kırmızı `Kalan X dk`) gösterilir. Son aktif satırdan sonraki gelecek saatler ise nötr gri renkte ve `-` simgesiyle gösterilir.
+- **Wiki Güncellemesi:** Yapılan tüm form, hedef ve validasyon güncellemeleri `wiki/systems/uretim-formu.md` ve `wiki/log.md` dosyalarına işlendi.
+
+## [2026-06-14] update | Ana Form Ekranından Butonların Kaldırılması, Dashboardy Güncellemeleri ve Öneri Kayıt Sistemi
 
 **Yapılanlar:**
 - **Buton Kaldırma:** Ana günlük üretim formu üst bilgi kartından (`FormHeader.tsx`) "Excel'e Aktar" (Export to Excel) ve "Performans Paneli" (/dashboardy) butonları kaldırıldı.
-- **Varsayılan Tarih Aralığı:** Detaylı Performans Paneli (`/dashboardy`) başlangıç ve bitiş tarihleri varsayılan olarak `14.06.2026` ve `09.07.2026` olacak şekilde ayarlandı.
-- **Wiki ve Doküman Güncellemesi:** `wiki/systems/uretim-formu.md` ve `walkthrough.md` belgeleri butonların kaldırılması doğrultusunda güncellendi.
+- **Varsayılan Tarih Aralığı ve Arayüz Düzenlemeleri:** Detaylı Performans Paneli (`/dashboardy`) başlangıç ve bitiş tarihleri varsayılan olarak `14.06.2026` ve `09.07.2026` olacak şekilde ayarlandı. Genel toplam durumu kartının başlığı "Genel İlerleme Durumu" olarak güncellendi, absolute değerler (`0 / 22.000`), "Kümülatif İlerleme" yazısı ve en sağdaki `%` metin göstergeleri kaldırılarak sadece yandaki yüzde ile ilerleme çubuğu gösterildi.
+- **Planlı Duruş "Kasa Alma - Bırakma" Seçeneği:** ROB104, ROB105, ROB108, Flowform, N602 ve N603 hücreleri için "Kasa Alma - Bırakma" seçeneği planlı duruş alt türlerine eklendi (açıklama zorunluluğu yok).
+- **ROB Hücreleri Arıza Kırılımı:** ROB104, ROB108 ve ROB109 hücreleri için `Mekanik`, `Elektrik`, `Akışkan`, `Belirsiz`, `Robot`, `Talaş Arabası Dolu`, `Manuel İşlemler`, `Kesici Takım Yok`, `Bor Yağı Bitti` arıza alt kategorileri oluşturuldu. Operasyonel kategoriler açıklama zorunluluğundan muaf tutuldu.
+- **Öneri Kayıt Sistemi:** Ana form ekranına "Öneri Kayıt" butonu eklendi. Butona basılınca bağımsız hücre seçimi ve öneri girişinin yapıldığı `OneriKayitDialog` açılmakta ve veriler Supabase'deki `manuf_suggestions` tablosuna (yeni tablo) kaydedilmektedir.
+- **Kaydetme Bugfix'i:** `calisan_makine_sayisi` ve `calisan_makine_aciklama` kolonları upsert edilirken sadece makine sayısı alanı bulunan hücreler için gönderilip diğerlerinde payload'dan çıkartılarak "schema cache" hatalarının önüne geçildi.
+- **Wiki Güncellemeleri:** Tüm yapılan geliştirmeler ilgili wiki belgelerine (`uretim-formu.md`, `duruslar.md`, `db-tablolari.md`) işlenerek güncellendi.
 
 ## [2026-06-13] update | Pres Arıza "Hidrolik Yağ Sıcaklık Alarmı" Alt Kategorisi
 
