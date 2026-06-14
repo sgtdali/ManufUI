@@ -180,18 +180,14 @@ export default function DashboardyPage() {
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-200/80 bg-indigo-800/40 px-2.5 py-1 rounded-full border border-indigo-700/50">
-                Genel Toplam Durumu
+                Genel İlerleme Durumu
               </span>
               <h2 className="text-3xl font-extrabold tracking-tight mt-3">
-                {totalProduction.toLocaleString("tr-TR")} <span className="text-indigo-300 font-light text-xl">/ {totalTarget.toLocaleString("tr-TR")}</span>
+                %{overallPercentage}
               </h2>
             </div>
 
             <div className="flex-1 max-w-md">
-              <div className="flex items-center justify-between text-xs font-bold mb-2">
-                <span className="text-indigo-200">Kümülatif İlerleme</span>
-                <span className="text-indigo-100">{overallPercentage}%</span>
-              </div>
               <div className="h-3 w-full bg-indigo-950/80 rounded-full overflow-hidden border border-indigo-800/30 p-[2px]">
                 <div 
                   className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full transition-all duration-500 ease-out"
