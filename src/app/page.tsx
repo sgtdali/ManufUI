@@ -86,52 +86,67 @@ function applyRecordToForm(
   const isWeekend = (day === 5 || day === 6);
   const isTargetReadOnly = isTargetDefault20 && !isWeekend;
 
-  const rows = (record.manuf_production_rows as Record<string, unknown>[] ?? []);
-  const loadedRows =
-    rows.length > 0
-      ? rows
-          .slice()
-          .sort(
-            (a, b) =>
-              ((a.sira_no as number | null) ?? 0) -
-              ((b.sira_no as number | null) ?? 0)
-          )
-          .map((found, index) => {
-            const row = found as Record<string, number | string | boolean | null>;
-            const targetVal = isTargetReadOnly ? 20 : (row.hedef_uretim_adeti as number | null);
-            return {
-              sira_no: (row.sira_no as number | null) ?? index + 1,
-              zaman_dilimi: (row.zaman_dilimi as string | null) ?? "",
-              hedef_uretim_adeti: targetVal,
-              uretim_adeti: row.uretim_adeti as number | null,
-              musteri_var: row.musteri_var === true,
-              mola: row.mola as number | null,
-              mola_turu: row.mola_turu as string | null,
-              ariza: row.ariza as number | null,
-              ariza_turu: row.ariza_turu as string | null,
-              ariza_aciklama: row.ariza_aciklama as string | null,
-              planli_durus: row.planli_durus as number | null,
-              planli_durus_turu: row.planli_durus_turu as string | null,
-              planli_durus_aciklama: row.planli_durus_aciklama as string | null,
-              setup_ve_ayar: row.setup_ve_ayar as number | null,
-              setup_turu: row.setup_turu as string | null,
-              setup_aciklama: row.setup_aciklama as string | null,
-              takim_degisimi: row.takim_degisimi as number | null,
-              takim_degisim_turu: row.takim_degisim_turu as string | null,
-              kalip_demontaj: row.kalip_demontaj as number | null,
-              kalip_demontaj_turu: row.kalip_demontaj_turu as string | null,
-              kalip_montaj: row.kalip_montaj as number | null,
-              kalip_montaj_turu: row.kalip_montaj_turu as string | null,
-              calisan_makine_sayisi: (row.calisan_makine_sayisi as number | null) ?? ((bolum && MAKINE_SAYISI_DEFAULTS[bolum]) !== undefined ? MAKINE_SAYISI_DEFAULTS[bolum] : null),
-              calisan_makine_aciklama: row.calisan_makine_aciklama as string | null,
-              onceki_istasyon_bekleme: row.onceki_istasyon_bekleme as number | null,
-              musteri_kaynakli_durus: row.musteri_kaynakli_durus as number | null,
-              musteri_durus_turu: row.musteri_durus_turu as string | null,
-              musteri_durus_aciklama: row.musteri_durus_aciklama as string | null,
-              kalite_kaynakli_durus: row.kalite_kaynakli_durus as number | null,
-            };
-          })
-      : buildEmptyRows(getZamanDilimleriForCellAndDate(bolum, tarih), bolum, tarih);
+  const dbRows = (record.manuf_production_rows as Record<string, unknown>[] ?? []);
+  const expectedSlots = getZamanDilimleriForCellAndDate(bolum, tarih);
+
+  // DB'de kayıtlı satırları zaman_dilimi label'ına göre map'le
+  const dbRowByLabel = new Map<string, Record<string, number | string | boolean | null>>();
+  for (const r of dbRows) {
+    const row = r as Record<string, number | string | boolean | null>;
+    const label = row.zaman_dilimi as string | null;
+    if (label) dbRowByLabel.set(label, row);
+  }
+
+  const mapDbRow = (row: Record<string, number | string | boolean | null>, slotIndex: number, slotLabel: string, siraNo: number): ProductionRow => {
+    const targetVal = isTargetReadOnly ? 20 : (row.hedef_uretim_adeti as number | null);
+    return {
+      sira_no: siraNo,
+      zaman_dilimi: slotLabel,
+      hedef_uretim_adeti: targetVal,
+      uretim_adeti: row.uretim_adeti as number | null,
+      musteri_var: row.musteri_var === true,
+      mola: row.mola as number | null,
+      mola_turu: row.mola_turu as string | null,
+      ariza: row.ariza as number | null,
+      ariza_turu: row.ariza_turu as string | null,
+      ariza_aciklama: row.ariza_aciklama as string | null,
+      planli_durus: row.planli_durus as number | null,
+      planli_durus_turu: row.planli_durus_turu as string | null,
+      planli_durus_aciklama: row.planli_durus_aciklama as string | null,
+      setup_ve_ayar: row.setup_ve_ayar as number | null,
+      setup_turu: row.setup_turu as string | null,
+      setup_aciklama: row.setup_aciklama as string | null,
+      takim_degisimi: row.takim_degisimi as number | null,
+      takim_degisim_turu: row.takim_degisim_turu as string | null,
+      kalip_demontaj: row.kalip_demontaj as number | null,
+      kalip_demontaj_turu: row.kalip_demontaj_turu as string | null,
+      kalip_montaj: row.kalip_montaj as number | null,
+      kalip_montaj_turu: row.kalip_montaj_turu as string | null,
+      calisan_makine_sayisi: (row.calisan_makine_sayisi as number | null) ?? ((bolum && MAKINE_SAYISI_DEFAULTS[bolum]) !== undefined ? MAKINE_SAYISI_DEFAULTS[bolum] : null),
+      calisan_makine_aciklama: row.calisan_makine_aciklama as string | null,
+      onceki_istasyon_bekleme: row.onceki_istasyon_bekleme as number | null,
+      musteri_kaynakli_durus: row.musteri_kaynakli_durus as number | null,
+      musteri_durus_turu: row.musteri_durus_turu as string | null,
+      musteri_durus_aciklama: row.musteri_durus_aciklama as string | null,
+      kalite_kaynakli_durus: row.kalite_kaynakli_durus as number | null,
+    };
+  };
+
+  let loadedRows: ProductionRow[];
+  if (dbRows.length > 0) {
+    // Beklenen her slot için DB'den satırı al; yoksa boş satır oluştur
+    const emptySlots = buildEmptyRows(expectedSlots, bolum, tarih);
+    loadedRows = expectedSlots.map((slot, i) => {
+      const dbRow = dbRowByLabel.get(slot.label);
+      if (dbRow) {
+        return mapDbRow(dbRow, i, slot.label, slot.sira_no);
+      }
+      return emptySlots[i];
+    });
+  } else {
+    loadedRows = buildEmptyRows(expectedSlots, bolum, tarih);
+  }
+
   return {
     bolum,
     sorumlu: (record.sorumlu as string) ?? "",
