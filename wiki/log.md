@@ -5,6 +5,16 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-15] update | ETM ve Flowform Hücreleri Uzatılmış Saat Dilimleri
+
+**Yapılanlar:**
+- **ETM ve Flowform Hücresi Saat Uzatması:** Pazartesi–Perşembe günleri bu iki hücre için `17:00–18:00`, `18:00–19:00`, `19:00–20:00`, `20:00–21:00` saat dilimleri forma eklendi. Cuma ve Cumartesi günleri eski davranış korundu (8 satır). Toplam Pazartesi–Perşembe: 13 satır.
+- **`ETM_FLOWFORM_UZATILMIS_ZAMAN_DILIMLERI` sabiti** `src/lib/types.ts`'e eklendi; mevcut `ZAMAN_DILIMLERI` (9 slot) üzerine 4 ek slot spread ile oluşturuldu.
+- **`getZamanDilimleriForCellAndDate` güncellendi:** ETM veya Flowform + hafta içi koşulunda uzatılmış listeyi döndürür; diğer hücreler ve Cuma/Cumartesi etkilenmez.
+- **Slot merge fix (`applyRecordToForm`):** Eski 9-satırlık kayıtlar yüklenirken beklenen slot listesiyle merge edilir. DB'de olmayan yeni slotlar (17:00–21:00) boş satır olarak eklenir, mevcut veriler korunur. Böylece bugünkü girilmiş veriler kaybolmaz, yeni slotlar da forma dahil olur.
+
+---
+
 ## [2026-06-14] update | Hedef Üretim Özelleştirmesi ve Kademeli/İlerici Validasyon Sistemi
 
 **Yapılanlar:**
