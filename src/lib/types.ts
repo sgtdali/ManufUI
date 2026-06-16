@@ -128,6 +128,14 @@ export const ETM_FLOWFORM_UZATILMIS_ZAMAN_DILIMLERI: ZamanDilimi[] = [
   { sira_no: 13, label: "20:00 - 21:00" },
 ];
 
+export const FLOWFORM_GECE_UZATILMIS_ZAMAN_DILIMLERI: ZamanDilimi[] = [
+  ...ETM_FLOWFORM_UZATILMIS_ZAMAN_DILIMLERI,
+  { sira_no: 14, label: "21:00 - 22:00" },
+  { sira_no: 15, label: "22:00 - 23:00" },
+  { sira_no: 16, label: "23:00 - 24:00" },
+  { sira_no: 17, label: "24:00 - 01:00" },
+];
+
 export const CUMA_CUMARTESI_ZAMAN_DILIMLERI: ZamanDilimi[] = [
   { sira_no: 1, label: "09:00 - 10:00" },
   { sira_no: 2, label: "10:00 - 11:00" },
@@ -160,7 +168,9 @@ export function getZamanDilimleriForCellAndDate(bolum: string | null | undefined
     if (tarih && /^\d{4}-\d{2}-\d{2}$/.test(tarih)) {
       const day = new Date(`${tarih}T00:00:00`).getDay();
       if (day !== 5 && day !== 6) {
-        return ETM_FLOWFORM_UZATILMIS_ZAMAN_DILIMLERI;
+        return bolum === "Flowform Hücresi"
+          ? FLOWFORM_GECE_UZATILMIS_ZAMAN_DILIMLERI
+          : ETM_FLOWFORM_UZATILMIS_ZAMAN_DILIMLERI;
       }
     }
   }
