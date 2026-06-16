@@ -7,9 +7,9 @@ import { loadProductionSumByDateRange } from "../actions";
 const DISPLAY_CELLS = [
   "Pres Hücresi",
   "ETM Hücresi",
-  "ROB104 Hücresi",
   "ROB108 Hücresi",
   "Flowform Hücresi",
+  "ROB104 Hücresi",
   "N602-N603 Hücresi",
   "ROB109 Hücresi",
   "Quench Hücresi",
