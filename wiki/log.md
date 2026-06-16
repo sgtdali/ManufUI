@@ -5,6 +5,14 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-16] update | Dashboardy Hücre Sırası ve Varsayılan Tarih Güncellemesi
+
+**Yapılanlar:**
+- **ROB104 Satır Sırası:** `/dashboardy` sayfasındaki `DISPLAY_CELLS` dizisinde ROB104 Hücresi, ETM'nin altından Flowform ile N602-N603 arasına taşındı. Yeni sıra: Pres → ETM → ROB108 → Flowform → ROB104 → N602-N603 → ...
+- **Varsayılan Başlangıç Tarihi:** Dashboardy sayfasının varsayılan başlangıç tarihi `2026-06-14`'ten `2026-06-13`'e güncellendi.
+
+---
+
 ## [2026-06-15] update | ETM ve Flowform Hücreleri Uzatılmış Saat Dilimleri
 
 **Yapılanlar:**
