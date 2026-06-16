@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 export default function DashboardyPage() {
-  const [startDate, setStartDate] = useState<string>("2026-06-14");
+  const [startDate, setStartDate] = useState<string>("2026-06-13");
   const [endDate, setEndDate] = useState<string>("2026-07-09");
 
   const [data, setData] = useState<Record<string, number>>({});
