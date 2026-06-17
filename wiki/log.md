@@ -5,6 +5,14 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-17] update | Arıza Detay Sayfası Tarih Filtreleme Entegrasyonu
+
+**Yapılanlar:**
+- **Tarih Filtreleri:** Arıza detay sayfasına (`/ariza`) başlangıç (`startDate`) ve bitiş (`endDate`) tarih filtreleri eklendi.
+- **Varsayılan Başlangıç Tarihi:** Başlangıç tarihi varsayılan olarak `13.06.2026` (`2026-06-13`) olarak ayarlandı.
+- **Filtre Sıfırlama:** "Temizle" butonuna tıklandığında tarih filtrelerinin de varsayılan ayarlara (`startDate: 13.06.2026`, `endDate: empty`) dönmesi sağlandı.
+- **Wiki Güncellemesi:** `wiki/systems/ariza-sistemi.md` belgesi ve `wiki/log.md` logu yeni özelliklerle güncellendi.
+
 ## [2026-06-16] update | Dashboardy Hücre Sırası ve Varsayılan Tarih Güncellemesi
 
 **Yapılanlar:**

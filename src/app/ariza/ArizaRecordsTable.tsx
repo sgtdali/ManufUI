@@ -47,6 +47,8 @@ export function ArizaRecordsTable({ details }: { details: ArizaDetail[] }) {
   const [department, setDepartment] = useState("all");
   const [type, setType] = useState("all");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [startDate, setStartDate] = useState("2026-06-13");
+  const [endDate, setEndDate] = useState("");
   const [selectedDetail, setSelectedDetail] = useState<ArizaDetail | null>(null);
   const [comment, setComment] = useState("");
   const [rows, setRows] = useState(details);
@@ -71,6 +73,9 @@ export function ArizaRecordsTable({ details }: { details: ArizaDetail[] }) {
         (status === "resolved" && detail.giderildi);
       const departmentMatch = department === "all" || detail.bolum === department;
       const typeMatch = type === "all" || detail.tur === type;
+      const dateMatch =
+        (!startDate || detail.tarih >= startDate) &&
+        (!endDate || detail.tarih <= endDate);
       const text = [
         detail.tarih,
         detail.bolum,
@@ -87,16 +92,19 @@ export function ArizaRecordsTable({ details }: { details: ArizaDetail[] }) {
         statusMatch &&
         departmentMatch &&
         typeMatch &&
+        dateMatch &&
         (!normalizedSearch || text.includes(normalizedSearch))
       );
     });
-  }, [department, rows, search, status, type]);
+  }, [department, rows, search, status, type, startDate, endDate]);
 
   const clearFilters = () => {
     setSearch("");
     setDepartment("all");
     setType("all");
     setStatus("all");
+    setStartDate("2026-06-13");
+    setEndDate("");
   };
 
   const openResolveDialog = (detail: ArizaDetail) => {
@@ -177,9 +185,9 @@ export function ArizaRecordsTable({ details }: { details: ArizaDetail[] }) {
         </span>
       </div>
 
-      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
+      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Input
-          placeholder="Tarih, bölüm, sorumlu, açıklama ara..."
+          placeholder="Bölüm, sorumlu, açıklama ara..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -216,7 +224,28 @@ export function ArizaRecordsTable({ details }: { details: ArizaDetail[] }) {
           <option value="open">Giderilmedi</option>
           <option value="resolved">Giderildi</option>
         </select>
-        <Button type="button" variant="outline" onClick={clearFilters}>
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-zinc-500">Başlangıç:</span>
+          <Input
+            type="date"
+            className="h-8 w-40 text-xs"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-zinc-500">Bitiş:</span>
+          <Input
+            type="date"
+            className="h-8 w-40 text-xs"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={clearFilters} className="ml-auto h-8 text-xs">
           Temizle
         </Button>
       </div>
