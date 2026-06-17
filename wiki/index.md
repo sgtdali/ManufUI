@@ -16,6 +16,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [Duruşlar](systems/duruslar.md) | Tüm duruş kolonları, alt tür kodları (M1/M2, E/A/M/O, P1-P3, SA1-SA2, MKB1-3), validasyon kuralları |
 | [Arıza Sistemi](systems/ariza-sistemi.md) | `/ariza` sayfası: veri yapısı, mevcut görünüm, eksik trend/öngörü özellikleri, reaktif→proaktif hedef |
 | [Planlama Sistemi](systems/planlama-sistemi.md) | `/schedule` sayfası: 4 haftada 2000 parça hedefi, kayıp sebepleri, Pres simülasyonu, eksik hücreler ve haftalık analiz isteği |
+| [Performans Paneli](systems/performans-paneli.md) | `/dashboardy` sayfası: Seçilen tarih aralığında hücre bazlı üretim hedeflerinin izlenmesi ve hücre özelinde hedeflenen miktarların hesaplanması |
 
 ## Entities — Varlıklar ve Veri Yapıları
 
@@ -35,7 +36,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 **Sayfalar ve rotaları:**
 - `/` → Günlük üretim formu
 - `/dashboard` → Dashboard (henüz incelenmedi)
-- `/dashboardy` → Detaylı kümülatif performans ve hedef izleme paneli
+- `/dashboardy` → [Detaylı Performans Paneli](systems/performans-paneli.md)
 - `/schedule` → Pres simülasyonu ve planlama
 - `/schedule/overview` → WIP hücre görünümü
 - `/ariza` → Arıza takibi ve giderme

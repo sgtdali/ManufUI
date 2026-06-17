@@ -5,6 +5,25 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-17] update | Performans Paneli Hücre Başlangıç Tarihleri ve Hedeflenen Miktar Entegrasyonu
+
+**Yapılanlar:**
+- **Hücre Özelinde Başlangıç Tarihleri:** Detaylı Performans Paneli (`/dashboardy`) üzerinde her hücrenin kümülatif hedef takibine başlama tarihleri özelleştirildi:
+  - Pres Hücresi: `14.06.2026`
+  - ROB108 Hücresi: `15.06.2026`
+  - Flowform Hücresi: `15.06.2026`
+  - ROB104 Hücresi: `16.06.2026`
+  - N602-N603 Hücresi: `16.06.2026`
+  - ROB109 Hücresi: `17.06.2026`
+  - Quench Hücresi: `17.06.2026`
+  - ROB110-111 Hücresi: `18.06.2026`
+  - Fosfat Hücresi: `18.06.2026`
+  - Boya Hücresi: `21.06.2026`
+- **Hedeflenen Miktar Sütunu:** Tabloya "Hedeflenen Miktar" kolonu eklenerek, seçilen hücrenin başlangıç tarihinden bugüne kadar olan hafta içi gün sayısı (Saudi Arabistan çalışma günleri: Pazar-Perşembe, Cuma ve Cumartesi hariç) * 100 adet hesabı ile dinamik hedef gösterimi sağlandı.
+- **Wiki Güncellemesi:** Yeni eklenen `wiki/systems/performans-paneli.md` dokümanı ve `wiki/index.md` dizini bu bilgilerle güncellendi.
+
+---
+
 ## [2026-06-17] update | Arıza Detay Sayfası Tarih Filtreleme Entegrasyonu
 
 **Yapılanlar:**

@@ -17,6 +17,42 @@ const DISPLAY_CELLS = [
   "Fosfat Hücresi",
   "Boya Hücresi",
 ];
+
+const CELL_START_DATES: Record<string, string> = {
+  "Pres Hücresi": "2026-06-14",
+  "ROB108 Hücresi": "2026-06-15",
+  "Flowform Hücresi": "2026-06-15",
+  "ROB104 Hücresi": "2026-06-16",
+  "N602-N603 Hücresi": "2026-06-16",
+  "ROB109 Hücresi": "2026-06-17",
+  "Quench Hücresi": "2026-06-17",
+  "ROB110-111 Hücresi": "2026-06-18",
+  "Fosfat Hücresi": "2026-06-18",
+  "Boya Hücresi": "2026-06-21",
+};
+
+function getCellStartDate(cell: string): string {
+  return CELL_START_DATES[cell] ?? "2026-06-14";
+}
+
+function getWeekdayDifference(startStr: string, endStr: string): number {
+  const start = new Date(`${startStr}T00:00:00`);
+  const end = new Date(`${endStr}T00:00:00`);
+  if (start > end) return 0;
+
+  let count = 0;
+  const current = new Date(start);
+  while (current <= end) {
+    const day = current.getDay();
+    // 5 is Friday, 6 is Saturday. Weekdays are Sunday (0) to Thursday (4).
+    if (day !== 5 && day !== 6) {
+      count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+
 import { 
   Calendar, 
   TrendingUp, 
@@ -26,6 +62,12 @@ import {
 } from "lucide-react";
 
 export default function DashboardyPage() {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
   const [startDate, setStartDate] = useState<string>("2026-06-13");
   const [endDate, setEndDate] = useState<string>("2026-07-09");
 
@@ -210,6 +252,7 @@ export default function DashboardyPage() {
                 <tr className="bg-zinc-50/70 border-b border-zinc-200/85 text-zinc-600 text-[10px] font-bold uppercase tracking-wider">
                   <th className="py-4 px-6">Hücre Adı</th>
                   <th className="py-4 px-6 text-center">Toplam Üretim / Hedef</th>
+                  <th className="py-4 px-6 text-center">Hedeflenen Miktar</th>
                   <th className="py-4 px-6">Performans (% / İlerleme)</th>
                 </tr>
               </thead>
@@ -219,6 +262,11 @@ export default function DashboardyPage() {
                     ? (data["N602 Hücresi"] ?? 0) + (data["N603 Hücresi"] ?? 0)
                     : (data[cell] ?? 0);
                   const target = 2000;
+
+                  const startDateStr = getCellStartDate(cell);
+                  const weekdayCount = getWeekdayDifference(startDateStr, todayStr);
+                  const targetedQty = weekdayCount * 100;
+
                   const percentage = Math.round((produced / target) * 100);
                   const isTargetAchieved = produced >= target;
                   
@@ -238,6 +286,9 @@ export default function DashboardyPage() {
                       <td className="py-4 px-6 text-center">
                         <span className="text-sm font-black text-zinc-800">{produced.toLocaleString("tr-TR")}</span>
                         <span className="text-xs text-zinc-400 font-medium ml-1">/ 2.000</span>
+                      </td>
+                      <td className="py-4 px-6 text-center font-bold text-sm text-[#0c0a09] bg-zinc-50/30">
+                        {targetedQty.toLocaleString("tr-TR")}
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-4 max-w-md">
