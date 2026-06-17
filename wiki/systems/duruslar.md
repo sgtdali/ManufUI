@@ -102,4 +102,5 @@ Müşteri duruş türü seçildiyse → musteri_durus_aciklama ZORUNLU
 ## İlgili Sayfalar
 
 - [Üretim Formu](uretim-formu.md) — duruş giriş ekranı ve hücreler
+- [Duruş Analiz](durus-analiz.md) — duruş tipi + alt tür bazında Pareto analizi
 - [DB Tabloları](../entities/db-tablolari.md) — `manuf_production_rows` tablosu

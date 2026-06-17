@@ -231,3 +231,14 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - Kalip ve HIP Ring degisimleri bagimsiz satirlarda gosterilebilir ve ayri ayri devre disi birakilabilir hale getirildi.
 - Kalip/Ring degisimlerinin paralel yapilmasi, kalan omur/carryover guncellemeleri, manuel kombinasyonlar ve surelerin Gantt uzerinden resize edilmesi desteklendi.
 - Gantt surukleme/boyutlandirma hesaplari, pointer capture ve kararli segment key kullanimi ile duzeltildi.
+
+## [2026-06-17] update | Duruş Analiz sayfası eklendi
+
+**Kaynak:** Kullanıcı konuşması + `src/app/durus-analiz/page.tsx`
+
+**Yapılanlar:**
+- `/durus-analiz` rotası için seçili tek hücreye odaklanan duruş Pareto analiz ekranı eklendi.
+- Hücre seçicide `FF Preform Ölçüm` hariç tutuldu.
+- Manuel başlangıç/bitiş tarihi filtresi, toplam duruş, adet, pay ve göreli Pareto barları dokümante edildi.
+- Pareto satırı seçildiğinde ilgili ham duruş kayıtlarının listelendiği sağ panel ve `Açıklama eksik` veri kalitesi rozeti belgelendi.
+- `wiki/systems/durus-analiz.md` oluşturuldu; `wiki/index.md` ve `wiki/systems/duruslar.md` bağlantıları güncellendi.

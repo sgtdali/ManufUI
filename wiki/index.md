@@ -15,6 +15,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [FF Preform Ölçüm](systems/ff-preform-olcum.md) | Ana sayfa (`/`): ROB108 - Flowform arası bağımsız 6 satırlı ölçüm formu, dinamik Red/Rework Sebepleri detay girişleri |
 | [WIP Hesabı](systems/wip-hesabi.md) | `/schedule` simülasyon motoru: pres kapasitesi, kalıp ömrü, aynı gün ETM geçişi, buildSchedule parametreleri |
 | [Duruşlar](systems/duruslar.md) | Tüm duruş kolonları, alt tür kodları (M1/M2, E/A/M/O, P1-P3, SA1-SA2, MKB1-3), validasyon kuralları |
+| [Duruş Analiz](systems/durus-analiz.md) | `/durus-analiz` sayfası: seçili tek hücre için duruş tipi + alt tür Pareto analizi, süre/adet/pay kırılımı ve kayıt listesi |
 | [Arıza Sistemi](systems/ariza-sistemi.md) | `/ariza` sayfası: veri yapısı, mevcut görünüm, eksik trend/öngörü özellikleri, reaktif→proaktif hedef |
 | [Planlama Sistemi](systems/planlama-sistemi.md) | `/schedule` sayfası: 4 haftada 2000 parça hedefi, kayıp sebepleri, Pres simülasyonu, eksik hücreler ve haftalık analiz isteği |
 | [Performans Paneli](systems/performans-paneli.md) | `/dashboardy` sayfası: Seçilen tarih aralığında hücre bazlı üretim hedeflerinin izlenmesi ve hücre özelinde hedeflenen miktarların hesaplanması |
@@ -38,6 +39,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 - `/` → Günlük üretim formu & [FF Preform Ölçüm](systems/ff-preform-olcum.md)
 - `/dashboard` → Dashboard (henüz incelenmedi)
 - `/dashboardy` → [Detaylı Performans Paneli](systems/performans-paneli.md)
+- `/durus-analiz` → [Duruş Analiz](systems/durus-analiz.md)
 - `/schedule` → Pres simülasyonu ve planlama
 - `/schedule/overview` → WIP hücre görünümü
 - `/ariza` → Arıza takibi ve giderme
