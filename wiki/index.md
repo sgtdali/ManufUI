@@ -12,6 +12,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | Sayfa | Özet |
 |-------|------|
 | [Üretim Formu](systems/uretim-formu.md) | Ana sayfa (`/`): hücre+tarih bazlı saatlik üretim ve duruş girişi, validasyon kuralları, otomatik yükleme/kaydetme akışı |
+| [FF Preform Ölçüm](systems/ff-preform-olcum.md) | Ana sayfa (`/`): ROB108 - Flowform arası bağımsız 6 satırlı ölçüm formu, dinamik Red/Rework Sebepleri detay girişleri |
 | [WIP Hesabı](systems/wip-hesabi.md) | `/schedule` simülasyon motoru: pres kapasitesi, kalıp ömrü, aynı gün ETM geçişi, buildSchedule parametreleri |
 | [Duruşlar](systems/duruslar.md) | Tüm duruş kolonları, alt tür kodları (M1/M2, E/A/M/O, P1-P3, SA1-SA2, MKB1-3), validasyon kuralları |
 | [Arıza Sistemi](systems/ariza-sistemi.md) | `/ariza` sayfası: veri yapısı, mevcut görünüm, eksik trend/öngörü özellikleri, reaktif→proaktif hedef |
@@ -34,7 +35,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 ## Hızlı Referans
 
 **Sayfalar ve rotaları:**
-- `/` → Günlük üretim formu
+- `/` → Günlük üretim formu & [FF Preform Ölçüm](systems/ff-preform-olcum.md)
 - `/dashboard` → Dashboard (henüz incelenmedi)
 - `/dashboardy` → [Detaylı Performans Paneli](systems/performans-paneli.md)
 - `/schedule` → Pres simülasyonu ve planlama

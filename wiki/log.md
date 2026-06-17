@@ -5,6 +5,19 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-17] update | FF Preform Ölçüm Bölümü ve Dinamik Red/Rework Detay Takibi Entegrasyonu
+
+**Yapılanlar:**
+- **Bölüm Tanımlaması:** Günlük üretim formuna (`/`) ROB108 ile Flowform arasına bağımsız `"FF Preform Ölçüm"` seçeneği eklendi. Sorumlusu otomatik olarak **Zeynep Ece Toker** olarak atandı.
+- **Arayüz Geliştirmesi:** Saatlik OEE tablosundan bağımsız, 6 satırdan oluşan "FF Preform Ölçüm Verisi" tablosu (Ölçülen Adet, Red Parça Sayısı, Rework Parça Sayısı) kodlandı.
+- **Dinamik Detay Tabloları:** Toplam red ve rework sayılarına göre sayfa üzerinde anında oluşan "Red Sebepleri" ve "Rework Sebepleri" tabloları eklendi. Her satırda Parça No ve Red/Rework Nedeni girişleri yapılması sağlandı.
+- **Validasyon Engeli:** Red veya Rework sayısı girilip, alt detay tablolarındaki parça no ve sebep alanları boş bırakılırsa kaydetme işlemi durdurulup kullanıcıya toast uyarı verilmesi sağlandı.
+- **Veritabanı Entegrasyonu (Supabase)**: Ölçümler, red detayları ve rework nedenleri için 3 ayrı tablo (`manuf_ff_preform_measurements`, `manuf_ff_preform_rejects`, `manuf_ff_preform_reworks`) oluşturulup, asenkron ve ortak kayıt (upsert/insert) işlemleri yapıldı.
+- **Raporlama İzolasyonu:** "FF Preform Ölçüm" bir OEE hücresi olmadığından Dashboardy, Dashboard ve Veri Takip sayfalarından filtrelendi.
+- **Wiki Dokümantasyonu:** `wiki/systems/ff-preform-olcum.md` sayfası oluşturuldu ve `wiki/index.md` güncellendi.
+
+---
+
 ## [2026-06-17] update | Performans Paneli Hücre Başlangıç Tarihleri ve Hedeflenen Miktar Entegrasyonu
 
 **Yapılanlar:**

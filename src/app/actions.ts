@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { ProductionFormData } from "@/lib/types";
+import { ProductionFormData, FFPreformRow, FFPreformRejectRow, FFPreformReworkRow } from "@/lib/types";
 import {
   formatTargetDowntimeIssues,
   validateTargetDowntime,
@@ -185,4 +185,154 @@ export async function saveSuggestion(bolum: string, onerisi: string) {
     return { success: false, error: error.message };
   }
   return { success: true, id: data.id };
+}
+
+export async function loadFFPreformMeasurement(tarih: string) {
+  if (!tarih) return null;
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("manuf_ff_preform_measurements")
+    .select("*")
+    .eq("tarih", tarih)
+    .order("sira_no", { ascending: true });
+
+  if (error) {
+    console.error("Error loading FF Preform measurements:", error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function saveFFPreformMeasurement(
+  tarih: string,
+  sorumlu: string,
+  rows: FFPreformRow[],
+  rejects: FFPreformRejectRow[],
+  reworks: FFPreformReworkRow[]
+) {
+  if (!tarih) {
+    return { success: false, error: "Tarih zorunludur." };
+  }
+
+  const supabase = await createClient();
+
+  // 1. Ölçüm satırlarını upsert et
+  const payload = rows.map((row) => ({
+    tarih,
+    sorumlu: sorumlu || "Zeynep Ece Toker",
+    sira_no: row.sira_no,
+    olculen_adet: row.olculen_adet,
+    red_adet: row.red_adet,
+    rework_adet: row.rework_adet,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error: mainError } = await supabase
+    .from("manuf_ff_preform_measurements")
+    .upsert(payload, { onConflict: "tarih,sira_no" });
+
+  if (mainError) {
+    return { success: false, error: mainError.message };
+  }
+
+  // 2. O tarihe ait eski red sebeplerini sil
+  const { error: deleteRejectError } = await supabase
+    .from("manuf_ff_preform_rejects")
+    .delete()
+    .eq("tarih", tarih);
+
+  if (deleteRejectError) {
+    return { success: false, error: deleteRejectError.message };
+  }
+
+  // 3. Varsa yeni red sebeplerini insert et
+  if (rejects.length > 0) {
+    const rejectPayload = rejects.map((r) => ({
+      tarih,
+      sira_no: r.sira_no,
+      parca_no: r.parca_no,
+      red_sebebi: r.red_sebebi,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error: insertRejectError } = await supabase
+      .from("manuf_ff_preform_rejects")
+      .insert(rejectPayload);
+
+    if (insertRejectError) {
+      return { success: false, error: insertRejectError.message };
+    }
+  }
+
+  // 4. O tarihe ait eski rework sebeplerini sil
+  const { error: deleteReworkError } = await supabase
+    .from("manuf_ff_preform_reworks")
+    .delete()
+    .eq("tarih", tarih);
+
+  if (deleteReworkError) {
+    return { success: false, error: deleteReworkError.message };
+  }
+
+  // 5. Varsa yeni rework sebeplerini insert et
+  if (reworks.length > 0) {
+    const reworkPayload = reworks.map((r) => ({
+      tarih,
+      sira_no: r.sira_no,
+      parca_no: r.parca_no,
+      rework_nedeni: r.rework_nedeni,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error: insertReworkError } = await supabase
+      .from("manuf_ff_preform_reworks")
+      .insert(reworkPayload);
+
+    if (insertReworkError) {
+      return { success: false, error: insertReworkError.message };
+    }
+  }
+
+  return { success: true };
+}
+
+export async function loadFFPreformRejects(tarih: string) {
+  if (!tarih) return null;
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("manuf_ff_preform_rejects")
+    .select("*")
+    .eq("tarih", tarih)
+    .order("sira_no", { ascending: true });
+
+  if (error) {
+    console.error("Error loading FF Preform rejects:", error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function loadFFPreformReworks(tarih: string) {
+  if (!tarih) return null;
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("manuf_ff_preform_reworks")
+    .select("*")
+    .eq("tarih", tarih)
+    .order("sira_no", { ascending: true });
+
+  if (error) {
+    console.error("Error loading FF Preform reworks:", error);
+    return null;
+  }
+
+  return data;
 }

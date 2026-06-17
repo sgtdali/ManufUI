@@ -3,6 +3,7 @@ export const BOLUMLER = [
   "ETM Hücresi",
   "ROB104 Hücresi",
   "ROB108 Hücresi",
+  "FF Preform Ölçüm",
   "Flowform Hücresi",
   "N602 Hücresi",
   "N603 Hücresi",
@@ -18,6 +19,7 @@ export const BOLUM_SORUMLU: Record<string, string> = {
   "ETM Hücresi": "Çağrı Can Çolak",
   "ROB104 Hücresi": "Suat Tunç",
   "ROB108 Hücresi": "Suat Tunç",
+  "FF Preform Ölçüm": "Zeynep Ece Toker",
   "Flowform Hücresi": "Yücel Kıroğlu",
   "N602 Hücresi": "Yücel Kıroğlu",
   "N603 Hücresi": "Yücel Kıroğlu",
@@ -280,3 +282,25 @@ export const DURUS_KOLONLARI: {
   },
   { key: "kalite_kaynakli_durus", label: "Kalite Kaynaklı Duruş" },
 ];
+
+export type FFPreformRow = {
+  id?: string;
+  sira_no: number;
+  olculen_adet: number | null;
+  red_adet: number | null;
+  rework_adet: number | null;
+};
+
+export type FFPreformRejectRow = {
+  id?: string;
+  sira_no: number;
+  parca_no: string;
+  red_sebebi: string;
+};
+
+export type FFPreformReworkRow = {
+  id?: string;
+  sira_no: number;
+  parca_no: string;
+  rework_nedeni: string;
+};

@@ -24,6 +24,7 @@ import {
 
 import { FormHeader } from "./_components/FormHeader";
 import { ProductionTable } from "./_components/ProductionTable";
+import { FFPreformTable } from "./_components/FFPreformTable";
 import { DowntimeExplanationDialog } from "./_components/DowntimeExplanationDialog";
 import { OverwriteConfirmDialog } from "./_components/OverwriteConfirmDialog";
 import { OneriKayitDialog } from "./_components/OneriKayitDialog";
@@ -190,6 +191,10 @@ export default function ProductionFormPage() {
   // Otomatik yükleme: bölüm veya tarih değişince arka planda çek
   useEffect(() => {
     if (!bolum || !tarih) {
+      setHasExistingRecord(false);
+      return;
+    }
+    if (bolum === "FF Preform Ölçüm") {
       setHasExistingRecord(false);
       return;
     }
@@ -449,18 +454,25 @@ export default function ProductionFormPage() {
         />
 
         {/* Üretim Tablosu Bileşeni */}
-        <ProductionTable
-          register={register}
-          control={control}
-          tableRows={tableRows}
-          watchedRows={watchedRows}
-          saving={saving}
-          onOpenAciklamaDialog={handleOpenAciklamaDialog}
-          onOpenCalisanMakineDialog={handleOpenCalisanMakineDialog}
-          onSubmit={handleSubmit(onSubmit)}
-          bolum={bolum}
-          tarih={tarih}
-        />
+        {bolum === "FF Preform Ölçüm" ? (
+          <FFPreformTable
+            tarih={tarih}
+            sorumlu={watch("sorumlu")}
+          />
+        ) : (
+          <ProductionTable
+            register={register}
+            control={control}
+            tableRows={tableRows}
+            watchedRows={watchedRows}
+            saving={saving}
+            onOpenAciklamaDialog={handleOpenAciklamaDialog}
+            onOpenCalisanMakineDialog={handleOpenCalisanMakineDialog}
+            onSubmit={handleSubmit(onSubmit)}
+            bolum={bolum}
+            tarih={tarih}
+          />
+        )}
       </div>
 
       {/* Duruş Açıklama Modal Dialog Bileşeni */}

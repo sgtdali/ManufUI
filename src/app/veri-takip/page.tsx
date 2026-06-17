@@ -130,8 +130,9 @@ export default async function VeriTakipPage({
     values.set(key, current);
   }
 
+  const activeBolumler = BOLUMLER.filter(b => b !== "FF Preform Ölçüm");
   const totals = new Map<string, number>();
-  for (const bolum of BOLUMLER) {
+  for (const bolum of activeBolumler) {
     totals.set(
       bolum,
       dates.reduce((total, tarih) => {
@@ -257,7 +258,7 @@ export default async function VeriTakipPage({
                 </tr>
               </thead>
               <tbody>
-                {BOLUMLER.map((bolum) => (
+                {activeBolumler.map((bolum) => (
                   <tr key={bolum}>
                     <th className="sticky left-0 z-10 border-b border-zinc-100 bg-white px-3 py-2 text-right font-semibold">
                       {getDepartmentLabel(bolum)}
