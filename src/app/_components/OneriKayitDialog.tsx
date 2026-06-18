@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,16 @@ export function OneriKayitDialog({ isOpen, onClose }: Props) {
           </div>
         </div>
         <DialogFooter className="gap-2">
+          <Link href="/oneriler" className="mr-auto">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              className="text-xs font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+            >
+              Öneriler
+            </Button>
+          </Link>
           <Button variant="outline" onClick={onClose} disabled={isPending} className="text-xs font-bold">
             İptal
           </Button>
