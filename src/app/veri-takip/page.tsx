@@ -130,7 +130,7 @@ export default async function VeriTakipPage({
     values.set(key, current);
   }
 
-  const activeBolumler = BOLUMLER.filter(b => b !== "FF Preform Ölçüm");
+  const activeBolumler = BOLUMLER.filter(b => b !== "FF Preform Ölçüm" && b !== "Final Ölçüm");
   const totals = new Map<string, number>();
   for (const bolum of activeBolumler) {
     totals.set(

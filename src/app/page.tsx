@@ -25,6 +25,7 @@ import {
 import { FormHeader } from "./_components/FormHeader";
 import { ProductionTable } from "./_components/ProductionTable";
 import { FFPreformTable } from "./_components/FFPreformTable";
+import { FinalOlcumTable } from "./_components/FinalOlcumTable";
 import { DowntimeExplanationDialog } from "./_components/DowntimeExplanationDialog";
 import { OverwriteConfirmDialog } from "./_components/OverwriteConfirmDialog";
 import { OneriKayitDialog } from "./_components/OneriKayitDialog";
@@ -194,7 +195,7 @@ export default function ProductionFormPage() {
       setHasExistingRecord(false);
       return;
     }
-    if (bolum === "FF Preform Ölçüm") {
+    if (bolum === "FF Preform Ölçüm" || bolum === "Final Ölçüm") {
       setHasExistingRecord(false);
       return;
     }
@@ -456,6 +457,11 @@ export default function ProductionFormPage() {
         {/* Üretim Tablosu Bileşeni */}
         {bolum === "FF Preform Ölçüm" ? (
           <FFPreformTable
+            tarih={tarih}
+            sorumlu={watch("sorumlu")}
+          />
+        ) : bolum === "Final Ölçüm" ? (
+          <FinalOlcumTable
             tarih={tarih}
             sorumlu={watch("sorumlu")}
           />

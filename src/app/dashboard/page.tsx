@@ -103,7 +103,7 @@ function buildDepartmentSummaries(records: DbRecord[]) {
   const summaries = new Map<string, DepartmentSummary>();
 
   for (const bolum of BOLUMLER) {
-    if (bolum === "FF Preform Ölçüm") continue;
+    if (bolum === "FF Preform Ölçüm" || bolum === "Final Ölçüm") continue;
     summaries.set(bolum, { bolum, kayit: 0, uretim: 0, durus: 0, netSure: 0 });
   }
 

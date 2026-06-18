@@ -10,6 +10,7 @@ export const BOLUMLER = [
   "ROB109 Hücresi",
   "Quench Hücresi",
   "ROB110-111 Hücresi",
+  "Final Ölçüm",
   "Fosfat Hücresi",
   "Boya Hücresi",
 ] as const;
@@ -26,6 +27,7 @@ export const BOLUM_SORUMLU: Record<string, string> = {
   "ROB109 Hücresi": "Mücahit Toptaş",
   "Quench Hücresi": "Calor",
   "ROB110-111 Hücresi": "Taner Çelik",
+  "Final Ölçüm": "Zeynep Ece Toker",
   "Fosfat Hücresi": "Ahmet Hakan Akın",
   "Boya Hücresi": "Ahmet Hakan Akın",
 };
