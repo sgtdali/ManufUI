@@ -5,6 +5,19 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-18] update | Pres Hücresi Kalıp Değişim Takip Sistemi Entegrasyonu
+
+**Yapılanlar:**
+- **Yeni Sayfa ve Arayüz Tasarımı:** `/kalip-takip` rotasında çalışan, modern, istatistik kartları ve asenkron veri tüneli içeren Client-side kalıp takip ekranı geliştirildi.
+- **FormHeader Entegrasyonu:** Ana günlük üretim formundan (`/`) `/kalip-takip` ekranına kolay geçiş sağlayan "Kalıp Takip" butonu eklendi.
+- **Kalıp Bazlı Bağımsız Hesaplama:** Her bir kalıp değişim kaydının parça sayısı hesabı, **sadece aynı kalıp tipine ait bir sonraki kalıp değişimi kaydına kadar** olan üretimi kapsar. Araya başka tipte bir kalıp girilmesi bu sayacı kesmez; her kalıp tipi kendi içerisinde bağımsız ve kümülatif olarak sayılır.
+- **Tek Dropdown Arayüzü:** "Sökülen Kalıp" ve "Takılan Kalıp" alanları kaldırılarak tek bir **"Değiştirilen Kalıp"** açılır listesi (Dropdown) entegre edildi. Bu liste Pres Hücresinin günlük OEE formundaki kalıp montaj/demontaj seçeneklerinden oluşmaktadır.
+- **Parça Üretim Adetleri:** İki değişim arasındaki parça basım adetleri ise günlük OEE üretim formlarındaki (`manuf_production_rows`) Pres Hücresi `uretim_adeti` değerlerinden otomatik toplanarak kümülatif kronolojik sıralama ile hesaplanır.
+- **TypeScript & Derleme Doğrulaması:** base-ui select bileşenindeki `string | null` tipi kontrol edilerek tüm sistem tip güvenli hale getirildi, `npx tsc --noEmit` başarıyla sonuçlandı.
+- **Wiki Dokümantasyonu:** `wiki/systems/kalip-takip.md` dokümantasyonu güncellendi, `wiki/index.md` ve `wiki/log.md` güncellendi.
+
+---
+
 ## [2026-06-18] update | Final Ölçüm Bölümü ve Ölçüm Sistemleri Dokümantasyon Birleştirmesi
 
 **Yapılanlar:**

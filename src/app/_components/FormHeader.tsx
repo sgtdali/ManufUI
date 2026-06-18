@@ -128,6 +128,15 @@ export function FormHeader({
               Dashboard
             </Button>
           </Link>
+          <Link href="/kalip-takip" className="block">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 text-xs font-bold"
+            >
+              Kalıp Takip
+            </Button>
+          </Link>
           <Button
             type="button"
             variant="outline"
