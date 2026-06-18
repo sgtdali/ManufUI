@@ -5,6 +5,17 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-18] update | Final Ölçüm Bölümü ve Ölçüm Sistemleri Dokümantasyon Birleştirmesi
+
+**Yapılanlar:**
+- **Final Ölçüm Bölümü Tanımlaması:** Günlük üretim formuna (`/`) ROB110-111 ile Fosfat Hücresi arasına bağımsız `"Final Ölçüm"` seçeneği eklendi. Sorumlusu otomatik olarak **Zeynep Ece Toker** olarak atandı.
+- **Arayüz Geliştirmesi:** Saatlik OEE tablosundan bağımsız, 6 satırlı "Final Ölçüm Verisi" tablosu (Ölçülen Adet, Red Parça Sayısı, Rework Parça Sayısı) ve anlık güncellenen "Red Sebepleri", "Rework Sebepleri" dinamik alt tabloları oluşturuldu.
+- **Veritabanı Entegrasyonu (Supabase)**: Final Ölçüm verileri için 3 ayrı tablo (`manuf_final_olcum_measurements`, `manuf_final_olcum_rejects`, `manuf_final_olcum_reworks`) oluşturulup, asenkron ve ortak kayıt (upsert/insert/delete) işlemleri yapıldı.
+- **Raporlama İzolasyonu:** "Final Ölçüm" bir OEE hücresi olmadığından Dashboard ve Veri Takip sayfalarından filtrelendi.
+- **Wiki Dokümantasyonu Birleştirmesi:** Önceki gün oluşturulan `ff-preform-olcum.md` sayfası silinerek, FF Preform Ölçüm ve Final Ölçüm sistemleri `wiki/systems/olcum-sistemleri.md` başlığı altında ortak bir belgede birleştirildi. `wiki/index.md` güncellendi.
+
+---
+
 ## [2026-06-17] update | FF Preform Ölçüm Bölümü ve Dinamik Red/Rework Detay Takibi Entegrasyonu
 
 **Yapılanlar:**
