@@ -115,6 +115,13 @@ export default function DashboardyPage() {
   const totalTarget = DISPLAY_CELLS.length * 2000;
   const overallPercentage = Math.min(Math.round((totalProduction / totalTarget) * 100), 100);
 
+  const totalTargetedQty = DISPLAY_CELLS.reduce((sum, cell) => {
+    const startDateStr = getCellStartDate(cell);
+    const weekdayCount = getWeekdayDifference(startDateStr, todayStr);
+    return sum + (weekdayCount * 100);
+  }, 0);
+  const targetPercentage = Math.min(Math.round((totalTargetedQty / totalTarget) * 100), 100);
+
   return (
     <div className="min-h-screen bg-[#fafafa] text-zinc-900 pb-16 font-sans">
       {/* Header */}
@@ -224,8 +231,11 @@ export default function DashboardyPage() {
               <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-200/80 bg-indigo-800/40 px-2.5 py-1 rounded-full border border-indigo-700/50">
                 Genel İlerleme Durumu
               </span>
-              <h2 className="text-3xl font-extrabold tracking-tight mt-3">
+              <h2 className="text-3xl font-extrabold tracking-tight mt-3 flex items-baseline gap-2">
                 %{overallPercentage}
+                <span className="text-lg font-medium text-indigo-200/80">
+                  (%{targetPercentage})
+                </span>
               </h2>
             </div>
 

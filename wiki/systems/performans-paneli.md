@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-17
+updated: 2026-06-18
 sources: [src/app/dashboardy/page.tsx, src/app/actions.ts]
 ---
 
@@ -15,7 +15,8 @@ Detaylı performans ve kümülatif hedef izleme paneli (`/dashboardy`). Saudi Ar
    - Sayfa ilk açıldığında varsayılan olarak `13.06.2026` - `09.07.2026` aralığını listeler.
 
 2. **Genel İlerleme Durumu:**
-   - Panelde listelenen tüm hücrelerin kümülatif gerçekleşen üretim toplamının toplam kampanya hedefine (Hücre Sayısı × 2000) oranını yüzde olarak gösterir.
+   - Panelde listelenen tüm hücrelerin kümülatif gerçekleşen üretim toplamının toplam kampanya hedefine (Hücre Sayısı × 2000 = 22.000) oranını yüzde olarak gösterir.
+   - Bu yüzdenin sağında parantez içerisinde **`(%[Hedeflenen Yüzde])`** yer alır. Bu hedef yüzdesi, o gün itibarıyla hücre bazında hedeflenen kümülatif miktarların toplamının genel hedefe (22.000) oranıdır. (Örn: `%12 (%22)`)
 
 3. **Hücre Bazlı İlerleme Tablosu:**
    - Her hücre için gerçekleşen üretim miktarı, kampanya hedefi (`2000`), o güne kadar hedeflenmiş miktar ve performans yüzdesiyle ilerleme çubuğu gösterilir.
