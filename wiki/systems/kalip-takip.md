@@ -41,3 +41,4 @@ Kayıtlar `public.manuf_press_mold_changes` tablosunda tutulur:
 - **Özet Kartları:** Toplam değişim sayısı, en son takılan kalıp bilgisi ve son kalıpla basılan toplam parça adeti anlık gösterilir.
 - **Dinamik Zaman Dilimleri:** Manuel kayıt girişinde seçilen tarihin Saudi Arabistan hafta sonu (Cuma/Cumartesi) olup olmamasına göre formdaki zaman dilimi dropdown'ı otomatik şekillenir.
 - **Kayıt Silme:** İstenen kalıp değişim kaydı zaman tüneli tablosundan doğrudan silinebilir.
+- **FormHeader Geçiş Butonu:** "Kalıp Takip" butonu ana form ekranında sadece Bölüm seçimi **"Pres Hücresi"** olduğunda görünür olur; diğer bölümler seçildiğinde gizlenir.

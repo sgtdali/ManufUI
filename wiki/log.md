@@ -9,7 +9,7 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 **Yapılanlar:**
 - **Yeni Sayfa ve Arayüz Tasarımı:** `/kalip-takip` rotasında çalışan, modern, istatistik kartları ve asenkron veri tüneli içeren Client-side kalıp takip ekranı geliştirildi.
-- **FormHeader Entegrasyonu:** Ana günlük üretim formundan (`/`) `/kalip-takip` ekranına kolay geçiş sağlayan "Kalıp Takip" butonu eklendi.
+- **FormHeader Entegrasyonu:** Ana günlük üretim formundan (`/`) `/kalip-takip` ekranına kolay geçiş sağlayan "Kalıp Takip" butonu eklendi. Bu buton sadece **Pres Hücresi** seçildiğinde görünecek şekilde koşullandırıldı.
 - **Kalıp Bazlı Bağımsız Hesaplama:** Her bir kalıp değişim kaydının parça sayısı hesabı, **sadece aynı kalıp tipine ait bir sonraki kalıp değişimi kaydına kadar** olan üretimi kapsar. Araya başka tipte bir kalıp girilmesi bu sayacı kesmez; her kalıp tipi kendi içerisinde bağımsız ve kümülatif olarak sayılır.
 - **Tek Dropdown Arayüzü:** "Sökülen Kalıp" ve "Takılan Kalıp" alanları kaldırılarak tek bir **"Değiştirilen Kalıp"** açılır listesi (Dropdown) entegre edildi. Bu liste Pres Hücresinin günlük OEE formundaki kalıp montaj/demontaj seçeneklerinden oluşmaktadır.
 - **Parça Üretim Adetleri:** İki değişim arasındaki parça basım adetleri ise günlük OEE üretim formlarındaki (`manuf_production_rows`) Pres Hücresi `uretim_adeti` değerlerinden otomatik toplanarak kümülatif kronolojik sıralama ile hesaplanır.
