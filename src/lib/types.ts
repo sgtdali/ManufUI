@@ -172,14 +172,14 @@ export function getZamanDilimleriForCellAndDate(bolum: string | null | undefined
     bolum === "ETM Hücresi" ||
     bolum === "Flowform Hücresi" ||
     bolum === "ROB104 Hücresi" ||
-    bolum === "ROB108 Hücresi"
+    bolum === "ROB108 Hücresi" ||
+    bolum === "ROB109 Hücresi"
   ) {
     if (tarih && /^\d{4}-\d{2}-\d{2}$/.test(tarih)) {
       const day = new Date(`${tarih}T00:00:00`).getDay();
       if (day !== 5 && day !== 6) {
-        return bolum === "Flowform Hücresi"
-          ? FLOWFORM_GECE_UZATILMIS_ZAMAN_DILIMLERI
-          : ETM_FLOWFORM_UZATILMIS_ZAMAN_DILIMLERI;
+        if (bolum === "Flowform Hücresi") return FLOWFORM_GECE_UZATILMIS_ZAMAN_DILIMLERI;
+        return ETM_FLOWFORM_UZATILMIS_ZAMAN_DILIMLERI;
       }
     }
   }
