@@ -14,7 +14,8 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - **Tek Dropdown Arayüzü:** "Sökülen Kalıp" ve "Takılan Kalıp" alanları kaldırılarak tek bir **"Değiştirilen Kalıp"** açılır listesi (Dropdown) entegre edildi. Bu liste Pres Hücresinin günlük OEE formundaki kalıp montaj/demontaj seçeneklerinden oluşmaktadır.
 - **Parça Üretim Adetleri:** İki değişim arasındaki parça basım adetleri ise günlük OEE üretim formlarındaki (`manuf_production_rows`) Pres Hücresi `uretim_adeti` değerlerinden otomatik toplanarak kümülatif kronolojik sıralama ile hesaplanır.
 - **TypeScript & Derleme Doğrulaması:** base-ui select bileşenindeki `string | null` tipi kontrol edilerek tüm sistem tip güvenli hale getirildi, `npx tsc --noEmit` başarıyla sonuçlandı.
-- **Wiki Dokümantasyonu:** `wiki/systems/kalip-takip.md` dokümantasyonu güncellendi, `wiki/index.md` ve `wiki/log.md` güncellendi.
+- **ROB104 ve ROB108 Saat Uzatması:** ETM ve Flowform hücrelerinde olduğu gibi ROB104 ve ROB108 Hücreleri için de Pazartesi-Perşembe günleri 17:00-21:00 saat dilimleri (17:00-18:00, 18:00-19:00, 19:00-20:00, 20:00-21:00) forma eklendi.
+- **Wiki Dokümantasyonu:** `wiki/systems/kalip-takip.md` ve `wiki/systems/uretim-formu.md` güncellendi, `wiki/index.md` ve `wiki/log.md` güncellendi.
 
 ---
 

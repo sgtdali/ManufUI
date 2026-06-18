@@ -168,7 +168,12 @@ export function getZamanDilimleriForCellAndDate(bolum: string | null | undefined
   if (bolum === "Quench Hücresi") {
     return [{ sira_no: 1, label: "Günlük" }];
   }
-  if (bolum === "ETM Hücresi" || bolum === "Flowform Hücresi") {
+  if (
+    bolum === "ETM Hücresi" ||
+    bolum === "Flowform Hücresi" ||
+    bolum === "ROB104 Hücresi" ||
+    bolum === "ROB108 Hücresi"
+  ) {
     if (tarih && /^\d{4}-\d{2}-\d{2}$/.test(tarih)) {
       const day = new Date(`${tarih}T00:00:00`).getDay();
       if (day !== 5 && day !== 6) {

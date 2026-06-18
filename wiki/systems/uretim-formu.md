@@ -21,10 +21,10 @@ Standart hücreler için zaman dilimleri:
 * **Pazartesi–Perşembe (9 satır):** `08:00–09:00`, `09:00–10:00`, `10:00–11:00`, `11:00–12:00`, `12:00–13:00`, `13:00–14:00`, `14:00–15:00`, `15:00–16:00`, `16:00–17:00`
 * **Cuma–Cumartesi (8 satır):** `09:00–10:00`, `10:00–11:00`, `11:00–12:00`, `12:00–13:00`, `13:00–14:00`, `14:00–15:00`, `15:00–16:00`, `16:00–17:00`
 
-**ETM Hücresi ve Flowform Hücresi** için uzatılmış zaman dilimleri:
+**ETM Hücresi, Flowform Hücresi, ROB104 Hücresi ve ROB108 Hücresi** için uzatılmış zaman dilimleri:
 * **Pazartesi–Perşembe (13 satır):** Standart 9 satıra ek olarak `17:00–18:00`, `18:00–19:00`, `19:00–20:00`, `20:00–21:00` dilimleri de gösterilir.
 * **Cuma–Cumartesi:** Diğer hücrelerle aynı 8 satır (uzatma yok).
-* Sabit: `ETM_FLOWFORM_UZATILMIS_ZAMAN_DILIMLERI` (`src/lib/types.ts`).
+* Sabitler: `ETM_FLOWFORM_UZATILMIS_ZAMAN_DILIMLERI` (`src/lib/types.ts`).
 
 **Quench Hücresi** için zaman dilimleri:
 * Sadece tek bir satır üretilir ve zaman dilimi label'ı `"Günlük"` olarak ayarlanır.
