@@ -169,6 +169,20 @@ export default function AksiyonTakipPage() {
     });
   };
 
+  const handleDueDateChange = (id: string, due_date: string) => {
+    startTransition(async () => {
+      const res = await updateActionItem(id, {
+        due_date: due_date || null,
+      });
+      if (res.success) {
+        toast.success("Termin tarihi güncellendi.");
+        fetchData();
+      } else {
+        toast.error("Güncelleme hatası: " + res.error);
+      }
+    });
+  };
+
   const handleDelete = (id: string) => {
     if (!confirm("Bu aksiyonu silmek istediğinize emin misiniz?")) return;
     startTransition(async () => {
@@ -443,6 +457,7 @@ export default function AksiyonTakipPage() {
                     expandedRows={expandedRows}
                     toggleExpand={toggleExpand}
                     onStatusChange={handleStatusChange}
+                    onDueDateChange={handleDueDateChange}
                     onDelete={handleDelete}
                     onAddSub={openSubForm}
                     isPending={isPending}
@@ -465,6 +480,7 @@ function ActionRow({
   expandedRows,
   toggleExpand,
   onStatusChange,
+  onDueDateChange,
   onDelete,
   onAddSub,
   isPending,
@@ -476,6 +492,7 @@ function ActionRow({
   expandedRows: Set<string>;
   toggleExpand: (id: string) => void;
   onStatusChange: (id: string, status: string) => void;
+  onDueDateChange: (id: string, due_date: string) => void;
   onDelete: (id: string) => void;
   onAddSub: (parentId: string, parentCell: string) => void;
   isPending: boolean;
@@ -528,10 +545,17 @@ function ActionRow({
         </td>
         <td className="px-3 py-3 text-zinc-700">{item.assignee}</td>
         <td className="px-3 py-3">
-          <span className={isOverdue ? "font-medium text-rose-600" : "text-zinc-700"}>
-            {formatDate(item.due_date)}
-            {isOverdue ? " !" : ""}
-          </span>
+          <input
+            type="date"
+            className={`h-8 w-32 rounded-md border px-2 text-xs outline-none ${
+              isOverdue
+                ? "border-rose-300 bg-rose-50 font-medium text-rose-600"
+                : "border-zinc-200 bg-transparent text-zinc-700"
+            } focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20`}
+            value={item.due_date ?? ""}
+            onChange={(e) => onDueDateChange(item.id, e.target.value)}
+            disabled={isPending}
+          />
         </td>
         <td className="px-3 py-3">
           <span
@@ -593,6 +617,7 @@ function ActionRow({
               expandedRows={expandedRows}
               toggleExpand={toggleExpand}
               onStatusChange={onStatusChange}
+              onDueDateChange={onDueDateChange}
               onDelete={onDelete}
               onAddSub={onAddSub}
               isPending={isPending}
