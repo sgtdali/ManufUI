@@ -5,6 +5,17 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-20] update | Aksiyon Takip Sayfası Eklendi
+
+**Yapılanlar:**
+- **Yeni Sayfa:** `/aksiyon-takip` rotasında hücre bazlı iş/aksiyon maddeleri takip sayfası oluşturuldu.
+- **Veritabanı:** `manuf_action_items` tablosu tasarlandı. `parent_id` ile tek seviye alt madde desteği (self-referencing FK, ON DELETE CASCADE). `priority` ve `status` alanlarında CHECK constraint.
+- **Arayüz:** Hücre/durum/öncelik filtreleri, metrik kartları (toplam/açık/tamamlandı), collapsible alt maddeler, inline durum değiştirme, gecikmiş termin uyarısı, silme onay dialogu.
+- **Server Actions:** `loadActionItems`, `createActionItem`, `updateActionItem`, `deleteActionItem` CRUD operasyonları.
+- **Wiki Dokümantasyonu:** `wiki/systems/aksiyon-takip.md` oluşturuldu, `wiki/index.md` güncellendi.
+
+---
+
 ## [2026-06-18] update | Pres Hücresi Kalıp Değişim Takip Sistemi Entegrasyonu
 
 **Yapılanlar:**
