@@ -11,6 +11,9 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - **Yeni Sayfa:** `/aksiyon-takip` rotasında hücre bazlı iş/aksiyon maddeleri takip sayfası oluşturuldu.
 - **Veritabanı:** `manuf_action_items` tablosu tasarlandı. `parent_id` ile tek seviye alt madde desteği (self-referencing FK, ON DELETE CASCADE). `priority` ve `status` alanlarında CHECK constraint.
 - **Arayüz:** Hücre/durum/öncelik filtreleri, metrik kartları (toplam/açık/tamamlandı), collapsible alt maddeler, inline durum değiştirme, gecikmiş termin uyarısı, silme onay dialogu.
+- **Inline Termin Düzenleme:** Tablodaki termin sütunu tıklanabilir date input olarak güncellendi; mevcut kayıtlara sonradan termin tarihi girilebilir/değiştirilebilir hale getirildi.
+- **RLS Policy:** `manuf_action_items` tablosuna `manuf_public_all` RLS policy eklendi.
+- **Toplu Veri Girişi:** Pres Hücresi (34 madde), Flowform Hücresi (21 madde), N602 Hücresi (12 madde) ve N603 Hücresi (8 madde) için aksiyon maddeleri girildi.
 - **Server Actions:** `loadActionItems`, `createActionItem`, `updateActionItem`, `deleteActionItem` CRUD operasyonları.
 - **Wiki Dokümantasyonu:** `wiki/systems/aksiyon-takip.md` oluşturuldu, `wiki/index.md` güncellendi.
 
