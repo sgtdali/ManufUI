@@ -14,3 +14,9 @@ create table if not exists manuf_action_items (
 create index idx_manuf_action_items_parent on manuf_action_items(parent_id);
 create index idx_manuf_action_items_cell on manuf_action_items(cell);
 create index idx_manuf_action_items_status on manuf_action_items(status);
+
+alter table public.manuf_action_items enable row level security;
+
+drop policy if exists manuf_public_all on public.manuf_action_items;
+create policy manuf_public_all on public.manuf_action_items
+  for all using (true) with check (true);
