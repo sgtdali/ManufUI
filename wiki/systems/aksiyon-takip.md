@@ -45,7 +45,8 @@ Kolonlar: Başlık, Hücre, Sorumlu, Termin, Öncelik, Durum, Aksiyonlar
 - **Ana maddeler** satır olarak listelenir, solda chevron ile açılır/kapanır
 - **Alt maddeler** ana madde genişletildiğinde `└` işareti ile indentli gösterilir
 - **Durum değiştirme:** Inline `<select>` dropdown ile doğrudan tablodan değiştirilebilir
-- **Gecikmiş termin:** Tarihi geçmiş ve tamamlanmamış maddeler kırmızı renk + `!` ile vurgulanır
+- **Termin tarihi düzenleme:** Inline `<input type="date">` ile doğrudan tablodan girilebilir/değiştirilebilir; değişiklik anında kaydedilir
+- **Gecikmiş termin:** Tarihi geçmiş ve tamamlanmamış maddeler kırmızı kenarlık ve arka plan ile vurgulanır
 - **Tamamlanmış maddeler:** Başlık üstü çizili (line-through) ve soluk renkte gösterilir
 
 ### Yeni Madde Ekleme
