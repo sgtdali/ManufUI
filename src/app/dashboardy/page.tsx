@@ -139,7 +139,7 @@ export default function DashboardyPage() {
             <div className="flex items-center gap-2">
               <LayoutDashboard className="h-5 w-5 text-indigo-600" />
               <h1 className="text-lg font-bold tracking-tight text-zinc-900">
-                Detaylı Performans Paneli (/dashboardy)
+                Detaylı Performans Paneli
               </h1>
             </div>
           </div>
@@ -288,10 +288,18 @@ export default function DashboardyPage() {
                     progressColorClass = "from-amber-500 to-orange-500";
                   }
 
+                  const targetCell = cell === "N602-N603 Hücresi" ? "N602 Hücresi" : cell;
+                  const linkUrl = `/?bolum=${encodeURIComponent(targetCell)}&tarih=${todayStr}`;
+
                   return (
                     <tr key={cell} className="hover:bg-zinc-50/50 transition-colors group">
-                      <td className="py-4 px-6 font-bold text-sm text-zinc-800 group-hover:text-indigo-600 transition-colors">
-                        {cell}
+                      <td className="py-4 px-6">
+                        <Link 
+                          href={linkUrl}
+                          className="font-bold text-sm text-zinc-800 hover:text-indigo-600 hover:underline transition-colors block"
+                        >
+                          {cell}
+                        </Link>
                       </td>
                       <td className="py-4 px-6 text-center">
                         <span className="text-sm font-black text-zinc-800">{produced.toLocaleString("tr-TR")}</span>

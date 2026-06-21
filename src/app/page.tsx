@@ -197,6 +197,21 @@ export default function ProductionFormPage() {
   // Açıklama dialog state
   const [aciklamaDialog, setAciklamaDialog] = useState<AciklamaDialogType | null>(null);
 
+  // URL parametrelerini başlangıçta oku
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlBolum = params.get("bolum");
+      const urlTarih = params.get("tarih");
+      if (urlBolum) {
+        setValue("bolum", urlBolum);
+      }
+      if (urlTarih) {
+        setValue("tarih", urlTarih);
+      }
+    }
+  }, [setValue]);
+
   const bolum = watch("bolum");
   const tarih = watch("tarih");
   const watchedRows = watch("rows");
