@@ -282,3 +282,29 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - Manuel başlangıç/bitiş tarihi filtresi, toplam duruş, adet, pay ve göreli Pareto barları dokümante edildi.
 - Pareto satırı seçildiğinde ilgili ham duruş kayıtlarının listelendiği sağ panel ve `Açıklama eksik` veri kalitesi rozeti belgelendi.
 - `wiki/systems/durus-analiz.md` oluşturuldu; `wiki/index.md` ve `wiki/systems/duruslar.md` bağlantıları güncellendi.
+
+## [2026-06-21] update | Aksiyon Takip inline akış ve sidebar güncellemesi
+
+**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`, `src/app/aksiyon-takip/actions.ts`, `supabase/migrations/20260621120000_allow_empty_action_priority.sql`
+
+**Yapılanlar:**
+- `/aksiyon-takip` sayfasında sol hücre sidebar'ı belgelendi; tüm `BOLUMLER` hücreleri, ölçüm hücreleri dahil filtrelenebilir hale getirildi.
+- Üst metrik kartları ve ayrı yeni aksiyon formu kaldırıldı; ana maddeler tablonun en altındaki inline boş satırdan eklenir hale geldi.
+- Alt madde ekleme ayrı formdan çıkarıldı; ana madde `+` butonu ile hemen altında inline boş alt satır açılması dokümante edildi.
+- Sorumlu otomatik ataması kaldırıldı; sorumlu, termin, öncelik ve durumun tablodan inline düzenlenmesi belgelendi.
+- Önceliğin boş başlayabilmesi için nullable `priority` migration akışı wikiye işlendi.
+- Ekleme, silme ve inline güncellemelerde tüm listenin yeniden çekilmediği, local state güncellemesi yapıldığı kaydedildi.
+
+---
+
+## [2026-06-21] update | Aksiyon Takip Dinamik Sıralama ve Yapışkan Tasarım Entegrasyonu
+
+**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`
+
+**Yapılanlar:**
+- **Dinamik Sıralama:** Aksiyon Takip tablosundaki Sorumlu, Termin, Öncelik ve Durum sütunlarına tıklanabilir ve 3 aşamalı (`artan` -> `azalan` -> `varsayılan`) sıralama özellikleri eklendi. Sıralamanın hiyerarşik yapıyı (Parent-Child) bozmaması için rekürsif çalışması sağlandı.
+- **Yapışkan Layout (Sticky):** Sayfa başlığı ve filtre kartı `sticky top-0 z-10 bg-zinc-50` yapıldı. Tablo dikey scrollable container'a (`overflow-y-auto max-h-[calc(100vh-320px)]`) alınarak tablo başlığının (`thead`) bu container içinde `sticky top-0` yapışık kalması sağlandı.
+- **Kaymayan Alt Sınır Çizgisi:** Tablo başlıklarının altındaki sınır çizgisinin scroll esnasında kaybolmasını engellemek için `border-bottom` yerine her bir `th` etiketine `inset box-shadow` (`shadow-[inset_0_-2px_0_0_#d4d4d8]`) uygulandı.
+- **Header Temizliği:** Sayfa başlığı üzerindeki `ClipboardList` ikonu ve toplam aksiyon sayısı göstergesi kaldırılarak daha sade bir görünüm elde edildi.
+- **Sınırsız Alt Madde (Nested Sub-tasks) Desteği:** Alt maddelerin altına yeni alt maddeler eklenmesini engelleyen `depth === 0` sınırlandırılması kaldırıldı. Alt maddelerin altındaki çocukları açıp kapatabilmek için chevron oku her seviyede aktif kılındı. Hiyerarşik girintiler ve `└` çizgileri dinamik olarak hizalandı.
+- **Wiki Güncellemesi:** `wiki/systems/aksiyon-takip.md` ve `wiki/log.md` güncellendi, `wiki/index.md`'nin frontmatter `updated` tarihi güncellendi.

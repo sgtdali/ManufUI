@@ -10,7 +10,9 @@ import {
   ChevronRight,
   Trash2,
   Filter,
-  ClipboardList,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import { BOLUMLER } from "@/lib/types";
 import {
@@ -67,6 +69,49 @@ function buildTree(items: ActionItem[]): ActionItem[] {
   return roots;
 }
 
+function sortTree(
+  nodes: ActionItem[],
+  sortField: "assignee" | "due_date" | "priority" | "status" | null,
+  sortDirection: "asc" | "desc" | "default"
+): ActionItem[] {
+  if (sortDirection === "default" || !sortField) return nodes;
+
+  const compare = (a: ActionItem, b: ActionItem) => {
+    let valA: any = a[sortField];
+    let valB: any = b[sortField];
+
+    if (sortField === "assignee") {
+      valA = valA ? valA.trim().toLocaleLowerCase("tr-TR") : "";
+      valB = valB ? valB.trim().toLocaleLowerCase("tr-TR") : "";
+    } else if (sortField === "due_date") {
+      valA = valA ? new Date(valA).getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
+      valB = valB ? new Date(valB).getTime() : (sortDirection === "asc" ? Infinity : -Infinity);
+    } else if (sortField === "priority") {
+      const priorityOrder: Record<string, number> = { "Yüksek": 3, "Orta": 2, "Düşük": 1 };
+      valA = priorityOrder[valA || ""] || 0;
+      valB = priorityOrder[valB || ""] || 0;
+    } else if (sortField === "status") {
+      const statusOrder: Record<string, number> = { "Açık": 1, "Devam Ediyor": 2, "Tamamlandı": 3 };
+      valA = statusOrder[valA || ""] || 0;
+      valB = statusOrder[valB || ""] || 0;
+    }
+
+    if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+    if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  };
+
+  const sorted = [...nodes].sort(compare);
+
+  for (const node of sorted) {
+    if (node.children && node.children.length > 0) {
+      node.children = sortTree(node.children, sortField, sortDirection);
+    }
+  }
+
+  return sorted;
+}
+
 function removeItemBranch(items: ActionItem[], id: string) {
   const idsToRemove = new Set([id]);
   let foundChild = true;
@@ -100,6 +145,35 @@ export default function AksiyonTakipPage() {
   const [inlineTitle, setInlineTitle] = useState("");
   const [subInlineTitle, setSubInlineTitle] = useState("");
 
+  const [sortField, setSortField] = useState<"assignee" | "due_date" | "priority" | "status" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | "default">("default");
+
+  const handleSort = (field: "assignee" | "due_date" | "priority" | "status") => {
+    if (sortField === field) {
+      if (sortDirection === "asc") {
+        setSortDirection("desc");
+      } else if (sortDirection === "desc") {
+        setSortDirection("default");
+        setSortField(null);
+      } else {
+        setSortDirection("asc");
+      }
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (field: "assignee" | "due_date" | "priority" | "status") => {
+    if (sortField !== field || sortDirection === "default") {
+      return <ArrowUpDown className="size-3.5 text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity" />;
+    }
+    if (sortDirection === "asc") {
+      return <ArrowUp className="size-3.5 text-emerald-600" />;
+    }
+    return <ArrowDown className="size-3.5 text-emerald-600" />;
+  };
+
   const fetchData = async () => {
     setLoading(true);
     const res = await loadActionItems();
@@ -126,7 +200,8 @@ export default function AksiyonTakipPage() {
     return true;
   });
 
-  const tree = buildTree(filteredItems);
+  const rawTree = buildTree(filteredItems);
+  const tree = sortTree(rawTree, sortField, sortDirection);
 
   const cellCounts = ACTION_CELLS.reduce<Record<string, number>>((acc, cell) => {
     acc[cell] = itemsMatchingStatusAndPriority.filter(
@@ -291,98 +366,129 @@ export default function AksiyonTakipPage() {
         />
 
         <div className="flex min-w-0 flex-col gap-6">
-        {/* Header */}
-        <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm font-medium text-emerald-700">
-              <ClipboardList className="mr-1 inline size-4" />
-              {totalCount} aksiyon
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-normal">
-              Aksiyon Takip
-            </h1>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              className="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
-              href="/"
-            >
-              <ArrowLeft className="size-4" />
-              Forma dön
-            </Link>
-          </div>
-        </header>
+          {/* Sticky Header and Filters Container */}
+          <div className="sticky top-0 z-10 -mt-6 bg-zinc-50 pb-4 pt-6 flex flex-col gap-6">
+            {/* Header */}
+            <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h1 className="mt-2 text-3xl font-semibold tracking-normal">
+                  Aksiyon Takip
+                </h1>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  className="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+                  href="/"
+                >
+                  <ArrowLeft className="size-4" />
+                  Forma dön
+                </Link>
+              </div>
+            </header>
 
-        {/* Filters */}
-        <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-zinc-600">
-                Durum
-              </label>
-              <select
-                className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option value="">Tümü</option>
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-zinc-600">
-                Öncelik
-              </label>
-              <select
-                className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
-                value={filterPriority}
-                onChange={(e) => setFilterPriority(e.target.value)}
-              >
-                <option value="">Tümü</option>
-                {PRIORITIES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              className="self-end rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
-              onClick={() => {
-                setFilterCell("");
-                setFilterStatus("");
-                setFilterPriority("");
-              }}
-            >
-              Temizle
-            </button>
+            {/* Filters */}
+            <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+              <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-600">
+                    Durum
+                  </label>
+                  <select
+                    className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                  >
+                    <option value="">Tümü</option>
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-600">
+                    Öncelik
+                  </label>
+                  <select
+                    className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
+                    value={filterPriority}
+                    onChange={(e) => setFilterPriority(e.target.value)}
+                  >
+                    <option value="">Tümü</option>
+                    {PRIORITIES.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  className="self-end rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+                  onClick={() => {
+                    setFilterCell("");
+                    setFilterStatus("");
+                    setFilterPriority("");
+                  }}
+                >
+                  Temizle
+                </button>
+              </div>
+            </section>
           </div>
-        </section>
 
         {/* Table */}
-        <section className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
+        <section className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)] rounded-lg border border-zinc-200 bg-white shadow-sm">
           {loading ? (
             <div className="p-8 text-center text-sm text-zinc-500">
               Yükleniyor...
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                  <th className="w-8 px-3 py-3"></th>
-                  <th className="px-3 py-3">Başlık</th>
+              <thead className="sticky top-0 z-10 bg-zinc-50">
+                <tr className="bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700 select-none">
+                  <th className="w-8 px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]"></th>
+                  <th className="px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]">Başlık</th>
                   {showCellColumn ? (
-                    <th className="px-3 py-3">Hücre</th>
+                    <th className="px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]">Hücre</th>
                   ) : null}
-                  <th className="px-3 py-3">Sorumlu</th>
-                  <th className="px-3 py-3">Termin</th>
-                  <th className="px-3 py-3">Öncelik</th>
-                  <th className="px-3 py-3">Durum</th>
-                  <th className="w-24 px-3 py-3"></th>
+                  <th
+                    className="group cursor-pointer px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                    onClick={() => handleSort("assignee")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Sorumlu</span>
+                      {getSortIcon("assignee")}
+                    </div>
+                  </th>
+                  <th
+                    className="group cursor-pointer px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                    onClick={() => handleSort("due_date")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Termin</span>
+                      {getSortIcon("due_date")}
+                    </div>
+                  </th>
+                  <th
+                    className="group cursor-pointer px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                    onClick={() => handleSort("priority")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Öncelik</span>
+                      {getSortIcon("priority")}
+                    </div>
+                  </th>
+                  <th
+                    className="group cursor-pointer px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                    onClick={() => handleSort("status")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Durum</span>
+                      {getSortIcon("status")}
+                    </div>
+                  </th>
+                  <th className="w-24 px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -637,30 +743,27 @@ function ActionRow({
     <>
       <tr className={`hover:bg-zinc-50 ${depth > 0 ? "bg-zinc-25" : ""}`}>
         <td className="px-3 py-3">
-          {depth === 0 ? (
-            <button
-              className={
-                hasChildren
-                  ? "text-emerald-700 hover:text-emerald-900"
-                  : "text-zinc-300 hover:text-zinc-500"
-              }
-              onClick={() => toggleExpand(item.id)}
-              title={hasChildren ? "Alt maddeleri göster/gizle" : "Alt madde yok"}
-            >
-              {isExpanded ? (
-                <ChevronDown className="size-4" />
-              ) : (
-                <ChevronRight className="size-4" />
-              )}
-            </button>
-          ) : (
-            <span
-              className="inline-block text-zinc-300"
-              style={{ marginLeft: depth * 12 }}
-            >
-              └
-            </span>
-          )}
+          <div className="flex items-center" style={{ marginLeft: depth > 0 ? depth * 12 : 0 }}>
+            {hasChildren ? (
+              <button
+                className="text-emerald-700 hover:text-emerald-900 mr-1"
+                onClick={() => toggleExpand(item.id)}
+                title={hasChildren ? "Alt maddeleri göster/gizle" : "Alt madde yok"}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="size-4" />
+                ) : (
+                  <ChevronRight className="size-4" />
+                )}
+              </button>
+            ) : depth > 0 ? (
+              <span className="inline-block text-zinc-300 w-5 mr-1 text-center">
+                └
+              </span>
+            ) : (
+              <span className="inline-block w-5 mr-1" />
+            )}
+          </div>
         </td>
         <td className="px-3 py-3">
           <span
@@ -740,15 +843,13 @@ function ActionRow({
         </td>
         <td className="px-3 py-3">
           <div className="flex gap-1">
-            {depth === 0 ? (
-              <button
-                className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-emerald-700"
-                title="Alt madde ekle"
-                onClick={() => onAddSub(item.id, item.cell)}
-              >
-                <Plus className="size-4" />
-              </button>
-            ) : null}
+            <button
+              className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-emerald-700"
+              title="Alt madde ekle"
+              onClick={() => onAddSub(item.id, item.cell)}
+            >
+              <Plus className="size-4" />
+            </button>
             <button
               className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-rose-600"
               title="Sil"

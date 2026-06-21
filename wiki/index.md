@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-20
+updated: 2026-06-21
 sources: []
 ---
 
@@ -20,7 +20,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [Planlama Sistemi](systems/planlama-sistemi.md) | `/schedule` sayfası: 4 haftada 2000 parça hedefi, kayıp sebepleri, Pres simülasyonu, eksik hücreler ve haftalık analiz isteği |
 | [Performans Paneli](systems/performans-paneli.md) | `/dashboardy` sayfası: Seçilen tarih aralığında hücre bazlı üretim hedeflerinin izlenmesi ve hücre özelinde hedeflenen miktarların hesaplanması |
 | [Kalıp Takip](systems/kalip-takip.md) | `/kalip-takip` sayfası: Pres hücresi kalıp değişimlerinin takibi, manual giriş, senkronizasyon ve kümülatif parça adetleri takibi |
-| [Aksiyon Takip](systems/aksiyon-takip.md) | `/aksiyon-takip` sayfası: Hücre bazlı iş/aksiyon maddeleri takibi, sorumlu/termin/öncelik/durum yönetimi, ana+alt madde ağaç yapısı |
+| [Aksiyon Takip](systems/aksiyon-takip.md) | `/aksiyon-takip` sayfası: Sol hücre sidebar'ı, ClickUp tarzı inline ana/alt madde ekleme, düzenlenebilir sorumlu/termin/öncelik/durum ve local state ile yenilemesiz işlem akışı |
 
 ## Entities — Varlıklar ve Veri Yapıları
 
