@@ -5,6 +5,16 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-21] cleanup | /schedule ve /schedule/overview Sayfaları Silindi
+
+**Yapılanlar:**
+- `/schedule/overview` sayfası (page.tsx, _components/) silindi. `overview/constants.ts` ve `overview/actions.ts` diğer modüller tarafından kullanıldığı için korundu.
+- Ardından tüm `/schedule` klasörü (page, actions, utils, constants, types, _components, overview) tamamen silindi.
+- `src/app/ariza/actions.ts`'deki `revalidatePath("/schedule")` satırı temizlendi.
+- `wiki/index.md` güncellendi: Planlama Sistemi satırı ve ilgili dosya referansları kaldırıldı.
+
+---
+
 ## [2026-06-21] update | Aksiyon Takip Düzeni, Sıralama, Sınırsız Alt Madde, Şifre Koruması, ROB109 Hedef ve ROB108 Çalışan Makine/Dinamik Hedef Entegrasyonu
 
 **Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`, `src/app/aksiyon-takip/actions.ts`, `src/app/dashboard/page.tsx`, `src/app/page.tsx`, `src/app/_components/ProductionTable.tsx`, `src/lib/types.ts`, `supabase/migrations/20260621120000_allow_empty_action_priority.sql`

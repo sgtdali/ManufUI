@@ -1,5 +1,6 @@
 ---
 updated: 2026-06-21
+
 sources: []
 ---
 
@@ -13,11 +14,10 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 |-------|------|
 | [Üretim Formu](systems/uretim-formu.md) | Ana sayfa (`/`): hücre+tarih bazlı saatlik üretim ve duruş girişi, validasyon kuralları, otomatik yükleme/kaydetme akışı |
 | [Ölçüm Sistemleri](systems/olcum-sistemleri.md) | Ana sayfa (`/`): FF Preform Ölçüm (ROB108-Flowform) ve Final Ölçüm (ROB110-Fosfat) bağımsız 6 satırlı ölçüm ve dinamik Red/Rework Sebepleri detay girişleri |
-| [WIP Hesabı](systems/wip-hesabi.md) | `/schedule` simülasyon motoru: pres kapasitesi, kalıp ömrü, aynı gün ETM geçişi, buildSchedule parametreleri |
+| [WIP Hesabı](systems/wip-hesabi.md) | WIP stok hesabı: hücreler arası kümülatif üretim farkları, birleşik hat kuralları |
 | [Duruşlar](systems/duruslar.md) | Tüm duruş kolonları, alt tür kodları (M1/M2, E/A/M/O, P1-P3, SA1-SA2, MKB1-3), validasyon kuralları |
 | [Duruş Analiz](systems/durus-analiz.md) | `/durus-analiz` sayfası: seçili tek hücre için duruş tipi + alt tür Pareto analizi, süre/adet/pay kırılımı ve kayıt listesi |
 | [Arıza Sistemi](systems/ariza-sistemi.md) | `/ariza` sayfası: veri yapısı, mevcut görünüm, eksik trend/öngörü özellikleri, reaktif→proaktif hedef |
-| [Planlama Sistemi](systems/planlama-sistemi.md) | `/schedule` sayfası: 4 haftada 2000 parça hedefi, kayıp sebepleri, Pres simülasyonu, eksik hücreler ve haftalık analiz isteği |
 | [Performans Paneli](systems/performans-paneli.md) | `/dashboardy` sayfası: Seçilen tarih aralığında hücre bazlı üretim hedeflerinin izlenmesi ve hücre özelinde hedeflenen miktarların hesaplanması |
 | [Kalıp Takip](systems/kalip-takip.md) | `/kalip-takip` sayfası: Pres hücresi kalıp değişimlerinin takibi, manual giriş, senkronizasyon ve kümülatif parça adetleri takibi |
 | [Aksiyon Takip](systems/aksiyon-takip.md) | `/aksiyon-takip` sayfası: Sol hücre sidebar'ı, ClickUp tarzı inline ana/alt madde ekleme, düzenlenebilir sorumlu/termin/öncelik/durum ve local state ile yenilemesiz işlem akışı |
@@ -43,15 +43,11 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 - `/dashboardy` → [Detaylı Performans Paneli](systems/performans-paneli.md)
 - `/durus-analiz` → [Duruş Analiz](systems/durus-analiz.md)
 - `/kalip-takip` → [Pres Hücresi Kalıp Değişim Takibi](systems/kalip-takip.md)
-- `/schedule` → Pres simülasyonu ve planlama
 - `/aksiyon-takip` → [Aksiyon Takip](systems/aksiyon-takip.md)
 - `/veri-takip` → Veri takip (henüz incelenmedi)
 
 **Anahtar dosyalar:**
 - `src/lib/types.ts` — BOLUMLER, DURUS_KOLONLARI, ZAMAN_DILIMLERI
-- `src/app/schedule/constants.ts` — simülasyon sabitleri
-- `src/app/schedule/utils.ts` — `buildSchedule` (tek hücre) + `buildCellChain` (zincir orchestrator) + `getUpstreamChain`
-- `src/app/schedule/overview/constants.ts` — CELL_FLOWS, CELL_STATE_CONFIG (per-hücre başlangıç field config'i)
 
 ## Log
 

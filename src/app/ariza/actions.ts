@@ -57,7 +57,6 @@ export async function updateArizaType(rowId: string, newType: string) {
 
   revalidatePath("/ariza");
   revalidatePath("/dashboard");
-  revalidatePath("/schedule");
   return { success: true };
 }
 
