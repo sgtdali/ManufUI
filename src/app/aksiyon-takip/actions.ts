@@ -9,7 +9,7 @@ export type ActionItem = {
   title: string;
   assignee: string;
   due_date: string | null;
-  priority: "Yüksek" | "Orta" | "Düşük";
+  priority: string | null;
   status: "Açık" | "Devam Ediyor" | "Tamamlandı";
   created_at: string;
   updated_at: string;
@@ -33,7 +33,7 @@ export async function createActionItem(item: {
   title: string;
   assignee: string;
   due_date?: string | null;
-  priority: string;
+  priority?: string | null;
 }) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -44,7 +44,7 @@ export async function createActionItem(item: {
       title: item.title,
       assignee: item.assignee,
       due_date: item.due_date || null,
-      priority: item.priority,
+      priority: item.priority || null,
       status: "Açık",
     })
     .select()
@@ -60,7 +60,7 @@ export async function updateActionItem(
     title?: string;
     assignee?: string;
     due_date?: string | null;
-    priority?: string;
+    priority?: string | null;
     status?: string;
     cell?: string;
   }
