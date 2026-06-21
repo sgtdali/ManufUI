@@ -1,13 +1,40 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { ProductionFormData, FFPreformRow, FFPreformRejectRow, FFPreformReworkRow } from "@/lib/types";
+import { ProductionFormData, MAKINE_SAYISI_DEFAULTS, FFPreformRow, FFPreformRejectRow, FFPreformReworkRow } from "@/lib/types";
 import {
   formatTargetDowntimeIssues,
   validateTargetDowntime,
 } from "@/lib/productionValidation";
 
+const TARGET_20_CELLS = ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"];
+const ROB108_TARGETS: Record<number, number> = { 5: 20, 4: 13, 3: 10, 2: 6, 1: 3, 0: 0 };
+
+function enforceServerTargets(data: ProductionFormData): ProductionFormData {
+  const bolum = data.bolum || "";
+  if (!TARGET_20_CELLS.includes(bolum)) return data;
+
+  const day = data.tarih ? new Date(`${data.tarih}T00:00:00`).getDay() : 1;
+  const isWeekend = day === 5 || day === 6;
+  if (isWeekend) return data;
+
+  const defaultM = MAKINE_SAYISI_DEFAULTS[bolum] ?? null;
+
+  return {
+    ...data,
+    rows: data.rows.map((row) => {
+      let hedef = 20;
+      if (bolum === "ROB108 Hücresi") {
+        const m = row.calisan_makine_sayisi ?? defaultM;
+        hedef = (m != null && ROB108_TARGETS[m] !== undefined) ? ROB108_TARGETS[m] : 20;
+      }
+      return { ...row, hedef_uretim_adeti: hedef };
+    }),
+  };
+}
+
 export async function saveProductionRecord(data: ProductionFormData) {
+  data = enforceServerTargets(data);
   const targetIssues = validateTargetDowntime(data);
   if (targetIssues.length > 0) {
     return {
