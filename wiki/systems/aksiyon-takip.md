@@ -61,8 +61,9 @@ Kolonlar: Başlık, Hücre (sadece `Tüm hücreler` görünümünde), Sorumlu, T
 - **Görsel Stil:** Tablo başlıkları `text-zinc-700 font-semibold` yapılarak belirginleştirilmiştir.
 
 ### Dikey Kaydırma ve Sticky Layout
-- **Sticky Üst Alan:** Sayfa başlığı ve filtreler bölümü sarmalayıcı bir div ile `sticky top-0 z-10 bg-zinc-50` yapılmıştır. Tablo yukarı kaydırıldığında bu alan sabit kalır.
-- **Scrollable Tablo Kutusu:** Tablo container'ına `overflow-y-auto max-h-[calc(100vh-320px)]` atanarak dikeyde kendi içinde kaydırılması sağlanmıştır.
+- **Kompakt Düzen:** Sayfa dikey dolgusu `py-4`, grid ve right column boşlukları `gap-4` seviyesine indirilerek başlık yüksekliği azaltılmıştır (`h1` başlığı `text-2xl` ve header dolgusu `pb-3` yapılmıştır).
+- **Sol Sidebar Sticky ve Yükseklik:** Sidebar sticky pozisyonu `xl:top-4` ve iç dikey kaydırma limiti `max-h-[calc(100vh-140px)]` olarak daraltılmıştır.
+- **Scrollable Tablo Kutusu:** Tablo container'ına `overflow-y-auto max-h-[calc(100vh-240px)]` atanarak dikeyde kendi içinde kaydırılması sağlanmıştır. (Header daraltıldığı için tablo alanı `280px`'ten `240px`'e genişletilmiştir).
 - **Sticky Tablo Başlığı (thead):** Tablo başlıkları (`thead`) `sticky top-0 z-10 bg-zinc-50` yapılmıştır, böylece tablo kendi container'ı içinde scroll edildikçe her zaman filtrelerin hemen altında yapışık kalır.
 - **Sticky Alt Sınır Çizgisi:** Sınır çizgisinin dikey kaydırma sırasında kaybolmasını önlemek için `border-b-2 border-zinc-300` yerine her bir `th` etiketine `inset box-shadow` (`shadow-[inset_0_-2px_0_0_#d4d4d8]`) uygulanmıştır.
 
@@ -97,3 +98,4 @@ Kolonlar: Başlık, Hücre (sadece `Tüm hücreler` görünümünde), Sorumlu, T
 ## Navigasyon
 
 - Sayfa üst başlığında **Forma dön** butonu ile `/` ana sayfaya dönüş yapılır.
+- Üretim Dashboard (`/dashboard`) sayfasının üst menüsünde, "Veri Takip" butonunun hemen sağında yer alan **Aksiyon Takip** butonu ile bu sayfaya geçiş sağlanır.

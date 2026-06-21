@@ -232,6 +232,12 @@ export default async function DashboardPage({
               Veri takip
             </Link>
             <Link
+              className="rounded-md border border-teal-700 bg-teal-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-800"
+              href="/aksiyon-takip"
+            >
+              Aksiyon Takip
+            </Link>
+            <Link
               className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-800"
               href="/arıza"
             >

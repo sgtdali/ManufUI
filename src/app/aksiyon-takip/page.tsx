@@ -355,8 +355,27 @@ export default function AksiyonTakipPage() {
   const showCellColumn = !filterCell;
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-4 py-6 text-zinc-950 md:px-8">
-      <div className="grid w-full gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+    <main className="min-h-screen bg-zinc-50 px-4 py-4 text-zinc-950 md:px-8 flex flex-col gap-4">
+      {/* Header - Sayfanın En Tepesinde */}
+      <header className="flex flex-col gap-2 border-b border-zinc-200 pb-3 md:flex-row md:items-end md:justify-between w-full">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-normal">
+            Aksiyon Takip
+          </h1>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+            href="/"
+          >
+            <ArrowLeft className="size-4" />
+            Forma dön
+          </Link>
+        </div>
+      </header>
+
+      {/* Grid Layout - Sidebar ve İçerik Yan Yana */}
+      <div className="grid w-full gap-4 xl:grid-cols-[280px_minmax(0,1fr)] flex-1">
         <CellSidebar
           cells={ACTION_CELLS}
           selectedCell={filterCell}
@@ -365,80 +384,59 @@ export default function AksiyonTakipPage() {
           onSelectCell={setFilterCell}
         />
 
-        <div className="flex min-w-0 flex-col gap-6">
-          {/* Sticky Header and Filters Container */}
-          <div className="sticky top-0 z-10 -mt-6 bg-zinc-50 pb-4 pt-6 flex flex-col gap-6">
-            {/* Header */}
-            <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 md:flex-row md:items-end md:justify-between">
-              <div>
-                <h1 className="mt-2 text-3xl font-semibold tracking-normal">
-                  Aksiyon Takip
-                </h1>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  className="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
-                  href="/"
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* Filters */}
+          <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-zinc-600">
+                  Durum
+                </label>
+                <select
+                  className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
                 >
-                  <ArrowLeft className="size-4" />
-                  Forma dön
-                </Link>
+                  <option value="">Tümü</option>
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </header>
-
-            {/* Filters */}
-            <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-zinc-600">
-                    Durum
-                  </label>
-                  <select
-                    className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                  >
-                    <option value="">Tümü</option>
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-zinc-600">
-                    Öncelik
-                  </label>
-                  <select
-                    className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
-                    value={filterPriority}
-                    onChange={(e) => setFilterPriority(e.target.value)}
-                  >
-                    <option value="">Tümü</option>
-                    {PRIORITIES.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  className="self-end rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
-                  onClick={() => {
-                    setFilterCell("");
-                    setFilterStatus("");
-                    setFilterPriority("");
-                  }}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-zinc-600">
+                  Öncelik
+                </label>
+                <select
+                  className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
+                  value={filterPriority}
+                  onChange={(e) => setFilterPriority(e.target.value)}
                 >
-                  Temizle
-                </button>
+                  <option value="">Tümü</option>
+                  {PRIORITIES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </section>
-          </div>
+              <button
+                className="self-end rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+                onClick={() => {
+                  setFilterCell("");
+                  setFilterStatus("");
+                  setFilterPriority("");
+                }}
+              >
+                Temizle
+              </button>
+            </div>
+          </section>
 
         {/* Table */}
-        <section className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)] rounded-lg border border-zinc-200 bg-white shadow-sm">
+        <section className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-240px)] rounded-lg border border-zinc-200 bg-white shadow-sm">
           {loading ? (
             <div className="p-8 text-center text-sm text-zinc-500">
               Yükleniyor...
@@ -546,7 +544,7 @@ function CellSidebar({
   onSelectCell: (cell: string) => void;
 }) {
   return (
-    <aside className="xl:sticky xl:top-6 xl:self-start">
+    <aside className="xl:sticky xl:top-4 xl:self-start">
       <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
         <div className="mb-3 flex items-center justify-between px-1">
           <div>
@@ -580,7 +578,7 @@ function CellSidebar({
           </span>
         </button>
 
-        <div className="max-h-[calc(100vh-170px)] space-y-1 overflow-y-auto pr-1">
+        <div className="max-h-[calc(100vh-140px)] space-y-1 overflow-y-auto pr-1">
           {cells.map((cell) => {
             const isSelected = selectedCell === cell;
             return (

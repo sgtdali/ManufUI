@@ -307,4 +307,17 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - **Kaymayan Alt Sınır Çizgisi:** Tablo başlıklarının altındaki sınır çizgisinin scroll esnasında kaybolmasını engellemek için `border-bottom` yerine her bir `th` etiketine `inset box-shadow` (`shadow-[inset_0_-2px_0_0_#d4d4d8]`) uygulandı.
 - **Header Temizliği:** Sayfa başlığı üzerindeki `ClipboardList` ikonu ve toplam aksiyon sayısı göstergesi kaldırılarak daha sade bir görünüm elde edildi.
 - **Sınırsız Alt Madde (Nested Sub-tasks) Desteği:** Alt maddelerin altına yeni alt maddeler eklenmesini engelleyen `depth === 0` sınırlandırılması kaldırıldı. Alt maddelerin altındaki çocukları açıp kapatabilmek için chevron oku her seviyede aktif kılındı. Hiyerarşik girintiler ve `└` çizgileri dinamik olarak hizalandı.
-- **Wiki Güncellemesi:** `wiki/systems/aksiyon-takip.md` ve `wiki/log.md` güncellendi, `wiki/index.md`'nin frontmatter `updated` tarihi güncellendi.
+- **Wiki Güncellemesi:** `wiki/systems/aksiyon-takip.md` and `wiki/log.md` güncellendi, `wiki/index.md`'nin frontmatter `updated` tarihi güncellendi.
+
+---
+
+## [2026-06-21] update | Aksiyon Takip Kompakt Düzen ve Dashboard Yönlendirme Entegrasyonu
+
+**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`, `src/app/dashboard/page.tsx`
+
+**Yapılanlar:**
+- **Kompakt Tasarım ve Boşluklar:** `/aksiyon-takip` sayfa yerleşiminin dikey yüksekliğini azaltmak amacıyla sayfa başlığı (`h1`) fontu `text-2xl` yapıldı, dikey dolgular ve boşluklar daraltıldı (`py-4 gap-4`). "Forma dön" butonu daha ufak boyuta getirildi.
+- **Scroll & Sticky Alan Genişletmesi:** Üst alanın daralmasıyla birlikte dikey kaydırılabilir tablo container'ının dikey limiti `max-h-[calc(100vh-240px)]` olarak, sidebar iç kaydırma alanı ise `max-h-[calc(100vh-140px)]` olarak genişletildi.
+- **Yönlendirme Butonu:** `/dashboard` sayfasındaki header bölümünde yer alan "Veri Takip" butonunun yanına, kullanıcıyı `/aksiyon-takip` sayfasına yönlendiren tema uyumlu "Aksiyon Takip" butonu yerleştirildi.
+- **Wiki Güncellemesi:** `wiki/systems/aksiyon-takip.md` ve `wiki/log.md` bu oturumdaki geliştirmelerle güncellendi.
+
