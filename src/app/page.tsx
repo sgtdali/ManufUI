@@ -100,7 +100,24 @@ function applyRecordToForm(
   }
 
   const mapDbRow = (row: Record<string, number | string | boolean | null>, slotIndex: number, slotLabel: string, siraNo: number): ProductionRow => {
-    const targetVal = isTargetReadOnly ? 20 : (row.hedef_uretim_adeti as number | null);
+    const defaultM = (bolum && MAKINE_SAYISI_DEFAULTS[bolum]) !== undefined ? MAKINE_SAYISI_DEFAULTS[bolum] : null;
+    const mSayisi = (row.calisan_makine_sayisi as number | null) ?? defaultM;
+    let targetVal = row.hedef_uretim_adeti as number | null;
+    if (isTargetReadOnly) {
+      if (bolum === "ROB108 Hücresi") {
+        const ROB108_TARGETS: Record<number, number> = {
+          5: 20,
+          4: 13,
+          3: 10,
+          2: 6,
+          1: 3,
+          0: 0
+        };
+        targetVal = mSayisi != null && ROB108_TARGETS[mSayisi] !== undefined ? ROB108_TARGETS[mSayisi] : 20;
+      } else {
+        targetVal = 20;
+      }
+    }
     return {
       sira_no: siraNo,
       zaman_dilimi: slotLabel,
@@ -321,8 +338,15 @@ export default function ProductionFormPage() {
       if (row.musteri_durus_turu && !row.musteri_durus_aciklama?.trim())
         aciklamaEksik.push(`${row.zaman_dilimi} → Müşteri Kaynaklı Duruş açıklaması`);
       const defaultLimit = MAKINE_SAYISI_DEFAULTS[data.bolum];
-      if (defaultLimit !== undefined && row.calisan_makine_sayisi != null && row.calisan_makine_sayisi < defaultLimit && !row.calisan_makine_aciklama?.trim())
-        aciklamaEksik.push(`${row.zaman_dilimi} → Çalışan Makinesi Sayısı açıklaması`);
+      if (defaultLimit !== undefined && row.calisan_makine_sayisi != null) {
+        const isRob108 = data.bolum === "ROB108 Hücresi";
+        const isExplanationRequired = isRob108
+          ? row.calisan_makine_sayisi !== 5
+          : row.calisan_makine_sayisi < defaultLimit;
+        if (isExplanationRequired && !row.calisan_makine_aciklama?.trim()) {
+          aciklamaEksik.push(`${row.zaman_dilimi} → Çalışan Makinesi Sayısı açıklaması`);
+        }
+      }
     });
     if (aciklamaEksik.length > 0) {
       toast.error(
@@ -419,11 +443,30 @@ export default function ProductionFormPage() {
 
   const handleOpenCalisanMakineDialog = useCallback((rowIndex: number, val: number | null) => {
     const defaultLimit = MAKINE_SAYISI_DEFAULTS[bolum];
-    if (defaultLimit !== undefined && val != null && val < defaultLimit) {
+    const isRob108 = bolum === "ROB108 Hücresi";
+
+    if (isRob108 && val != null) {
+      const ROB108_TARGETS: Record<number, number> = {
+        5: 20,
+        4: 13,
+        3: 10,
+        2: 6,
+        1: 3,
+        0: 0
+      };
+      const newTarget = ROB108_TARGETS[val] !== undefined ? ROB108_TARGETS[val] : 20;
+      setValue(`rows.${rowIndex}.hedef_uretim_adeti`, newTarget);
+    }
+
+    const isExplanationRequired = isRob108
+      ? val != null && val !== 5
+      : defaultLimit !== undefined && val != null && val < defaultLimit;
+
+    if (isExplanationRequired) {
       setAciklamaDialog({
         rowIndex,
         alan: "calisan_makine",
-        baslik: `Çalışan Makinesi Sayısı Açıklaması (${val} Makine / Normal: ${defaultLimit})`,
+        baslik: `Çalışan Makinesi Sayısı Açıklaması (${val} Makine / Normal: ${isRob108 ? 5 : defaultLimit})`,
         aciklamaKey: "calisan_makine_aciklama",
         aciklama: (watchedRows?.[rowIndex]?.calisan_makine_aciklama as string) ?? "",
       });

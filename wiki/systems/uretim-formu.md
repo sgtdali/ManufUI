@@ -56,7 +56,7 @@ Her satırda şu alanlar bulunur (Seçili hücreye göre kolonlar dinamikleşir)
 | Bir Önceki İstasyon Bekleme | `onceki_istasyon_bekleme` | Dakika, alt tür yok | Tüm |
 | Müşteri Kaynaklı Duruş | `musteri_kaynakli_durus` + `musteri_durus_turu` + `musteri_durus_aciklama` | Dakika + alt tür + açıklama | Tüm |
 | Kalite Kaynaklı Duruş | `kalite_kaynakli_durus` | Dakika, alt tür yok | Tüm |
-| Hedef Üretim | `hedef_uretim_adeti` | Sağ sütunda. Pres, ETM, ROB104, ROB108 ve ROB109 hücrelerinde cuma ve cumartesi günleri hariç varsayılan olarak `20` değerini alır ve salt okunurdur. | Tüm |
+| Hedef Üretim | `hedef_uretim_adeti` | Sağ sütunda. Pres, ETM, ROB104, ROB108 ve ROB109 hücrelerinde cuma ve cumartesi günleri hariç varsayılan olarak `20` değerini alır ve salt okunurdur. (ROB108 için hedef adeti çalışan makine sayısına göre dinamik olarak güncellenir: 5 makine -> 20, 4 -> 13, 3 -> 10, 2 -> 6, 1 -> 3, 0 -> 0) | Tüm |
 
 Duruş alt türleri detayları için bkz. [Duruşlar](duruslar.md).
 
@@ -104,7 +104,7 @@ Duruş süresi > 0 girilmişse ilgili `*_turu` alanı dolu olmalı:
   - Pres ve ETM Hücresi dışında → `setup_aciklama` zorunlu
   - Pres Hücresi'nde **sadece "Kaçak Kontrolü"** ise → `setup_aciklama` zorunlu
   - ETM Hücresi'nde → Açıklama gerekmez
-- Çalışan makine sayısı sınırın (ETM: 2, ROB104: 2, ROB108: 6, ROB109: 2) altındaysa → `calisan_makine_aciklama` zorunlu
+- Çalışan makine sayısı sınırın altındaysa (ETM: < 2, ROB104: < 2, ROB109: < 2) veya ROB108 için normal değerden farklıysa (ROB108: !== 5) → `calisan_makine_aciklama` zorunlu
 - `musteri_durus_turu` seçilmişse → `musteri_durus_aciklama` zorunlu
 
 ### Hedef/Gerçekleşen Fark Validasyonu & Kademeli Kayıt (Progressive Validation)

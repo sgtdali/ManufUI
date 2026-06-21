@@ -224,6 +224,11 @@ export function ProductionTable({
 
                       const val = watchedRows?.[i]?.calisan_makine_sayisi;
                       const hasDesc = !!watchedRows?.[i]?.calisan_makine_aciklama;
+                      const isRob108 = bolum === "ROB108 Hücresi";
+                      const isExplanationRequired = isRob108
+                        ? val != null && val !== 5
+                        : val != null && val < defaultLimit;
+
                       return (
                         <td className="px-1.5 py-2 text-center">
                           <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
@@ -242,12 +247,12 @@ export function ProductionTable({
                                 }
                               })}
                             />
-                            {val != null && val < defaultLimit && (
+                            {isExplanationRequired && (
                               <button
                                 type="button"
                                 onClick={() => {
                                   if (onOpenCalisanMakineDialog) {
-                                    onOpenCalisanMakineDialog(i, val);
+                                    onOpenCalisanMakineDialog(i, val ?? null);
                                   }
                                 }}
                                 className={`flex items-center justify-center h-8 w-8 rounded border text-xs font-bold transition-colors ${

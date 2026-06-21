@@ -5,9 +5,9 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
-## [2026-06-21] update | Aksiyon Takip Düzeni, Sıralama, Sınırsız Alt Madde, Şifre Koruması ve ROB109 Hedef Entegrasyonu
+## [2026-06-21] update | Aksiyon Takip Düzeni, Sıralama, Sınırsız Alt Madde, Şifre Koruması, ROB109 Hedef ve ROB108 Çalışan Makine/Dinamik Hedef Entegrasyonu
 
-**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`, `src/app/aksiyon-takip/actions.ts`, `src/app/dashboard/page.tsx`, `src/app/page.tsx`, `src/app/_components/ProductionTable.tsx`, `supabase/migrations/20260621120000_allow_empty_action_priority.sql`
+**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`, `src/app/aksiyon-takip/actions.ts`, `src/app/dashboard/page.tsx`, `src/app/page.tsx`, `src/app/_components/ProductionTable.tsx`, `src/lib/types.ts`, `supabase/migrations/20260621120000_allow_empty_action_priority.sql`
 
 **Yapılanlar:**
 - **Aksiyon Takip Arayüzü ve Veri Akışı:**
@@ -33,6 +33,11 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
   - `/dashboard` sayfası üst barına "Veri Takip" butonunun yanına, kullanıcıyı doğrudan `/aksiyon-takip` sayfasına yönlendiren tema uyumlu (teal renkli) buton eklendi.
 - **ROB109 Hedef Özelleştirmesi:**
   - Günlük üretim giriş formunda (`/`) ROB109 Hücresi için hafta içi günlerde saatlik hedef üretim adetlerinin otomatik `20` olması ve salt okunur (`read-only`) olarak sınırlandırılması sağlandı.
+- **ROB108 Çalışan Makine & Dinamik Hedef Sistemi:**
+  - ROB108 Hücresi varsayılan aktif makine sayısı 6'dan 5'e düşürüldü.
+  - ROB108 için makine sayısı 5'ten farklı (büyük veya küçük) girildiğinde `calisan_makine_aciklama` (açıklama) girilmesi zorunlu kılındı.
+  - Çalışan makine sayısına göre o satırdaki hedef üretim adetini otomatik güncelleyen dinamik sistem kuruldu (5 makine -> 20, 4 -> 13, 3 -> 10, 2 -> 6, 1 -> 3, 0 -> 0).
+  - DB'den veri yükleme (`applyRecordToForm`), client tarafında veri değişim olayları (`handleOpenCalisanMakineDialog`) ve arayüzdeki doğrulama butonları bu yeni kurallara uyarlandı.
 - **Wiki Güncellemesi:** `wiki/systems/aksiyon-takip.md`, `wiki/systems/uretim-formu.md` ve `wiki/log.md` bu oturumdaki geliştirmelerle güncellendi.
 
 ---

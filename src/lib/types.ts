@@ -34,7 +34,7 @@ export const BOLUM_SORUMLU: Record<string, string> = {
 
 export const MAKINE_SAYISI_DEFAULTS: Record<string, number> = {
   "ETM Hücresi": 2,
-  "ROB108 Hücresi": 6,
+  "ROB108 Hücresi": 5,
   "ROB104 Hücresi": 2,
   "ROB109 Hücresi": 2,
 };
