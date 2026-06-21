@@ -13,6 +13,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Lock,
+  LockOpen,
 } from "lucide-react";
 import { BOLUMLER } from "@/lib/types";
 import {
@@ -130,6 +132,51 @@ function removeItemBranch(items: ActionItem[], id: string) {
 }
 
 export default function AksiyonTakipPage() {
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const auth = localStorage.getItem("action_items_authorized") === "true";
+      setIsAuthorized(auth);
+    }
+  }, []);
+
+  const handleLock = () => {
+    setIsAuthorized(false);
+    localStorage.removeItem("action_items_authorized");
+    toast.success("Düzenleme modu kilitlendi.");
+  };
+
+  const handleConfirmPassword = (pw: string): boolean => {
+    if (pw === "repkonopm") {
+      setIsAuthorized(true);
+      localStorage.setItem("action_items_authorized", "true");
+      toast.success("Düzenleme yetkisi doğrulandı.");
+      if (pendingAction) {
+        pendingAction();
+        setPendingAction(null);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const ensureAuthorized = (callback: () => void) => {
+    if (isAuthorized) {
+      callback();
+    } else {
+      setPendingAction(() => callback);
+      setIsPasswordDialogOpen(true);
+    }
+  };
+
+  const handleClosePasswordDialog = () => {
+    setIsPasswordDialogOpen(false);
+    setPendingAction(null);
+  };
+
   const [items, setItems] = useState<ActionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
@@ -363,7 +410,26 @@ export default function AksiyonTakipPage() {
             Aksiyon Takip
           </h1>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {isAuthorized ? (
+            <button
+              onClick={handleLock}
+              className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 shadow-sm hover:bg-rose-100 transition"
+              title="Düzenleme modunu kapat"
+            >
+              <LockOpen className="size-4" />
+              Düzenleme Açık
+            </button>
+          ) : (
+            <button
+              onClick={() => ensureAuthorized(() => {})}
+              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-100 transition"
+              title="Düzenleme yapmak için tıklayın"
+            >
+              <Lock className="size-4" />
+              Düzenleme Kilitli
+            </button>
+          )}
           <Link
             className="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
             href="/"
@@ -497,19 +563,21 @@ export default function AksiyonTakipPage() {
                     depth={0}
                     expandedRows={expandedRows}
                     toggleExpand={toggleExpand}
-                    onStatusChange={handleStatusChange}
-                    onPriorityChange={handlePriorityChange}
-                    onAssigneeChange={handleAssigneeChange}
-                    onDueDateChange={handleDueDateChange}
-                    onDelete={handleDelete}
-                    onAddSub={openSubForm}
-                    onCreateSub={handleSubInlineCreate}
+                    onStatusChange={(id, status) => ensureAuthorized(() => handleStatusChange(id, status))}
+                    onPriorityChange={(id, priority) => ensureAuthorized(() => handlePriorityChange(id, priority))}
+                    onAssigneeChange={(id, assignee) => ensureAuthorized(() => handleAssigneeChange(id, assignee))}
+                    onDueDateChange={(id, due_date) => ensureAuthorized(() => handleDueDateChange(id, due_date))}
+                    onDelete={(id) => ensureAuthorized(() => handleDelete(id))}
+                    onAddSub={(parentId, parentCell) => ensureAuthorized(() => openSubForm(parentId, parentCell))}
+                    onCreateSub={(parentId, parentCell) => ensureAuthorized(() => handleSubInlineCreate(parentId, parentCell))}
                     onCloseSub={() => setSubFormParentId(null)}
                     isPending={isPending}
                     subFormParentId={subFormParentId}
                     subTitle={subInlineTitle}
                     onSubTitleChange={setSubInlineTitle}
                     showCellColumn={showCellColumn}
+                    isAuthorized={isAuthorized}
+                    ensureAuthorized={ensureAuthorized}
                   />
                 ))}
                 <InlineActionCreateRow
@@ -517,8 +585,10 @@ export default function AksiyonTakipPage() {
                   title={inlineTitle}
                   isPending={isPending}
                   onTitleChange={setInlineTitle}
-                  onCreate={handleInlineCreate}
+                  onCreate={() => ensureAuthorized(() => handleInlineCreate())}
                   showCellColumn={showCellColumn}
+                  isAuthorized={isAuthorized}
+                  ensureAuthorized={ensureAuthorized}
                 />
               </tbody>
             </table>
@@ -526,6 +596,11 @@ export default function AksiyonTakipPage() {
         </section>
         </div>
       </div>
+      <PasswordDialog
+        isOpen={isPasswordDialogOpen}
+        onClose={handleClosePasswordDialog}
+        onConfirm={handleConfirmPassword}
+      />
     </main>
   );
 }
@@ -620,6 +695,8 @@ function InlineActionCreateRow({
   depth = 0,
   placeholder,
   showCellColumn,
+  isAuthorized,
+  ensureAuthorized,
 }: {
   selectedCell: string;
   title: string;
@@ -630,6 +707,8 @@ function InlineActionCreateRow({
   depth?: number;
   placeholder?: string;
   showCellColumn: boolean;
+  isAuthorized: boolean;
+  ensureAuthorized: (cb: () => void) => void;
 }) {
   const disabled = !selectedCell || isPending;
 
@@ -643,31 +722,41 @@ function InlineActionCreateRow({
         )}
       </td>
       <td className="px-3 py-3">
-        <input
-          className="h-8 w-full rounded-md border border-transparent bg-white px-2 text-sm outline-none placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20 disabled:bg-zinc-100 disabled:text-zinc-400"
-          value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
-          onBlur={() => {
-            if (!title.trim() && onEmptyBlur) {
-              onEmptyBlur();
-              return;
-            }
-            onCreate();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
+        <div
+          onClickCapture={(e) => {
+            if (!isAuthorized) {
+              e.stopPropagation();
               e.preventDefault();
-              onCreate();
+              ensureAuthorized(() => {});
             }
           }}
-          placeholder={
-            selectedCell
-              ? placeholder ?? "Yeni aksiyon yazın, Enter ile ekleyin"
-              : "Yeni aksiyon için soldan hücre seçin"
-          }
-          style={{ paddingLeft: depth > 0 ? depth * 12 : undefined }}
-          disabled={disabled}
-        />
+        >
+          <input
+            className="h-8 w-full rounded-md border border-transparent bg-white px-2 text-sm outline-none placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20 disabled:bg-zinc-100 disabled:text-zinc-400 disabled:cursor-not-allowed"
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            onBlur={() => {
+              if (!title.trim() && onEmptyBlur) {
+                onEmptyBlur();
+                return;
+              }
+              onCreate();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onCreate();
+              }
+            }}
+            placeholder={
+              selectedCell
+                ? placeholder ?? "Yeni aksiyon yazın, Enter ile ekleyin"
+                : "Yeni aksiyon için soldan hücre seçin"
+            }
+            style={{ paddingLeft: depth > 0 ? depth * 12 : undefined }}
+            disabled={disabled || !isAuthorized}
+          />
+        </div>
       </td>
       {showCellColumn ? (
         <td className="px-3 py-3">
@@ -711,6 +800,8 @@ function ActionRow({
   subTitle,
   onSubTitleChange,
   showCellColumn,
+  isAuthorized,
+  ensureAuthorized,
 }: {
   item: ActionItem;
   depth: number;
@@ -729,6 +820,8 @@ function ActionRow({
   subTitle: string;
   onSubTitleChange: (title: string) => void;
   showCellColumn: boolean;
+  isAuthorized: boolean;
+  ensureAuthorized: (cb: () => void) => void;
 }) {
   const hasChildren = item.children && item.children.length > 0;
   const isExpanded = expandedRows.has(item.id);
@@ -779,65 +872,105 @@ function ActionRow({
           </td>
         ) : null}
         <td className="px-3 py-3">
-          <input
-            className="h-8 w-36 rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
-            defaultValue={item.assignee}
-            onBlur={(e) => {
-              if (e.target.value !== item.assignee) {
-                onAssigneeChange(item.id, e.target.value.trim());
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
+          <div
+            onClickCapture={(e) => {
+              if (!isAuthorized) {
+                e.stopPropagation();
                 e.preventDefault();
-                e.currentTarget.blur();
+                ensureAuthorized(() => {});
               }
             }}
-            placeholder="Sorumlu"
-            disabled={isPending}
-          />
-        </td>
-        <td className="px-3 py-3">
-          <input
-            type="date"
-            className={`h-8 w-32 rounded-md border px-2 text-xs outline-none ${
-              isOverdue
-                ? "border-rose-300 bg-rose-50 font-medium text-rose-600"
-                : "border-zinc-200 bg-transparent text-zinc-700"
-            } focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20`}
-            value={item.due_date ?? ""}
-            onChange={(e) => onDueDateChange(item.id, e.target.value)}
-            disabled={isPending}
-          />
-        </td>
-        <td className="px-3 py-3">
-          <select
-            className={`rounded-md px-2 py-1 text-xs font-medium outline-none ${item.priority ? priorityColor(item.priority) : "bg-zinc-100 text-zinc-500"}`}
-            value={item.priority ?? ""}
-            onChange={(e) => onPriorityChange(item.id, e.target.value || null)}
-            disabled={isPending}
           >
-            <option value="">Seçiniz</option>
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+            <input
+              className="h-8 w-36 rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20 disabled:cursor-not-allowed disabled:opacity-75"
+              defaultValue={item.assignee}
+              onBlur={(e) => {
+                if (e.target.value !== item.assignee) {
+                  onAssigneeChange(item.id, e.target.value.trim());
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+              }}
+              placeholder="Sorumlu"
+              disabled={isPending || !isAuthorized}
+            />
+          </div>
         </td>
         <td className="px-3 py-3">
-          <select
-            className={`rounded-md px-2 py-1 text-xs font-medium outline-none ${statusColor(item.status)}`}
-            value={item.status}
-            onChange={(e) => onStatusChange(item.id, e.target.value)}
-            disabled={isPending}
+          <div
+            onClickCapture={(e) => {
+              if (!isAuthorized) {
+                e.stopPropagation();
+                e.preventDefault();
+                ensureAuthorized(() => {});
+              }
+            }}
           >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+            <input
+              type="date"
+              className={`h-8 w-32 rounded-md border px-2 text-xs outline-none ${
+                isOverdue
+                  ? "border-rose-300 bg-rose-50 font-medium text-rose-600"
+                  : "border-zinc-200 bg-transparent text-zinc-700"
+              } focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20 disabled:cursor-not-allowed`}
+              value={item.due_date ?? ""}
+              onChange={(e) => onDueDateChange(item.id, e.target.value)}
+              disabled={isPending || !isAuthorized}
+            />
+          </div>
+        </td>
+        <td className="px-3 py-3">
+          <div
+            onClickCapture={(e) => {
+              if (!isAuthorized) {
+                e.stopPropagation();
+                e.preventDefault();
+                ensureAuthorized(() => {});
+              }
+            }}
+          >
+            <select
+              className={`rounded-md px-2 py-1 text-xs font-medium outline-none disabled:cursor-not-allowed ${item.priority ? priorityColor(item.priority) : "bg-zinc-100 text-zinc-500"}`}
+              value={item.priority ?? ""}
+              onChange={(e) => onPriorityChange(item.id, e.target.value || null)}
+              disabled={isPending || !isAuthorized}
+            >
+              <option value="">Seçiniz</option>
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+        </td>
+        <td className="px-3 py-3">
+          <div
+            onClickCapture={(e) => {
+              if (!isAuthorized) {
+                e.stopPropagation();
+                e.preventDefault();
+                ensureAuthorized(() => {});
+              }
+            }}
+          >
+            <select
+              className={`rounded-md px-2 py-1 text-xs font-medium outline-none disabled:cursor-not-allowed ${statusColor(item.status)}`}
+              value={item.status}
+              onChange={(e) => onStatusChange(item.id, e.target.value)}
+              disabled={isPending || !isAuthorized}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
         </td>
         <td className="px-3 py-3">
           <div className="flex gap-1">
@@ -870,6 +1003,8 @@ function ActionRow({
           depth={depth + 1}
           placeholder="Alt madde yazın, Enter ile ekleyin"
           showCellColumn={showCellColumn}
+          isAuthorized={isAuthorized}
+          ensureAuthorized={ensureAuthorized}
         />
       ) : null}
       {/* Children rows */}
@@ -894,10 +1029,92 @@ function ActionRow({
               subTitle={subTitle}
               onSubTitleChange={onSubTitleChange}
               showCellColumn={showCellColumn}
+              isAuthorized={isAuthorized}
+              ensureAuthorized={ensureAuthorized}
             />
           ))
         : null}
     </>
+  );
+}
+
+function PasswordDialog({
+  isOpen,
+  onClose,
+  onConfirm,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (password: string) => boolean;
+}) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = onConfirm(password);
+    if (success) {
+      setPassword("");
+      setError(false);
+      onClose();
+    } else {
+      setError(true);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-6 shadow-xl animate-in zoom-in-95 duration-200">
+        <h3 className="text-lg font-semibold text-zinc-900">Düzenleme Şifresi</h3>
+        <p className="mt-1 text-sm text-zinc-500">
+          Değişiklik yapmak için lütfen şifreyi giriniz.
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <input
+            type="password"
+            autoFocus
+            className={`h-9 w-full rounded-md border px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20 ${
+              error ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20" : "border-zinc-300"
+            }`}
+            placeholder="Şifre"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setError(false);
+            }}
+          />
+
+          {error && (
+            <p className="text-xs font-medium text-rose-600">
+              Hatalı şifre girdiniz. Lütfen tekrar deneyin.
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-100"
+              onClick={() => {
+                setError(false);
+                setPassword("");
+                onClose();
+              }}
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              className="rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800"
+            >
+              Onayla
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

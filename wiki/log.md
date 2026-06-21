@@ -5,6 +5,38 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-21] update | Aksiyon Takip Düzeni, Sıralama, Sınırsız Alt Madde, Şifre Koruması ve ROB109 Hedef Entegrasyonu
+
+**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`, `src/app/aksiyon-takip/actions.ts`, `src/app/dashboard/page.tsx`, `src/app/page.tsx`, `src/app/_components/ProductionTable.tsx`, `supabase/migrations/20260621120000_allow_empty_action_priority.sql`
+
+**Yapılanlar:**
+- **Aksiyon Takip Arayüzü ve Veri Akışı:**
+  - Sol hücre sidebar'ı tüm `BOLUMLER` (ölçüm hücreleri dahil) listesi için aktif edilerek filtrelenebilir hale getirildi.
+  - Ayrı bir yeni aksiyon formu ve üst metrik kartları kaldırılarak aksiyon girişleri tablonun en altındaki inline satıra taşındı.
+  - Sorumlu otomatik ataması kaldırıldı; sorumlu, termin, öncelik ve durum doğrudan tablo üzerinden inline olarak düzenlenebilir yapıldı.
+  - Önceliğin (`priority`) boş başlayabilmesi için nullable yapan migration (`20260621120000_allow_empty_action_priority.sql`) veritabanına uygulandı.
+  - CRUD işlemlerinin ardından tüm listenin yeniden çekilmesi yerine doğrudan local state güncellenerek yenilemesiz (optimistic/local update) akış sağlandı.
+- **Düzenleme Şifre Koruması:**
+  - Değişiklik yapmak için şifreli doğrulama (`"repkonopm"`) eklendi, `localStorage` ile kalıcılık sağlandı. Sayfa kilitliyken düzenleme alanlarına tıklanması durumunda click capture ile şifre modalının açılması ve şifre onaylanınca tıklanan işlemin kaldığı yerden devam etmesi akışı kuruldu. Header'a kilit durumunu gösteren ve manuel kilitleyen butonlar eklendi.
+- **Dinamik Sıralama (Ağaç Yapısı):**
+  - Sorumlu (A-Z/Z-A), Termin (Eski-Yeni), Öncelik (Yüksek-Düşük) ve Durum (Açık-Tamamlandı) sütunlarına 3 aşamalı tıklanabilir sıralama özelliği eklendi.
+  - Sıralamanın parent-child (hiyerarşik) ilişkisini bozmaması için sıralama motoru rekürsif olarak çalışacak şekilde kodlandı.
+- **Kompakt Tasarım, Sticky Layout ve Dikey Kaydırma:**
+  - Sayfa başlığı (`h1`) fontu `text-2xl`'e düşürüldü, üst boşluklar ve paddingler daraltıldı. Ana sayfa dikey dolguları ve elemanlar arası boşluklar (`py-4 gap-4`) küçültüldü.
+  - Sayfa başlığı ve filtreler bölümü dikeyde sabit tutulurken, tablo container'ı kendi içinde dikey scrollable (`overflow-y-auto max-h-[calc(100vh-240px)]`) yapıldı.
+  - Tablo başlıkları (`thead`) sticky yapıldı; dikey scroll sırasında başlık alt çizgisinin kaybolmaması için th hücrelerine `inset box-shadow` uygulandı.
+  - Sol sidebar sticky pozisyonu `xl:top-4` ve iç kaydırma alanı `max-h-[calc(100vh-140px)]` olarak kompakt tasarıma uyarlandı.
+- **Sınırsız Alt Madde (Nested Sub-tasks) Desteği:**
+  - Alt maddelerin altına da alt maddeler eklenmesini engelleyen sınırlama kaldırılarak sınırsız derinlikte alt madde desteği getirildi.
+  - Alt maddelerin altındaki çocukları açıp kapatabilmek (collapsible) için chevron butonunun her seviyede aktif çalışması sağlandı, girintiler ve çizgiler otomatik hizalandı.
+- **Dashboard Buton Entegrasyonu:**
+  - `/dashboard` sayfası üst barına "Veri Takip" butonunun yanına, kullanıcıyı doğrudan `/aksiyon-takip` sayfasına yönlendiren tema uyumlu (teal renkli) buton eklendi.
+- **ROB109 Hedef Özelleştirmesi:**
+  - Günlük üretim giriş formunda (`/`) ROB109 Hücresi için hafta içi günlerde saatlik hedef üretim adetlerinin otomatik `20` olması ve salt okunur (`read-only`) olarak sınırlandırılması sağlandı.
+- **Wiki Güncellemesi:** `wiki/systems/aksiyon-takip.md`, `wiki/systems/uretim-formu.md` ve `wiki/log.md` bu oturumdaki geliştirmelerle güncellendi.
+
+---
+
 ## [2026-06-20] update | Aksiyon Takip Sayfası Eklendi
 
 **Yapılanlar:**
@@ -19,71 +51,42 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
-## [2026-06-18] update | Pres Hücresi Kalıp Değişim Takip Sistemi Entegrasyonu
+## [2026-06-18] update | Pres Kalıp Takibi, Final Ölçüm Entegrasyonu ve Saat Uzatmaları
 
 **Yapılanlar:**
-- **Yeni Sayfa ve Arayüz Tasarımı:** `/kalip-takip` rotasında çalışan, modern, istatistik kartları ve asenkron veri tüneli içeren Client-side kalıp takip ekranı geliştirildi.
-- **FormHeader Entegrasyonu:** Ana günlük üretim formundan (`/`) `/kalip-takip` ekranına kolay geçiş sağlayan "Kalıp Takip" butonu eklendi. Bu buton sadece **Pres Hücresi** seçildiğinde görünecek şekilde koşullandırıldı.
-- **Kalıp Bazlı Bağımsız Hesaplama:** Her bir kalıp değişim kaydının parça sayısı hesabı, **sadece aynı kalıp tipine ait bir sonraki kalıp değişimi kaydına kadar** olan üretimi kapsar. Araya başka tipte bir kalıp girilmesi bu sayacı kesmez; her kalıp tipi kendi içerisinde bağımsız ve kümülatif olarak sayılır.
-- **Tek Dropdown Arayüzü:** "Sökülen Kalıp" ve "Takılan Kalıp" alanları kaldırılarak tek bir **"Değiştirilen Kalıp"** açılır listesi (Dropdown) entegre edildi. Bu liste Pres Hücresinin günlük OEE formundaki kalıp montaj/demontaj seçeneklerinden oluşmaktadır.
-- **Parça Üretim Adetleri:** İki değişim arasındaki parça basım adetleri ise günlük OEE üretim formlarındaki (`manuf_production_rows`) Pres Hücresi `uretim_adeti` değerlerinden otomatik toplanarak kümülatif kronolojik sıralama ile hesaplanır.
-- **TypeScript & Derleme Doğrulaması:** base-ui select bileşenindeki `string | null` tipi kontrol edilerek tüm sistem tip güvenli hale getirildi, `npx tsc --noEmit` başarıyla sonuçlandı.
-- **ROB104 ve ROB108 Saat Uzatması:** ETM ve Flowform hücrelerinde olduğu gibi ROB104 ve ROB108 Hücreleri için de Pazartesi-Perşembe günleri 17:00-21:00 saat dilimleri (17:00-18:00, 18:00-19:00, 19:00-20:00, 20:00-21:00) forma eklendi.
-- **Performans Paneli Hedeflenen Yüzde Gösterimi:** `/dashboardy` sayfasındaki "Genel İlerleme Durumu" kartına, kümülatif gerçekleşen ilerleme yüzdesinin hemen yanına parantez içinde o gün itibarıyla hücrelerin toplam hedef yüzdesi `(%[Hedeflenen Yüzde])` eklendi.
-- **Wiki Dokümantasyonu:** `wiki/systems/kalip-takip.md`, `wiki/systems/uretim-formu.md` ve `wiki/systems/performans-paneli.md` güncellendi, `wiki/index.md` ve `wiki/log.md` güncellendi.
+- **Kalıp Takip Sistemi (`/kalip-takip`):**
+  - Pres Hücresi için bağımsız kalıp değişimlerini ve kümülatif parça adetlerini takip eden modern asenkron client-side ekran tasarlandı.
+  - OEE form geçişleri için `FormHeader.tsx`'e sadece Pres Hücresi seçildiğinde görünen "Kalıp Takip" butonu eklendi.
+  - Kalıp değişim hesaplamaları kalıp bazlı izole edilerek (araya giren farklı tip kalıpların sayacı kesmeyeceği şekilde) ve günlük OEE tablosundan (`manuf_production_rows`) dinamik olarak toplanarak kümülatif basım adetleri hesaplandı.
+  - "Sökülen/Takılan" alanları yerine tek bir "Değiştirilen Kalıp" dropdown yapısı entegre edildi.
+- **Final Ölçüm Entegrasyonu:**
+  - Günlük üretim formuna (`/`) saatlik OEE tablosundan bağımsız 6 satırlı "Final Ölçüm Verisi" tablosu (Ölçülen, Red, Rework Adetleri) ve dinamik alt detay tabloları eklenerek sorumlu olarak **Zeynep Ece Toker** atandı.
+  - Final ölçüm verileri için Supabase veritabanında 3 yeni tablo (`manuf_final_olcum_measurements`, `manuf_final_olcum_rejects`, `manuf_final_olcum_reworks`) oluşturularak asenkron kayıt yapısı bağlandı. OEE hücresi olmadığı için dashboard raporlamalarından muaf tutuldu.
+- **Form Saat Uzatması & Dashboardy Yüzde Gösterimi:**
+  - ROB104 ve ROB108 Hücreleri için Pazartesi-Perşembe 17:00-21:00 arası 4 ek slot forma dahil edildi.
+  - `/dashboardy` sayfasındaki Genel İlerleme kartına kümülatif hedeflenen yüzde gösterimi `(%[Hedeflenen Yüzde])` parantez içinde eklendi.
+- **Dokümantasyon Birleştirmesi:**
+  - FF Preform Ölçüm ve Final Ölçüm sistemleri `wiki/systems/olcum-sistemleri.md` altında tek bir belgede birleştirildi. `wiki/systems/kalip-takip.md` ve `wiki/systems/uretim-formu.md` güncellendi.
 
 ---
 
-## [2026-06-18] update | Final Ölçüm Bölümü ve Ölçüm Sistemleri Dokümantasyon Birleştirmesi
+## [2026-06-17] update | FF Preform Ölçüm, Performans Hedefleri, Duruş Pareto Analizi ve Arıza Filtreleme
 
 **Yapılanlar:**
-- **Final Ölçüm Bölümü Tanımlaması:** Günlük üretim formuna (`/`) ROB110-111 ile Fosfat Hücresi arasına bağımsız `"Final Ölçüm"` seçeneği eklendi. Sorumlusu otomatik olarak **Zeynep Ece Toker** olarak atandı.
-- **Arayüz Geliştirmesi:** Saatlik OEE tablosundan bağımsız, 6 satırlı "Final Ölçüm Verisi" tablosu (Ölçülen Adet, Red Parça Sayısı, Rework Parça Sayısı) ve anlık güncellenen "Red Sebepleri", "Rework Sebepleri" dinamik alt tabloları oluşturuldu.
-- **Veritabanı Entegrasyonu (Supabase)**: Final Ölçüm verileri için 3 ayrı tablo (`manuf_final_olcum_measurements`, `manuf_final_olcum_rejects`, `manuf_final_olcum_reworks`) oluşturulup, asenkron ve ortak kayıt (upsert/insert/delete) işlemleri yapıldı.
-- **Raporlama İzolasyonu:** "Final Ölçüm" bir OEE hücresi olmadığından Dashboard ve Veri Takip sayfalarından filtrelendi.
-- **Wiki Dokümantasyonu Birleştirmesi:** Önceki gün oluşturulan `ff-preform-olcum.md` sayfası silinerek, FF Preform Ölçüm ve Final Ölçüm sistemleri `wiki/systems/olcum-sistemleri.md` başlığı altında ortak bir belgede birleştirildi. `wiki/index.md` güncellendi.
+- **FF Preform Ölçüm Bölümü:**
+  - Günlük üretim formuna (`/`) ROB108 ile Flowform arasına "FF Preform Ölçüm" seçeneği (Sorumlu: Zeynep Ece Toker) eklendi.
+  - Saatlik OEE'den bağımsız 6 satırlı ölçüm tablosu, toplam adete göre dinamik olarak oluşan "Red/Rework Sebepleri" alt detay tabloları ve eksik detay girişi validasyonu kuruldu.
+  - Ölçümler için Supabase veritabanında 3 yeni tablo (`manuf_ff_preform_measurements`, `manuf_ff_preform_rejects`, `manuf_ff_preform_reworks`) oluşturuldu.
+- **Detaylı Performans Paneli (`/dashboardy`) ve Hedefler:**
+  - Hücre bazında kümülatif hedef takibi başlangıç tarihleri özelleştirildi (Pres: 14.06, ROB108/Flowform: 15.06, ROB104/N602-N603: 16.06, ROB109/Quench: 17.06, ROB110-111/Fosfat: 18.06, Boya: 21.06).
+  - Suudi Arabistan çalışma günleri baz alınarak (Pazar-Perşembe, Cuma/Cumartesi hariç) * 100 parça hesabı ile dinamik "Hedeflenen Miktar" sütunu eklendi.
+- **Duruş Analiz Sayfası (`/durus-analiz`):**
+  - Seçili tek bir OEE hücresine (FF Preform Ölçüm hariç) odaklanan dikey Pareto analiz ekranı kodlandı.
+  - Başlangıç/bitiş tarihi filtreleme, duruş süre/adet/oran kırılımları, Pareto satırı seçildiğinde detaylı kayıtları listeleyen sağ panel ve veri kalitesi rozetleri geliştirildi. `wiki/systems/durus-analiz.md` belgelendirildi.
+- **Arıza Detay Sayfası Filtreleri (`/ariza`):**
+  - Tarih bazlı filtreleme (`startDate`, `endDate`) ve varsayılan başlangıç tarihi (`13.06.2026`) parametreleri eklendi, temizleme butonu entegre edildi.
 
 ---
-
-## [2026-06-17] update | FF Preform Ölçüm Bölümü ve Dinamik Red/Rework Detay Takibi Entegrasyonu
-
-**Yapılanlar:**
-- **Bölüm Tanımlaması:** Günlük üretim formuna (`/`) ROB108 ile Flowform arasına bağımsız `"FF Preform Ölçüm"` seçeneği eklendi. Sorumlusu otomatik olarak **Zeynep Ece Toker** olarak atandı.
-- **Arayüz Geliştirmesi:** Saatlik OEE tablosundan bağımsız, 6 satırdan oluşan "FF Preform Ölçüm Verisi" tablosu (Ölçülen Adet, Red Parça Sayısı, Rework Parça Sayısı) kodlandı.
-- **Dinamik Detay Tabloları:** Toplam red ve rework sayılarına göre sayfa üzerinde anında oluşan "Red Sebepleri" ve "Rework Sebepleri" tabloları eklendi. Her satırda Parça No ve Red/Rework Nedeni girişleri yapılması sağlandı.
-- **Validasyon Engeli:** Red veya Rework sayısı girilip, alt detay tablolarındaki parça no ve sebep alanları boş bırakılırsa kaydetme işlemi durdurulup kullanıcıya toast uyarı verilmesi sağlandı.
-- **Veritabanı Entegrasyonu (Supabase)**: Ölçümler, red detayları ve rework nedenleri için 3 ayrı tablo (`manuf_ff_preform_measurements`, `manuf_ff_preform_rejects`, `manuf_ff_preform_reworks`) oluşturulup, asenkron ve ortak kayıt (upsert/insert) işlemleri yapıldı.
-- **Raporlama İzolasyonu:** "FF Preform Ölçüm" bir OEE hücresi olmadığından Dashboardy, Dashboard ve Veri Takip sayfalarından filtrelendi.
-- **Wiki Dokümantasyonu:** `wiki/systems/ff-preform-olcum.md` sayfası oluşturuldu ve `wiki/index.md` güncellendi.
-
----
-
-## [2026-06-17] update | Performans Paneli Hücre Başlangıç Tarihleri ve Hedeflenen Miktar Entegrasyonu
-
-**Yapılanlar:**
-- **Hücre Özelinde Başlangıç Tarihleri:** Detaylı Performans Paneli (`/dashboardy`) üzerinde her hücrenin kümülatif hedef takibine başlama tarihleri özelleştirildi:
-  - Pres Hücresi: `14.06.2026`
-  - ROB108 Hücresi: `15.06.2026`
-  - Flowform Hücresi: `15.06.2026`
-  - ROB104 Hücresi: `16.06.2026`
-  - N602-N603 Hücresi: `16.06.2026`
-  - ROB109 Hücresi: `17.06.2026`
-  - Quench Hücresi: `17.06.2026`
-  - ROB110-111 Hücresi: `18.06.2026`
-  - Fosfat Hücresi: `18.06.2026`
-  - Boya Hücresi: `21.06.2026`
-- **Hedeflenen Miktar Sütunu:** Tabloya "Hedeflenen Miktar" kolonu eklenerek, seçilen hücrenin başlangıç tarihinden bugüne kadar olan hafta içi gün sayısı (Saudi Arabistan çalışma günleri: Pazar-Perşembe, Cuma ve Cumartesi hariç) * 100 adet hesabı ile dinamik hedef gösterimi sağlandı.
-- **Wiki Güncellemesi:** Yeni eklenen `wiki/systems/performans-paneli.md` dokümanı ve `wiki/index.md` dizini bu bilgilerle güncellendi.
-
----
-
-## [2026-06-17] update | Arıza Detay Sayfası Tarih Filtreleme Entegrasyonu
-
-**Yapılanlar:**
-- **Tarih Filtreleri:** Arıza detay sayfasına (`/ariza`) başlangıç (`startDate`) ve bitiş (`endDate`) tarih filtreleri eklendi.
-- **Varsayılan Başlangıç Tarihi:** Başlangıç tarihi varsayılan olarak `13.06.2026` (`2026-06-13`) olarak ayarlandı.
-- **Filtre Sıfırlama:** "Temizle" butonuna tıklandığında tarih filtrelerinin de varsayılan ayarlara (`startDate: 13.06.2026`, `endDate: empty`) dönmesi sağlandı.
-- **Wiki Güncellemesi:** `wiki/systems/ariza-sistemi.md` belgesi ve `wiki/log.md` logu yeni özelliklerle güncellendi.
 
 ## [2026-06-16] update | Dashboardy Hücre Sırası ve Varsayılan Tarih Güncellemesi
 
@@ -103,68 +106,59 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
-## [2026-06-14] update | Hedef Üretim Özelleştirmesi ve Kademeli/İlerici Validasyon Sistemi
+## [2026-06-14] update | Form Hedef & İlerici Validasyon, Öneri Kaydı ve Arayüz Sadelestirmeleri
 
 **Yapılanlar:**
-- **Hedef Üretim Özelleştirmesi:** Pres, ETM, ROB104 ve ROB108 hücreleri için hedef üretim adeti cuma ve cumartesi günleri hariç her saat için varsayılan olarak `20` yapıldı ve bu giriş alanları salt okunur (read-only) yapılarak görsel olarak gri arka plan ve engelli imleç (`bg-zinc-100 cursor-not-allowed`) uygulandı. Hafta sonu (cuma ve cumartesi) ise bu alanlar serbestçe girilip düzenlenebilmektedir.
-- **Kademeli Kayıt (Progressive Validation):** Kullanıcıların gün ortasında asenkron saatlik veri kaydedebilmesi için `validateTargetDowntime` fonksiyonu güncellendi. Sistem kullanıcının veri girdiği en son satırı (`lastActiveIndex`) bulur ve sadece gün başlangıcından bu satıra kadar olan satırları doğrular. Son aktif satırdan sonraki gelecek saatler doğrulamadan muaf tutulur.
-- **Aktif Satır Kriterleri:** Bir satırın aktif/touched sayılması için `uretim_adeti !== null` olması veya duruş dakikalarının girilmiş olması (`enteredDowntime > 0`) esas alındı. "Müşteri Var" checkbox'ı bu kontrolden hariç tutuldu.
-- **Kalan Süre Rozet Davranışı:** Arayüzdeki rozet gösterimi güncellendi. Doğrulanan aralıkta kalan (ve aralardaki atlanmış boş satırlar da dahil olmak üzere) tüm satırlar için hesaplanmış gerekli duruş süreleri (örn. kırmızı `Kalan X dk`) gösterilir. Son aktif satırdan sonraki gelecek saatler ise nötr gri renkte ve `-` simgesiyle gösterilir.
-- **Wiki Güncellemesi:** Yapılan tüm form, hedef ve validasyon güncellemeleri `wiki/systems/uretim-formu.md` ve `wiki/log.md` dosyalarına işlendi.
-
-## [2026-06-14] update | Ana Form Ekranından Butonların Kaldırılması, Dashboardy Güncellemeleri ve Öneri Kayıt Sistemi
-
-**Yapılanlar:**
-- **Buton Kaldırma:** Ana günlük üretim formu üst bilgi kartından (`FormHeader.tsx`) "Excel'e Aktar" (Export to Excel) ve "Performans Paneli" (/dashboardy) butonları kaldırıldı.
-- **Varsayılan Tarih Aralığı ve Arayüz Düzenlemeleri:** Detaylı Performans Paneli (`/dashboardy`) başlangıç ve bitiş tarihleri varsayılan olarak `14.06.2026` ve `09.07.2026` olacak şekilde ayarlandı. Genel toplam durumu kartının başlığı "Genel İlerleme Durumu" olarak güncellendi, absolute değerler (`0 / 22.000`), "Kümülatif İlerleme" yazısı ve en sağdaki `%` metin göstergeleri kaldırılarak sadece yandaki yüzde ile ilerleme çubuğu gösterildi.
-- **Planlı Duruş "Kasa Alma - Bırakma" Seçeneği:** ROB104, ROB105, ROB108, Flowform, N602 ve N603 hücreleri için "Kasa Alma - Bırakma" seçeneği planlı duruş alt türlerine eklendi (açıklama zorunluluğu yok).
-- **ROB Hücreleri Arıza Kırılımı:** ROB104, ROB108 ve ROB109 hücreleri için `Mekanik`, `Elektrik`, `Akışkan`, `Belirsiz`, `Robot`, `Talaş Arabası Dolu`, `Manuel İşlemler`, `Kesici Takım Yok`, `Bor Yağı Bitti` arıza alt kategorileri oluşturuldu. Operasyonel kategoriler açıklama zorunluluğundan muaf tutuldu.
-- **Öneri Kayıt Sistemi:** Ana form ekranına "Öneri Kayıt" butonu eklendi. Butona basılınca bağımsız hücre seçimi ve öneri girişinin yapıldığı `OneriKayitDialog` açılmakta ve veriler Supabase'deki `manuf_suggestions` tablosuna (yeni tablo) kaydedilmektedir.
-- **Kaydetme Bugfix'i:** `calisan_makine_sayisi` ve `calisan_makine_aciklama` kolonları upsert edilirken sadece makine sayısı alanı bulunan hücreler için gönderilip diğerlerinde payload'dan çıkartılarak "schema cache" hatalarının önüne geçildi.
-- **Wiki Güncellemeleri:** Tüm yapılan geliştirmeler ilgili wiki belgelerine (`uretim-formu.md`, `duruslar.md`, `db-tablolari.md`) işlenerek güncellendi.
-
-## [2026-06-13] update | Pres Arıza "Hidrolik Yağ Sıcaklık Alarmı" Alt Kategorisi
-
-**Yapılanlar:**
-- `SUB_CATEGORIES["Pres"]` listesine `"Hidrolik Yağ Sıcaklık Alarmı"` seçeneği eklendi (Kalıp ile Diğer/Belirsiz arasına).
-- `NO_DETAIL_REQUIRED` set'i oluşturuldu; bu seçenek seçildiğinde "Detaylı Açıklama" textarea'sı dialog'da gizlenir, kullanıcı direkt Tamam'a basabilir.
-- Kayıt `[Hidrolik Yağ Sıcaklık Alarmı]` formatında saklanır — validasyon geçer, trailing space sorunu giderildi.
-- Değişiklik yeri: `src/app/_components/DowntimeExplanationDialog.tsx`
+- **Kademeli Validasyon & Hedef Özelleştirmesi:**
+  - Pres, ETM, ROB104 ve ROB108 hücrelerinde hafta içi hedef üretim adetleri otomatik `20` yapıldı ve read-only kılındı.
+  - Gün ortasında kayıt alabilmek için kademeli validasyon (`validateTargetDowntime`) kurularak doğrulama sadece en son doldurulmuş satıra (`lastActiveIndex`) kadar sınırlandırıldı; gelecek saatler doğrulamadan muaf tutulur.
+  - "Kalan Süre" rozetleri son aktif satıra kadar kırmızı (`Kalan X dk`) uyarı, gelecek satırlar için nötr gri olarak güncellendi.
+- **Öneri Kayıt Sistemi:**
+  - Ana forma bağımsız hücre seçimi ve öneri girişinin yapıldığı "Öneri Kayıt" butonu ve dialog modalı eklendi. Veriler Supabase'deki `manuf_suggestions` tablosuna kaydedilir hale getirildi.
+- **Arayüz Temizliği ve Kısıtlamalar:**
+  - `FormHeader.tsx` üzerindeki Excel'e Aktar ve Performans Paneli butonları kaldırıldı.
+  - `/dashboardy` varsayılan aralığı `14.06.2026` - `09.07.2026` yapıldı, Genel İlerleme kartı başlığı ve yüzde çubuğu sadeleştirildi.
+- **Hücre Bazlı Alt Türler ve Hata Düzenlemeleri:**
+  - ROB104, ROB105, ROB108, Flowform, N602 ve N603 hücreleri planlı duruşlarına "Kasa Alma - Bırakma" (açıklama zorunluluğu yok) seçeneği eklendi.
+  - ROB hücreleri arıza türlerine operasyonel alt kategoriler eklenerek açıklama yazma zorunluluklarından muaf tutuldular.
+  - `calisan_makine_sayisi` upsert payload bug'ı giderildi.
 
 ---
 
-## [2026-06-13] update | Quench Hücresi Günlük Veri Girişi ve Detaylı Performans Paneli (/dashboardy) Entegrasyonu
+## [2026-06-13] update | Quench Hücresi Günlük Girişi, Dashboardy Paneli ve Pres Arıza Seçeneği
 
 **Yapılanlar:**
-- **Quench Hücresi Günlük Form Özelleştirmesi:** Saatlik dilimler yerine tek bir `"Günlük"` zaman dilimi satırı getirildi. Sütunlardan "Setup ve Ayar" kaldırıldı, "Takım Değişimi" ise "Rejim Bekleme" olarak adlandırıldı (alt tür ve açıklama zorunluluğu yok).
-- **Duruş Validasyon Güncellemesi:** Zaman dilimi `"Günlük"` olan Quench hücresi için minimum girilmesi gereken duruş dakikası hesaplaması, 60 dakika yerine hafta içi 540 dakika, hafta sonu (Cuma/Cumartesi) 480 dakika üzerinden orantılanacak şekilde ölçeklendirildi. Tekil duruş giriş sınırları Quench için 540 dakikaya yükseltildi.
-- **Detaylı Performans Paneli (`/dashboardy`):** Tarih aralığı seçici (Date Range Picker), hızlı preset butonları (Son 7 gün, Son 30 gün, Bu ay), kümülatif ilerleme çubuğu ve hücre bazlı gerçekleşen/hedef ilerlemesini gösteren satır tablosu entegre edildi.
-- **N602 ve N603 Hücre Birleşimi:** `/dashboardy` sayfasında N602 ve N603 hücreleri birleştirilerek tek satırda "N602-N603 Hücresi" olarak, toplam hedef 2000 adet olacak şekilde gösterildi.
-- **Arayüz Temizliği:** Dashboard üzerindeki sorumlu bilgileri, kritik seviye uyarıları, alt başlıklar ve açıklama metinleri kullanıcı geri bildirimlerine göre kaldırıldı.
-- **Planlı Duruş "Kasa Alma - Bırakma" Seçeneği:** ROB104, ROB105, Flowform (F420), N602 ve N603 hücrelerinin planlı duruş alt kategorilerine "Kasa Alma - Bırakma" seçeneği eklendi. Bu seçenek seçildiğinde herhangi bir açıklama zorunluluğu bulunmamaktadır.
-- **ROB Hücreleri Arıza Alt Kategorileri Özelleştirmesi:** ROB104, ROB108 ve ROB109 hücrelerinin arıza alt kategorileri görseldeki gibi özelleştirildi: `Mekanik`, `Elektrik`, `Akışkan`, `Belirsiz`, `Robot`, `Talaş Arabası Dolu`, `Manuel İşlemler`, `Kesici Takım Yok`, `Bor Yağı Bitti`. Teknik arızalarda açıklama zorunlu tutulurken, operasyonel arızalarda (Talaş Arabası Dolu, Manuel İşlemler, vb.) açıklama dialogu ve zorunluluğu kaldırıldı.
+- **Quench Hücresi Günlük Form Özelleştirmesi:**
+  - Saatlik dilimler yerine tek bir "Günlük" satırı getirildi. Setup kaldırıldı, Takım Değişimi "Rejim Bekleme" yapıldı.
+  - Duruş validasyon limiti günlük vardiya bazında (hafta içi 540 dk, hafta sonu 480 dk) orantılanarak tekil giriş sınırı 540 dakikaya yükseltildi.
+- **Detaylı Performans Paneli (`/dashboardy`) İlk Sürümü:**
+  - Tarih Aralığı seçici, hızlı presetler, kümülatif ilerleme barı ve hücre bazlı hedef/gerçekleşen tablosu entegre edildi.
+  - N602 ve N603 hücreleri tek satırda birleştirilerek gösterildi. Sorumlu bilgileri ve kritik uyarılar sadeleştirildi.
+- **Pres Arıza Alt Türü:**
+  - Pres arızalarına açıklama zorunluluğu olmayan "Hidrolik Yağ Sıcaklık Alarmı" alt kategorisi eklendi.
+- **Hücre ve Duruş Kategorileri Özelleştirmesi:**
+  - ROB104, ROB105, Flowform, N602 ve N603 planlı duruşlarına "Kasa Alma - Bırakma" muafiyeti getirildi.
+  - ROB hücrelerine özel teknik (açıklama zorunlu) ve operasyonel (açıklama muaf) arıza alt kategorileri kuruldu.
 
-## [2026-06-12] update | ETM Hücresi Sütun Özelleştirmeleri, Açıklama Muafiyetleri ve Zaman Dilimleri Güncellemesi
+---
 
-**Yapılanlar:**
-- **Çalışan Makine Sayısı Sütunu:** ETM, ROB104, ROB108 ve ROB109 hücreleri için `calisan_makine_sayisi` sütunu eklendi ve varsayılan limitler (2, 2, 6, 2) tanımlandı. Bu limitlerin altına düşüldüğünde zorunlu `calisan_makine_aciklama` validasyonu kuruldu.
-- **ETM Arıza Özelleştirmesi:** ETM için teknik ve operasyonel arıza seçenekleri tek sütunda toplandı. Operasyonel duruşlar için açıklama dialog modalı devre dışı bırakıldı ve açıklama gereksinimi kaldırıldı.
-- **ETM "Holder - Insert Değişim" Sütunu:** Takım Değişimi sütunu ETM'de "Holder - Insert Değişim" olarak adlandırıldı; 4 alt tür tanımlandı ve açıklama gereksinimi kaldırıldı. Veritabanına `takim_degisim_turu` sütunu eklenerek Excel export'a bağlandı.
-- **Hazırlık (Setup ve Ayar) Sütunu:** ETM Hücresi'nde Setup ve Ayar sütunu **Hazırlık** olarak isimlendirildi. Seçenekler `"Parça Ölçüm"` ve `"Otomatik Mod Hazırlık"` olarak ayarlanıp açıklama dialogu ve zorunluluğu tamamen kaldırıldı.
-- **Planlı Duruş "Parça Basmama Kararı" & "Kasa Alma - Bırakma" Muafiyetleri:** Tüm hücreler genelinde "Parça Basmama Kararı" seçeneği; ETM özelinde ise eklenen **"Kasa Alma - Bırakma"** seçeneği açıklama modalından ve zorunluluk kontrolünden muaf tutuldu. Artık sadece "Planlı Bakım" açıklaması zorunludur.
-- **Hafta İçi Zaman Dilimleri & Vardiya Saatleri:** Hafta içi zaman dilimleri `08:00 - 17:00` olacak şekilde kaydırıldı, günlük vardiya süresi 540 dakika (9 saat) olarak güncellendi.
-- **Excel Aktarım Entegrasyonu:** Tüm yeni eklenen sütunlar (`calisan_makine_sayisi`, `calisan_makine_aciklama`, `takim_degisim_turu`) Excel/API çıktısına dahil edildi.
-
-## [2026-06-12] update | Hücre Sorumluları ve Pres Hücresi Duruş Kategorileri Revizyonu
+## [2026-06-12] update | ETM & Pres Özelleştirmeleri, Vardiya Saati Değişimi ve Sorumlu Güncellemeleri
 
 **Yapılanlar:**
-- **Sorumlu İsimleri Güncellendi:** Gökalp Atmaca yerine Yücel Kıroğlu, İbrahim Çetinbak yerine Çağrı Can Çolak, Halil Kesit yerine Ahmet Hakan Akın hücre sorumlusu olarak tanımlandı. `hucreler.md` wiki belgesi güncellendi.
-- **Mola & Müşteri Duruş Seçenekleri:** Mola alt türleri `Çay` ve `Yemek` olarak; Müşteri duruş kodları `Utility Eksiği`, `Consumable Eksiği` ve `Operatör Bekleme` olarak güncellendi.
-- **Duruş Kolon Dondurma (Sticky Sürgüsü):** Tablo kaydırıldığında Zaman Dilimi sütununun en solda sabit kalması ve arkasından geçen verilerin görünmemesi için CSS/Tailwind güncellemeleri yapıldı.
-- **Pres Hücresi Arıza Kırılımı:** Pres Hücresi için arıza türü seçenekleri lokasyon bazlı olarak `Pres Öncesi`, `Pres` ve `Pres Sonrası` şeklinde yapılandırıldı. Açıklama dialog penceresinde bu bölgelere özel teknik alt kategoriler (Robot, Hadde, Akışkan, Kalıp vb.) listelenerek kaydedilen arıza açıklamasına ön ek olarak eklendi. `/ariza` sayfasındaki tür seçimi de bu mantığa adapte edildi.
-- **Pres Hücresi Hazırlık (Setup) Kolonu:** Sadece Pres Hücresi için "Setup ve Ayar" sütunu **Hazırlık** olarak adlandırıldı. Altındaki seçenekler Pres-spesifik adımlarla değiştirildi. *Kaçak Kontrolü* dışındaki seçenekler için açıklama dialog penceresi tamamen devre dışı bırakıldı ve açıklama yazma zorunluluğu kaldırıldı.
-- **Kalıp Montaj & Demontaj Kolonları:** Pres Hücresi'ndeki tekli "Takım Değişimi" sütunu gizlenerek, yan yana çalışan **Kalıp Demontaj** ve **Kalıp Montaj** sütunları eklendi. Veritabanına bu sütunlar için `kalip_demontaj`, `kalip_demontaj_turu`, `kalip_montaj`, `kalip_montaj_turu` alanları eklendi, yeni SQL migration dosyası oluşturuldu. Excel ve API export fonksiyonları bu yeni sütunları aktaracak şekilde genişletildi.
-- İlgili tüm wiki dosyaları (`duruslar.md`, `db-tablolari.md`, `uretim-formu.md`, `index.md`) güncellendi ve `npx tsc --noEmit` ile projenin sorunsuz derlendiği doğrulandı.
+- **ETM Hücresi Düzenlemeleri:**
+  - Hazırlık ve "Holder - Insert Değişim" (alt türleri ile birlikte) sütun isimleri ve muafiyetleri entegre edildi. Excel/API exportlarına bağlandı.
+- **Pres Hücresi Revizyonu:**
+  - Duruş türleri lokasyon bazlı (`Pres Öncesi`, `Pres`, `Pres Sonrası`) arıza alt kategorilerine ayrıldı.
+  - Setup kolonu **Hazırlık** yapıldı, Kaçak Kontrolü dışındakiler açıklama zorunluluğundan muaf kılındı.
+  - Tekli takım değişimi gizlenip yan yana **Kalıp Montaj** ve **Kalıp Demontaj** sütunları (veritabanı alanları ve migration'ı ile birlikte) eklendi.
+- **Vardiya ve Zaman Dilimi Güncellemesi:**
+  - Hafta içi zaman dilimleri `08:00 - 17:00` olacak şekilde kaydırıldı, günlük vardiya süresi 540 dakikaya (9 saat) çıkarıldı.
+- **Çalışan Makine Sayısı Sütunları:**
+  - ETM, ROB104, ROB108, ROB109 hücrelerine makine sayısı kontrolü ve limit altı zorunlu açıklama kuralı eklendi.
+- **Hücre Sorumluları ve Duruş Kodları:**
+  - Sorumlular güncellendi (Yücel Kıroğlu, Çağrı Can Çolak, Ahmet Hakan Akın). Mola (Çay/Yemek) ve Müşteri (Utility/Consumable/Operatör) alt türleri revize edildi. Zaman dilimi kolonu donduruldu (sticky left).
+
+---
 
 ## [2026-06-02] summary | Schedule ve ETM planlama guncellemeleri
 
@@ -178,84 +172,7 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - Kalip sogutma vardiya sonrasina tasabilir hale getirildi; Pres prosesi vardiya sonuna kadar devam edebilir.
 - Yapilan degisiklikler ilgili wiki sayfalarina islendi ve onemli adimlar npm run build ile dogrulandi.
 
-## [2026-05-28] setup | Wiki sistemi kuruldu
-
-**Yapılanlar:**
-- `AGENTS.md` güncellendi: wiki dizin yapısı, oturum başlangıç protokolü, ingest/query/lint akışları eklendi.
-- `wiki/` klasör yapısı oluşturuldu: `systems/`, `entities/`, `decisions/`
-- `raw/chat-exports/` dizini oluşturuldu (ham kaynak belgeler için)
-
-**Oluşturulan sayfalar:**
-- `wiki/systems/uretim-formu.md` — `src/app/page.tsx`, `actions.ts`, `src/lib/types.ts`, `productionValidation.ts` incelenerek
-- `wiki/systems/wip-hesabi.md` — `schedule/constants.ts`, `utils.ts`, `types.ts`, `overview/constants.ts` incelenerek
-- `wiki/systems/duruslar.md` — `src/lib/types.ts` ve `src/app/page.tsx` incelenerek
-- `wiki/entities/hucreler.md` — `src/lib/types.ts` ve `schedule/overview/constants.ts` incelenerek
-- `wiki/entities/db-tablolari.md` — tüm `supabase/migrations/*.sql` dosyaları incelenerek
-- `wiki/decisions/acik-konular.md` — inceleme sırasında tespit edilen eksikler
-- `wiki/index.md` — tüm sayfaların kataloğu
-- `wiki/log.md` — bu dosya
-
-**Kapsam dışı kalan sayfalar (incelenmedi):**
-- `/dashboard` sayfası
-- `/veri-takip` sayfası
-- `/api/export` endpoint'i
-- `schedule/overview/` bileşenleri (WIP hesabının tam akışı)
-
-## [2026-05-28] ingest | Arıza sistemi mevcut durum ve istekler
-
-**Kaynak:** Kullanıcı konuşması + `src/app/ariza/page.tsx`
-
-**Yapılanlar:**
-- `wiki/systems/ariza-sistemi.md` oluşturuldu: veri yapısı tablosu, mevcut görünüm özeti, eksik özellikler (trend, pattern, öngörü), reaktif→proaktif hedef
-- `wiki/index.md` güncellendi: Systems tablosuna Arıza Sistemi satırı eklendi
-
-## [2026-05-28] ingest | Planlama sistemi mevcut durum ve istekler
-
-**Kaynak:** Kullanıcı konuşması + `src/app/schedule/page.tsx`, `utils.ts`
-
-**Yapılanlar:**
-- `wiki/systems/planlama-sistemi.md` oluşturuldu: 2000 parça hedefi, kayıp sebepleri tablosu, Pres simülasyonu özeti, eksikler, haftalık analiz isteği, açık sorular
-- `wiki/index.md` güncellendi: Systems tablosuna Planlama Sistemi satırı eklendi
-
-## [2026-05-31] update | Planlama ve Simülasyon Sistemi İyileştirmeleri
-
-**Yapılanlar:**
-- Arıza verileri Supabase'den çekilerek planlama simülasyonuna entegre edildi. Arıza duruş süreleri günlük teorik kapasiteyi düşürecek şekilde hesaplandı.
-- Günlük simülasyon tablosuna arıza sütunu eklenerek, arızalı günlerde duruş süreleri ve tooltip üzerinde arıza detayları gösterildi.
-- OEE kayıplarını arıza, kalıp değişimi ve diğer verimsizlikler bazında analiz edip kullanıcılara aksiyon önerileri sunan `LossAnalysisPanel` bileşeni eklendi.
-- Planlama sayfasına hücre seçici select kutusu eklenerek, 12 hücrenin tamamının plan simülasyonu yapılabilir hale getirildi. Pres dışı hücreler için kalıp/fırın detayları gizlendi.
-- Cuma ve Cumartesi günleri için 15 dakikalık vardiya farkı simülasyon motoruna dahil edildi.
-
-## [2026-05-31] refactor | Proje Geneli Atomik Bileşen Ayrıştırma (Refactoring)
-
-**Yapılanlar:**
-- Ana üretim formunun (`src/app/page.tsx`) yaklaşık 700 satırlık devasa yapısı daha temiz kod prensipleri gereği 4 bağımsız alt bileşene bölündü:
-  - `src/app/_components/FormHeader.tsx` (Bölüm seçimi, tarih, sorumlu ve Excel/Dashboard butonları)
-  - `src/app/_components/ProductionTable.tsx` (Saatlik üretim tablosu ve kalan OEE/downtime süresi hesaplamaları)
-  - `src/app/_components/DowntimeExplanationDialog.tsx` (Duruşlar için açıklama dialog modalı)
-  - `src/app/_components/OverwriteConfirmDialog.tsx` (Kayıt üzerine yazma onay Alert Dialog'u)
-- ETM planlama sayfası (`src/app/schedule/etm/page.tsx`) incelendi, hâlihazırda alt bileşenlere (`EtmMetricCards`, `EtmSettingsSidebar`, `EtmToolsSidebar`, `EtmStockSidebar`, `EtmScheduleTable`) ayrıştırılmış temiz yapısının doğruluğu teyit edildi.
-- React-Hook-Form Controller tipleri ve Select tipleri arasındaki TS uyumsuzlukları giderildi.
-
-## [2026-05-31] update | Kampanya Optimizasyon Kartı Entegrasyonu
-
-**Yapılanlar:**
-- 2000 parça hedefi (veya dinamik girilen hedef) için kümülatif tamamlama tahmini yapan `CampaignOptimizer` bileşeni eklendi.
-- Eksik kapasite durumunda Pazar günleri çalışmayı tetikleme ve günlük fazla mesaiyi artırma gibi önerileri tek tıkla uygulayabilen interaktif karar destek sistemi sağlandı.
-- Sidebar ve genel planlayıcı parametrelerindeki değişiklikler anında simülasyona ve tahmine yansıtıldı.
-
-## [2026-05-31] update | Arıza Tiplerine Kalite Eklendi
-
-**Yapılanlar:**
-- `src/lib/types.ts` içerisindeki `DURUS_KOLONLARI` altındaki `ariza` kolonunun alt türlerine (`altTurler`) `Kalite` tipi eklendi.
-- İlgili wiki dokümanları (`wiki/entities/db-tablolari.md` ve `wiki/systems/duruslar.md`) güncellendi.
-
-## [2026-05-31] update | Arıza Tablosunda Tür Değiştirme Yeteneği
-
-**Yapılanlar:**
-- `src/app/ariza/actions.ts` içine `updateArizaType` server action'ı eklendi.
-- `src/app/ariza/ArizaRecordsTable.tsx` arayüzündeki statik arıza türü hücresi, kullanıcının doğrudan değiştirebileceği dinamik bir `<select>` kutusuna dönüştürüldü.
-- Seçim değişikliği yapıldığında Supabase'e asenkron istek atılarak `manuf_production_rows` tablosundaki `ariza_turu` alanı anında güncelleniyor ve başarılı toast uyarısı veriliyor.
+---
 
 ## [2026-06-01] summary | Schedule Gantt ve kalip/ring planlama gelistirmeleri
 
@@ -272,52 +189,31 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - Kalip/Ring degisimlerinin paralel yapilmasi, kalan omur/carryover guncellemeleri, manuel kombinasyonlar ve surelerin Gantt uzerinden resize edilmesi desteklendi.
 - Gantt surukleme/boyutlandirma hesaplari, pointer capture ve kararli segment key kullanimi ile duzeltildi.
 
-## [2026-06-17] update | Duruş Analiz sayfası eklendi
+---
 
-**Kaynak:** Kullanıcı konuşması + `src/app/durus-analiz/page.tsx`
-
-**Yapılanlar:**
-- `/durus-analiz` rotası için seçili tek hücreye odaklanan duruş Pareto analiz ekranı eklendi.
-- Hücre seçicide `FF Preform Ölçüm` hariç tutuldu.
-- Manuel başlangıç/bitiş tarihi filtresi, toplam duruş, adet, pay ve göreli Pareto barları dokümante edildi.
-- Pareto satırı seçildiğinde ilgili ham duruş kayıtlarının listelendiği sağ panel ve `Açıklama eksik` veri kalitesi rozeti belgelendi.
-- `wiki/systems/durus-analiz.md` oluşturuldu; `wiki/index.md` ve `wiki/systems/duruslar.md` bağlantıları güncellendi.
-
-## [2026-06-21] update | Aksiyon Takip inline akış ve sidebar güncellemesi
-
-**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`, `src/app/aksiyon-takip/actions.ts`, `supabase/migrations/20260621120000_allow_empty_action_priority.sql`
+## [2026-05-31] refactor | Proje Geneli Refactoring, Simülasyon Geliştirmeleri ve Karar Destek Entegrasyonları
 
 **Yapılanlar:**
-- `/aksiyon-takip` sayfasında sol hücre sidebar'ı belgelendi; tüm `BOLUMLER` hücreleri, ölçüm hücreleri dahil filtrelenebilir hale getirildi.
-- Üst metrik kartları ve ayrı yeni aksiyon formu kaldırıldı; ana maddeler tablonun en altındaki inline boş satırdan eklenir hale geldi.
-- Alt madde ekleme ayrı formdan çıkarıldı; ana madde `+` butonu ile hemen altında inline boş alt satır açılması dokümante edildi.
-- Sorumlu otomatik ataması kaldırıldı; sorumlu, termin, öncelik ve durumun tablodan inline düzenlenmesi belgelendi.
-- Önceliğin boş başlayabilmesi için nullable `priority` migration akışı wikiye işlendi.
-- Ekleme, silme ve inline güncellemelerde tüm listenin yeniden çekilmediği, local state güncellemesi yapıldığı kaydedildi.
+- **Atomik Bileşen Ayrıştırması (Refactoring):**
+  - Dev boyutlu ana üretim formu (`src/app/page.tsx`) 4 bağımsız alt bileşene ayrıştırıldı: `FormHeader.tsx`, `ProductionTable.tsx`, `DowntimeExplanationDialog.tsx`, `OverwriteConfirmDialog.tsx`.
+  - React-Hook-Form ve Select tipleri arasındaki TS uyumsuzlukları giderildi.
+- **Planlama & Simülasyon İyileştirmeleri:**
+  - Supabase arıza duruşları simülasyona çekilerek kapasite düşüşleri hesaplandı ve günlük tabloya tooltip detayları ile eklendi.
+  - OEE kayıplarını analiz eden `LossAnalysisPanel` ve hedef tahminleri yapıp fazla mesai/pazar çalışması öneren `CampaignOptimizer` bileşenleri eklendi.
+  - Simülasyon sayfasına 12 hücrenin tamamını planlama yeteneği ve Cuma/Cumartesi vardiya farkı simülasyonu eklendi.
+- **Arıza Sistemi Modifikasyonları:**
+  - Arıza alt türlerine `Kalite` tipi eklendi, ilgili wiki belgeleri güncellendi.
+  - Arıza tablosunda (`/ariza`) statik arıza türleri dinamik `<select>` ile asenkron Supabase güncellemelerine bağlandı.
 
 ---
 
-## [2026-06-21] update | Aksiyon Takip Dinamik Sıralama ve Yapışkan Tasarım Entegrasyonu
-
-**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`
+## [2026-05-28] setup | Wiki Sistemi Kurulumu, Arıza ve Planlama Analiz Dokümanları
 
 **Yapılanlar:**
-- **Dinamik Sıralama:** Aksiyon Takip tablosundaki Sorumlu, Termin, Öncelik ve Durum sütunlarına tıklanabilir ve 3 aşamalı (`artan` -> `azalan` -> `varsayılan`) sıralama özellikleri eklendi. Sıralamanın hiyerarşik yapıyı (Parent-Child) bozmaması için rekürsif çalışması sağlandı.
-- **Yapışkan Layout (Sticky):** Sayfa başlığı ve filtre kartı `sticky top-0 z-10 bg-zinc-50` yapıldı. Tablo dikey scrollable container'a (`overflow-y-auto max-h-[calc(100vh-320px)]`) alınarak tablo başlığının (`thead`) bu container içinde `sticky top-0` yapışık kalması sağlandı.
-- **Kaymayan Alt Sınır Çizgisi:** Tablo başlıklarının altındaki sınır çizgisinin scroll esnasında kaybolmasını engellemek için `border-bottom` yerine her bir `th` etiketine `inset box-shadow` (`shadow-[inset_0_-2px_0_0_#d4d4d8]`) uygulandı.
-- **Header Temizliği:** Sayfa başlığı üzerindeki `ClipboardList` ikonu ve toplam aksiyon sayısı göstergesi kaldırılarak daha sade bir görünüm elde edildi.
-- **Sınırsız Alt Madde (Nested Sub-tasks) Desteği:** Alt maddelerin altına yeni alt maddeler eklenmesini engelleyen `depth === 0` sınırlandırılması kaldırıldı. Alt maddelerin altındaki çocukları açıp kapatabilmek için chevron oku her seviyede aktif kılındı. Hiyerarşik girintiler ve `└` çizgileri dinamik olarak hizalandı.
-- **Wiki Güncellemesi:** `wiki/systems/aksiyon-takip.md` and `wiki/log.md` güncellendi, `wiki/index.md`'nin frontmatter `updated` tarihi güncellendi.
-
----
-
-## [2026-06-21] update | Aksiyon Takip Kompakt Düzen ve Dashboard Yönlendirme Entegrasyonu
-
-**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/page.tsx`, `src/app/dashboard/page.tsx`
-
-**Yapılanlar:**
-- **Kompakt Tasarım ve Boşluklar:** `/aksiyon-takip` sayfa yerleşiminin dikey yüksekliğini azaltmak amacıyla sayfa başlığı (`h1`) fontu `text-2xl` yapıldı, dikey dolgular ve boşluklar daraltıldı (`py-4 gap-4`). "Forma dön" butonu daha ufak boyuta getirildi.
-- **Scroll & Sticky Alan Genişletmesi:** Üst alanın daralmasıyla birlikte dikey kaydırılabilir tablo container'ının dikey limiti `max-h-[calc(100vh-240px)]` olarak, sidebar iç kaydırma alanı ise `max-h-[calc(100vh-140px)]` olarak genişletildi.
-- **Yönlendirme Butonu:** `/dashboard` sayfasındaki header bölümünde yer alan "Veri Takip" butonunun yanına, kullanıcıyı `/aksiyon-takip` sayfasına yönlendiren tema uyumlu "Aksiyon Takip" butonu yerleştirildi.
-- **Wiki Güncellemesi:** `wiki/systems/aksiyon-takip.md` ve `wiki/log.md` bu oturumdaki geliştirmelerle güncellendi.
-
+- **Wiki Kurulumu (`wiki/`):**
+  - Proje kalıcı bilgi tabanı (`wiki/systems/`, `wiki/entities/`, `wiki/decisions/` ve `wiki/index.md`) oluşturuldu. `AGENTS.md` kuralları güncellendi.
+  - Üretim Formu (`uretim-formu.md`), WIP Hesabı (`wip-hesabi.md`), Duruşlar (`duruslar.md`), Hücreler (`hucreler.md`) ve DB Tabloları (`db-tablolari.md`) ilk incelemeler sonrası dokümante edildi.
+- **Arıza Sistemi İncelemesi:**
+  - `/ariza` sayfasındaki mevcut yapı ve Supabase tabloları analiz edilerek `ariza-sistemi.md` oluşturuldu; reaktif yapıdan proaktif kestirimci yapıya geçiş hedefleri belirlendi.
+- **Planlama Sistemi İncelemesi:**
+  - `/schedule` sayfası simülasyon mantığı ve Pres kapasite hesapları incelenerek `planlama-sistemi.md` dokümante edildi.

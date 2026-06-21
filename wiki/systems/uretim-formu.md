@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-15
+updated: 2026-06-21
 sources: [src/app/page.tsx, src/app/actions.ts, src/lib/types.ts, src/lib/productionValidation.ts, src/app/_components/ProductionTable.tsx]
 ---
 
@@ -56,7 +56,7 @@ Her satırda şu alanlar bulunur (Seçili hücreye göre kolonlar dinamikleşir)
 | Bir Önceki İstasyon Bekleme | `onceki_istasyon_bekleme` | Dakika, alt tür yok | Tüm |
 | Müşteri Kaynaklı Duruş | `musteri_kaynakli_durus` + `musteri_durus_turu` + `musteri_durus_aciklama` | Dakika + alt tür + açıklama | Tüm |
 | Kalite Kaynaklı Duruş | `kalite_kaynakli_durus` | Dakika, alt tür yok | Tüm |
-| Hedef Üretim | `hedef_uretim_adeti` | Sağ sütunda. Pres, ETM, ROB104 ve ROB108 hücrelerinde cuma ve cumartesi günleri hariç varsayılan olarak `20` değerini alır ve salt okunurdur. | Tüm |
+| Hedef Üretim | `hedef_uretim_adeti` | Sağ sütunda. Pres, ETM, ROB104, ROB108 ve ROB109 hücrelerinde cuma ve cumartesi günleri hariç varsayılan olarak `20` değerini alır ve salt okunurdur. | Tüm |
 
 Duruş alt türleri detayları için bkz. [Duruşlar](duruslar.md).
 

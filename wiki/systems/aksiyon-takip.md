@@ -86,6 +86,12 @@ Kolonlar: Başlık, Hücre (sadece `Tüm hücreler` görünümünde), Sorumlu, T
 - Ana madde silindiğinde alt maddeleri veritabanında cascade ile silinir; arayüzde de ilgili dal local state'ten çıkarılır.
 - Ekleme, silme, sorumlu/termin/öncelik/durum güncelleme işlemlerinden sonra tüm liste tekrar çekilmez; sadece ilgili local state parçası güncellenir.
 
+### Düzenleme Şifresi ve Yetkilendirme
+- **Salt Okunur Görünüm:** Şifre girilmediği sürece sayfa salt okunurdur. Tüm giriş alanları ve butonlar kilitlidir.
+- **Şifre ve Kalıcılık:** Değişiklik yapmak için gereken şifre `"repkonopm"` olarak belirlenmiştir. Doğru şifre girildiğinde yetkilendirme `localStorage` üzerinde `action_items_authorized = "true"` olarak saklanır, böylece tekrar şifre sorulmaz.
+- **Kilit Açma/Kapatma:** Header'daki "Düzenleme Kilitli" butonu şifre modalını açar. Yetki doğrulandığında buton "Düzenleme Açık" durumuna geçer; bu butona basılarak yetki tekrar el ile temizlenebilir (kilitlenebilir).
+- **Click Capture Blokajı:** Kilitliyken herhangi bir giriş hücresine veya aksiyona tıklandığında tıklama olayı bloke edilerek doğrudan şifre modalı açılır. Yetkilendirme başarılı olduğunda, kullanıcının kilitliyken tıkladığı işlem otomatik olarak çalıştırılır.
+
 ## Server Actions
 
 | Fonksiyon | Açıklama |
