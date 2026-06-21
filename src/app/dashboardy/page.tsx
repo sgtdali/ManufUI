@@ -111,11 +111,19 @@ export default function DashboardyPage() {
   };
 
   // Sum of all cells
-  const totalProduction = Object.values(data).reduce((a, b) => a + b, 0);
-  const totalTarget = DISPLAY_CELLS.length * 2000;
+  const EXCLUDED_FROM_PERCENTAGE = ["ROB110-111 Hücresi", "Fosfat Hücresi", "Boya Hücresi"];
+  const percentageCells = DISPLAY_CELLS.filter((c) => !EXCLUDED_FROM_PERCENTAGE.includes(c));
+
+  const totalProduction = percentageCells.reduce((sum, cell) => {
+    const produced = cell === "N602-N603 Hücresi"
+      ? (data["N602 Hücresi"] ?? 0) + (data["N603 Hücresi"] ?? 0)
+      : (data[cell] ?? 0);
+    return sum + produced;
+  }, 0);
+  const totalTarget = percentageCells.length * 2000;
   const overallPercentage = Math.min(Math.round((totalProduction / totalTarget) * 100), 100);
 
-  const totalTargetedQty = DISPLAY_CELLS.reduce((sum, cell) => {
+  const totalTargetedQty = percentageCells.reduce((sum, cell) => {
     const startDateStr = getCellStartDate(cell);
     const weekdayCount = getWeekdayDifference(startDateStr, todayStr);
     return sum + (weekdayCount * 100);
