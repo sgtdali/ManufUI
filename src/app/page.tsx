@@ -331,10 +331,13 @@ export default function ProductionFormPage() {
     data.rows.forEach((row) => {
       const isEtmCell = data.bolum === "ETM Hücresi";
       const isRobCell = ["ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(data.bolum || "");
+      const isNCell = ["N602 Hücresi", "N603 Hücresi"].includes(data.bolum || "");
       const isArizaExplanationRequired = isEtmCell
         ? ["Mekanik", "Elektrik", "Akışkan", "SBU Arıza", "Calor Konveyör Arıza", "Robot"].includes(row.ariza_turu || "")
         : isRobCell
         ? ["Mekanik", "Elektrik", "Akışkan", "Belirsiz", "Robot"].includes(row.ariza_turu || "")
+        : isNCell
+        ? ["E", "A", "M", "O", "Kalite", "Belirsiz"].includes(row.ariza_turu || "")
         : !!row.ariza_turu;
       if (isArizaExplanationRequired && !row.ariza_aciklama?.trim())
         aciklamaEksik.push(`${row.zaman_dilimi} → Arıza açıklaması`);
@@ -400,10 +403,13 @@ export default function ProductionFormPage() {
     if (k.key === "ariza") {
       const isEtmCell = bolum === "ETM Hücresi";
       const isRobCell = ["ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(bolum || "");
+      const isNCell = ["N602 Hücresi", "N603 Hücresi"].includes(bolum || "");
       const shouldOpen = isEtmCell
         ? ["Mekanik", "Elektrik", "Akışkan", "SBU Arıza", "Calor Konveyör Arıza", "Robot"].includes(val)
         : isRobCell
         ? ["Mekanik", "Elektrik", "Akışkan", "Belirsiz", "Robot"].includes(val)
+        : isNCell
+        ? ["E", "A", "M", "O", "Kalite", "Belirsiz"].includes(val)
         : true;
       if (shouldOpen) {
         setAciklamaDialog({

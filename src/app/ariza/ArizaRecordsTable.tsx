@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type ArizaDetail, ETM_ARIZA_TURLER } from "@/lib/types";
+import { type ArizaDetail, ETM_ARIZA_TURLER, ROB_ARIZA_TURLER, N_ARIZA_TURLER } from "@/lib/types";
 import { markArizaResolved, updateArizaType } from "./actions";
 
 type StatusFilter = "all" | "open" | "resolved";
@@ -304,6 +304,32 @@ export function ArizaRecordsTable({ details }: { details: ArizaDetail[] }) {
                       className="text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer disabled:opacity-50"
                     >
                       {ETM_ARIZA_TURLER.map((opt) => (
+                        <option key={opt.code} value={opt.code}>
+                          {opt.code}
+                        </option>
+                      ))}
+                    </select>
+                  ) : ["ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(detail.bolum) ? (
+                    <select
+                      value={detail.tur}
+                      disabled={isPending}
+                      onChange={(e) => handleTypeChange(detail.id, e.target.value)}
+                      className="text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer disabled:opacity-50"
+                    >
+                      {ROB_ARIZA_TURLER.map((opt) => (
+                        <option key={opt.code} value={opt.code}>
+                          {opt.code}
+                        </option>
+                      ))}
+                    </select>
+                  ) : ["N602 Hücresi", "N603 Hücresi"].includes(detail.bolum) ? (
+                    <select
+                      value={detail.tur}
+                      disabled={isPending}
+                      onChange={(e) => handleTypeChange(detail.id, e.target.value)}
+                      className="text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-rose-500 cursor-pointer disabled:opacity-50"
+                    >
+                      {N_ARIZA_TURLER.map((opt) => (
                         <option key={opt.code} value={opt.code}>
                           {opt.code}
                         </option>

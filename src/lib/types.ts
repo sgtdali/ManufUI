@@ -214,6 +214,16 @@ export const ROB_ARIZA_TURLER: AltTurOption[] = [
   { code: "Bor Yağı Bitti" },
 ];
 
+export const N_ARIZA_TURLER: AltTurOption[] = [
+  { code: "E" },
+  { code: "A" },
+  { code: "M" },
+  { code: "O" },
+  { code: "Kalite" },
+  { code: "Belirsiz" },
+  { code: "Çıkış Konveyörü Dolu" },
+];
+
 export const DURUS_KOLONLARI: {
   key: keyof ProductionRow;
   label: string;

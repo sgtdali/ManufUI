@@ -18,6 +18,7 @@ import {
   MAKINE_SAYISI_DEFAULTS,
   ETM_ARIZA_TURLER,
   ROB_ARIZA_TURLER,
+  N_ARIZA_TURLER,
 } from "@/lib/types";
 import {
   getEnteredDowntimeMinutes,
@@ -328,6 +329,10 @@ export function ProductionTable({
                               } else if (["ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(bolum || "")) {
                                 if (k.key === "ariza") {
                                   options = ROB_ARIZA_TURLER;
+                                }
+                              } else if (["N602 Hücresi", "N603 Hücresi"].includes(bolum || "")) {
+                                if (k.key === "ariza") {
+                                  options = N_ARIZA_TURLER;
                                 }
                               }
 
