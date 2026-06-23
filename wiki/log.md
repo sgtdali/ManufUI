@@ -5,6 +5,36 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-23] update | Şifre Oturum Süresi 30 Güne Çıkarıldı
+
+**Yapılanlar:**
+- **Oturum Süresi Güncellemesi:**
+  - `/login` sayfasında doğru şifre girildiğinde oluşturulan `password_auth` çerezinin (cookie) geçerlilik süresi (`max-age`) 7 günden 30 güne (`2592000` saniye) çıkarıldı.
+  - Bu sayede kullanıcıların kendi cihazlarından (telefon, bilgisayar vb.) bir kez şifre girerek 30 gün boyunca tekrar şifre ekranıyla karşılaşmadan sisteme doğrudan erişebilmesi sağlandı.
+- **Dokümantasyon:**
+  - `wiki/systems/sifre-korumasi.md` belgesi güncellenerek yeni oturum süresi dokümante edildi.
+
+---
+
+## [2026-06-23] update | Global Şifre Koruması ve Salt Okunur Performans Paneli Yetkilendirmesi
+
+**Yapılanlar:**
+- **Global Erişim Kısıtlaması (Middleware):**
+  - Uygulamanın tüm sayfaları şifreli erişim katmanıyla kilitlendi. `password_auth` çerezi (cookie) kontrolü yapılarak yetkisiz kullanıcıların otomatik olarak `/login` sayfasına yönlendirilmesi sağlandı.
+  - Supabase oturum çerezlerinin yönlendirme sırasında kaybolmaması için gelen response çerezlerinin kopyalanması mimarisi kuruldu (`src/middleware.ts`).
+- **Giriş Sayfası (`/login`):**
+  - Koyu arkaplan zeminli, cam morfolojisi (glassmorphism) stiline uygun modern bir giriş kartı tasarlandı.
+  - Erişim şifresi olarak `rmk_hf901` atandı. Doğru şifre girildiğinde yetkilendirme çerezi 7 gün geçerli olacak şekilde kaydedilir.
+  - Giriş butonunun yanına **"Performance Panel"** butonu eklendi. Bu buton sayesinde şifre girmeksizin doğrudan `/dashboardy` sayfasına yönlendirme yapılır.
+- **Salt Okunur Performans Paneli (`/dashboardy`):**
+  - Şifre girmeksizin paneli ziyaret eden kullanıcıların salt okunur (read-only) modda çalışması sağlandı.
+  - Sol üstteki **Form Sayfasına Dön** ve sağ üstteki **Standart OEE Dashboard** butonları gizlendi.
+  - Tablo içindeki hücre isimlerine tıklanarak ulaşılan form yönlendirme linkleri kaldırılarak düz metin haline getirildi.
+- **Dokümantasyon:**
+  - `wiki/systems/sifre-korumasi.md` belgesi oluşturuldu ve `wiki/index.md` güncellendi.
+
+---
+
 ## [2026-06-23] update | Flowform Hücresi Varsayılan Saatlik Üretim Hedefi 12 Yapıldı
 
 **Yapılanlar:**

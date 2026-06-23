@@ -73,6 +73,7 @@ export default function DashboardyPage() {
 
   const [data, setData] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [isReadOnly, setIsReadOnly] = useState(true);
 
   const fetchData = (start: string, end: string) => {
     setLoading(true);
@@ -89,6 +90,16 @@ export default function DashboardyPage() {
       }
     });
   };
+
+  useEffect(() => {
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+    };
+    const auth = getCookie('password_auth');
+    setIsReadOnly(auth !== 'rmk_hf901');
+  }, []);
 
   useEffect(() => {
     fetchData(startDate, endDate);
@@ -136,14 +147,18 @@ export default function DashboardyPage() {
       <header className="bg-white border-b border-zinc-200/80 sticky top-0 z-40 backdrop-blur-md bg-white/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link 
-              href="/"
-              className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
-              title="Form Sayfasına Dön"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div className="h-6 w-[1px] bg-zinc-200" />
+            {!isReadOnly && (
+              <>
+                <Link 
+                  href="/"
+                  className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
+                  title="Form Sayfasına Dön"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Link>
+                <div className="h-6 w-[1px] bg-zinc-200" />
+              </>
+            )}
             <div className="flex items-center gap-2">
               <LayoutDashboard className="h-5 w-5 text-indigo-600" />
               <h1 className="text-lg font-bold tracking-tight text-zinc-900">
@@ -152,12 +167,14 @@ export default function DashboardyPage() {
             </div>
           </div>
           
-          <Link
-            href="/dashboard"
-            className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 px-3 py-2 rounded-lg hover:bg-zinc-100 transition-all border border-zinc-200 bg-zinc-50"
-          >
-            Standart OEE Dashboard
-          </Link>
+          {!isReadOnly && (
+            <Link
+              href="/dashboard"
+              className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 px-3 py-2 rounded-lg hover:bg-zinc-100 transition-all border border-zinc-200 bg-zinc-50"
+            >
+              Standart OEE Dashboard
+            </Link>
+          )}
         </div>
       </header>
 
@@ -302,12 +319,18 @@ export default function DashboardyPage() {
                   return (
                     <tr key={cell} className="hover:bg-zinc-50/50 transition-colors group">
                       <td className="py-4 px-6">
-                        <Link 
-                          href={linkUrl}
-                          className="font-bold text-sm text-zinc-800 hover:text-indigo-600 hover:underline transition-colors block"
-                        >
-                          {cell}
-                        </Link>
+                        {isReadOnly ? (
+                          <span className="font-bold text-sm text-zinc-800 block">
+                            {cell}
+                          </span>
+                        ) : (
+                          <Link 
+                            href={linkUrl}
+                            className="font-bold text-sm text-zinc-800 hover:text-indigo-600 hover:underline transition-colors block"
+                          >
+                            {cell}
+                          </Link>
+                        )}
                       </td>
                       <td className="py-4 px-6 text-center">
                         <span className="text-sm font-black text-zinc-800">{produced.toLocaleString("tr-TR")}</span>

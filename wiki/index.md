@@ -21,6 +21,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [Performans Paneli](systems/performans-paneli.md) | `/dashboardy` sayfası: Seçilen tarih aralığında hücre bazlı üretim hedeflerinin izlenmesi ve hücre özelinde hedeflenen miktarların hesaplanması |
 | [Kalıp Takip](systems/kalip-takip.md) | `/kalip-takip` sayfası: Pres hücresi kalıp değişimlerinin takibi, manual giriş, senkronizasyon ve kümülatif parça adetleri takibi |
 | [Aksiyon Takip](systems/aksiyon-takip.md) | `/aksiyon-takip` sayfası: Sol hücre sidebar'ı, ClickUp tarzı inline ana/alt madde ekleme, düzenlenebilir sorumlu/termin/öncelik/durum ve local state ile yenilemesiz işlem akışı |
+| [Global Şifre Koruması](systems/sifre-korumasi.md) | Tüm sitenin genel şifre yetkilendirmesi (`rmk_hf901`), middleware kontrolü ve şifresiz salt okunur performans paneli erişimi |
 
 ## Entities — Varlıklar ve Veri Yapıları
 
@@ -39,8 +40,9 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 
 **Sayfalar ve rotaları:**
 - `/` → Günlük üretim formu & [Ölçüm Sistemleri](systems/olcum-sistemleri.md)
+- `/login` → Giriş sayfası (Şifre koruması yetkilendirme ekranı)
 - `/dashboard` → Dashboard (henüz incelenmedi)
-- `/dashboardy` → [Detaylı Performans Paneli](systems/performans-paneli.md)
+- `/dashboardy` → [Detaylı Performans Paneli](systems/performans-paneli.md) (Şifresiz salt okunur erişim destekler)
 - `/durus-analiz` → [Duruş Analiz](systems/durus-analiz.md)
 - `/duruslar` → [Duruşlar](systems/duruslar.md) (Duruş Takip ve Analiz & Excel Çıktısı)
 - `/kalip-takip` → [Pres Hücresi Kalıp Değişim Takibi](systems/kalip-takip.md)
