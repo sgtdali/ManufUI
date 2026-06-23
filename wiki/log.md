@@ -5,6 +5,24 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-23] update | Microsoft Teams ve Outlook E-posta Bildirim Entegrasyonu
+
+**Yapılanlar:**
+- **Microsoft Teams Entegrasyonu:**
+  - `/aksiyon-takip` sayfasında yapılan görev değişikliklerinin (yeni görev ekleme ve görevin tamamlanması) Teams üzerinden anlık bildirilmesi sağlandı.
+  - Teams tarafında "Workflows" (İş Akışları) kullanılarak Premium lisans gerektirmeyen ücretsiz bir HTTP tetikleyicili akış kuruldu. Akış, gelen istekleri Ensar Gül'e doğrudan özel sohbet (DM) kartı olarak atacak şekilde yapılandırıldı.
+  - Supabase veritabanında `manuf_action_items` tablosuna bağlı bir `AFTER INSERT OR UPDATE` trigger'ı ve `notify_teams_on_action_item()` fonksiyonu yazıldı. Bu trigger, Teams'in beklediği **Adaptive Card JSON** yapısını veritabanı seviyesinde asenkron olarak oluşturup gönderir.
+- **Outlook E-posta Entegrasyonu:**
+  - Aynı Teams akışına "E-posta gönder (V2) - Office 365 Outlook" eylemi dahil edilerek, Teams bildirimiyle eş zamanlı olarak ilgili e-posta adresine görev bilgilendirme maili gönderilmesi sağlandı.
+- **Şifre Koruma İyileştirmesi:**
+  - Giriş çerezinin ömrü 30 güne ayarlanırken, tüm mobil ve masaüstü tarayıcılarda maksimum uyumluluk için çerez tanımına `max-age` parametresinin yanına dinamik olarak hesaplanan `expires` (UTC formatında) özelliği de dahil edildi.
+- **Dokümantasyon ve Kalıcılık:**
+  - Veritabanı kodları ve Teams yapılandırması `supabase/migrations/20260623160000_notify_teams_on_action_item.sql` dosyasına kalıcı olarak kaydedildi.
+  - Mimari detayları ve test betiği `docs/teams-integration.md` dosyası altında dokümante edildi.
+  - Wiki sistemine `systems/teams-entegrasyonu.md` sayfası eklenerek `wiki/index.md` güncellendi.
+
+---
+
 ## [2026-06-23] update | Şifre Oturum Süresi 30 Güne Çıkarıldı
 
 **Yapılanlar:**

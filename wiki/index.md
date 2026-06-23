@@ -22,6 +22,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [Kalıp Takip](systems/kalip-takip.md) | `/kalip-takip` sayfası: Pres hücresi kalıp değişimlerinin takibi, manual giriş, senkronizasyon ve kümülatif parça adetleri takibi |
 | [Aksiyon Takip](systems/aksiyon-takip.md) | `/aksiyon-takip` sayfası: Sol hücre sidebar'ı, ClickUp tarzı inline ana/alt madde ekleme, düzenlenebilir sorumlu/termin/öncelik/durum ve local state ile yenilemesiz işlem akışı |
 | [Global Şifre Koruması](systems/sifre-korumasi.md) | Tüm sitenin genel şifre yetkilendirmesi (`rmk_hf901`), middleware kontrolü ve şifresiz salt okunur performans paneli erişimi |
+| [Teams Entegrasyonu](systems/teams-entegrasyonu.md) | Aksiyon Takip Sistemi değişikliklerinin (yeni görev/tamamlanma) Teams ve Outlook üzerinden anlık bildirim olarak gönderilmesi |
 
 ## Entities — Varlıklar ve Veri Yapıları
 
