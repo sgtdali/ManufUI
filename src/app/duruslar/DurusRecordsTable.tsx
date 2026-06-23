@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { BOLUMLER } from "@/lib/types";
 import { type DurusDetail, type ActiveDay } from "./page";
 
@@ -37,6 +38,8 @@ function formatDate(value: string) {
 }
 
 export function DurusRecordsTable({ details, activeDays }: Props) {
+  const [isExporting, setIsExporting] = useState(false);
+
   // State for filters
   const [startDate, setStartDate] = useState("2026-06-13");
   const [endDate, setEndDate] = useState("");
@@ -214,6 +217,112 @@ export function DurusRecordsTable({ details, activeDays }: Props) {
   const maxSubtypeMinutes = useMemo(() => Math.max(...bySubtype.map((i) => i.minutes), 1), [bySubtype]);
   const maxDepartmentMinutes = useMemo(() => Math.max(...byDepartment.map((i) => i.minutes), 1), [byDepartment]);
 
+  const handleExportExcel = async () => {
+    if (sortedDetails.length === 0) return;
+    setIsExporting(true);
+    try {
+      const ExcelJS = await import("exceljs");
+      const Workbook = ExcelJS.Workbook || ExcelJS.default?.Workbook;
+      if (!Workbook) throw new Error("ExcelJS has no Workbook constructor");
+      
+      const wb = new Workbook();
+      wb.creator = "ManufUI";
+      wb.created = new Date();
+
+      const ws = wb.addWorksheet("Duruş Kayıtları");
+
+      const columns = [
+        { header: "Tarih", key: "tarih", width: 14 },
+        { header: "Bölüm", key: "bolum", width: 22 },
+        { header: "Sorumlu", key: "sorumlu", width: 20 },
+        { header: "Zaman Dilimi", key: "zamanDilimi", width: 16 },
+        { header: "Duruş Tipi", key: "durusTipi", width: 22 },
+        { header: "Alt Tür", key: "altTur", width: 22 },
+        { header: "Süre (dk)", key: "dakika", width: 12 },
+        { header: "Açıklama / Operatör Notu", key: "aciklama", width: 45 },
+        { header: "Arıza Durumu", key: "arizaDurumu", width: 16 },
+        { header: "Çözüm Açıklaması", key: "arizaGiderilmeAciklama", width: 40 },
+      ];
+
+      ws.columns = columns;
+
+      // Header row styling
+      const headerRow = ws.getRow(1);
+      headerRow.height = 32;
+      columns.forEach((_, colIdx) => {
+        const cell = headerRow.getCell(colIdx + 1);
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF065F46" }, // Emerald 800
+        };
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+        cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        cell.border = {
+          top: { style: "thin" },
+          bottom: { style: "thin" },
+          left: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+
+      // Data rows
+      let rowIndex = 2;
+      for (const item of sortedDetails) {
+        const dataRow = ws.addRow({
+          tarih: formatDate(item.tarih),
+          bolum: item.bolum.replace(" Hücresi", ""),
+          sorumlu: item.sorumlu,
+          zamanDilimi: item.zamanDilimi,
+          durusTipi: item.durusTipiLabel,
+          altTur: item.altTur,
+          dakika: item.dakika,
+          aciklama: item.aciklama,
+          arizaDurumu: item.durusTipiKey === "ariza" ? (item.arizaGiderildi ? "Giderildi" : "Açık") : "",
+          arizaGiderilmeAciklama: item.durusTipiKey === "ariza" && item.arizaGiderildi ? item.arizaGiderilmeAciklama ?? "" : "",
+        });
+
+        // Alternating row colors: light emerald/white
+        const bgColor = rowIndex % 2 === 0 ? "FFF0FDF4" : "FFFFFFFF";
+        columns.forEach((_, colIdx) => {
+          const cell = dataRow.getCell(colIdx + 1);
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
+          cell.alignment = {
+            vertical: "middle",
+            horizontal: colIdx === 6 ? "right" : "left",
+            wrapText: colIdx === 7 || colIdx === 9,
+          };
+          cell.border = {
+            top: { style: "hair" },
+            bottom: { style: "hair" },
+            left: { style: "hair" },
+            right: { style: "hair" },
+          };
+          if (colIdx === 6) {
+            cell.numFmt = '#,##0" dk"';
+          }
+        });
+        rowIndex++;
+      }
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const now = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `durus_kayitlari_${now}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Excel dışa aktarma hatası:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleSort = (field: "tarih" | "dakika") => {
     if (sortBy === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -226,6 +335,47 @@ export function DurusRecordsTable({ details, activeDays }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-normal text-zinc-950">
+            Duruş Takip ve Analiz
+          </h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExportExcel}
+            disabled={isExporting || sortedDetails.length === 0}
+            className="rounded-md border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 hover:border-emerald-400 disabled:opacity-50 transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            {isExporting ? "Dışa Aktarılıyor..." : "Excel Çıktısı"}
+          </button>
+          <Link
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+            href="/dashboard"
+          >
+            Dashboard
+          </Link>
+          <Link
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+            href="/"
+          >
+            Forma dön
+          </Link>
+        </div>
+      </header>
       {/* Filters Form */}
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-800 mb-4">

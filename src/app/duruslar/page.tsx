@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { type ProductionRow } from "@/lib/types";
 import { DurusRecordsTable } from "./DurusRecordsTable";
@@ -249,28 +248,6 @@ export default async function DuruslarPage() {
   return (
     <main className="min-h-screen bg-zinc-50 px-4 py-6 text-zinc-950 md:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-normal text-zinc-950">
-              Duruş Takip ve Analiz
-            </h1>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
-              href="/dashboard"
-            >
-              Dashboard
-            </Link>
-            <Link
-              className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
-              href="/"
-            >
-              Forma dön
-            </Link>
-          </div>
-        </header>
-
         {error ? (
           <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
             Veri yüklenirken hata oluştu: {error.message}

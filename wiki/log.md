@@ -5,6 +5,24 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-23] update | Duruş Takip ve Analiz Excel Çıktısı
+
+**Yapılanlar:**
+- **Excel Çıktı Desteği (`/duruslar`):**
+  - Sayfanın sağ üstündeki "Dashboard" butonunun soluna "Excel Çıktısı" butonu eklendi.
+  - Buton, sayfa üzerinde o an aktif olan filtrelere (Tarih, Hücre, Kategori, Kelime Arama vb.) uyan tüm satırları (`sortedDetails` dizisi) Excel formatında dışa aktaracak şekilde kodlandı.
+  - Excel üretimi için client-side'da `exceljs` dynamic import (`await import("exceljs")`) kullanıldı.
+- **Excel Tasarım Standartları:**
+  - Başlık satırı koyu yeşil (`#065F46`), yazı rengi beyaz yapıldı.
+  - Veri satırları alternating (zebra) stilde beyaz ve açık yeşil (`#F0FDF4`) zemin renkleriyle kaplandı.
+  - Süre sütunu sağa yaslandı ve sonuna `" dk"` birimi eklendi.
+  - Açıklama ve çözüm notları gibi uzun metin içeren kolonlarda metin kaydırma (wrapText) etkinleştirildi.
+- **Dosya Düzenlemeleri:**
+  - Header bloğu client-side filtre listesine doğrudan erişebilmesi için Server Component olan `page.tsx`'ten Client Component olan `DurusRecordsTable.tsx`'e taşındı.
+  - `wiki/systems/duruslar.md` güncellenerek sayfa işlevleri ve Excel dışa aktarım tasarım standartları belgelendirildi.
+
+---
+
 ## [2026-06-21] cleanup | /schedule ve /schedule/overview Sayfaları Silindi
 
 **Yapılanlar:**

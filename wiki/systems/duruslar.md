@@ -1,6 +1,6 @@
 ---
-updated: 2026-06-13
-sources: [src/lib/types.ts, src/app/page.tsx, src/app/_components/ProductionTable.tsx, src/app/_components/DowntimeExplanationDialog.tsx]
+updated: 2026-06-23
+sources: [src/lib/types.ts, src/app/page.tsx, src/app/_components/ProductionTable.tsx, src/app/_components/DowntimeExplanationDialog.tsx, src/app/duruslar/DurusRecordsTable.tsx]
 ---
 
 # Duruş Kodları ve Alt Türler
@@ -96,6 +96,28 @@ Makine Sayısı eksik girildiğinde:
   - Sınırın altına düşüldüyse → calisan_makine_aciklama ZORUNLU
 Müşteri duruş türü seçildiyse → musteri_durus_aciklama ZORUNLU
 ```
+
+---
+
+## Duruş Takip ve Analiz Sayfası (`/duruslar`) ve Excel Çıktısı
+
+`/duruslar` sayfası, tüm sisteme girilmiş olan duruş kayıtlarının detaylıca listelendiği, filtrelendiği ve analiz edildiği bir ekrandır.
+
+### Özellikler
+- **Tarih Aralığı, Hücre ve Duruş Kategorisi Filtreleri**: Kullanıcılar seçtikleri kriterlere göre duruş kayıtlarını süzebilir.
+- **Kelime Arama**: Açıklama, Alt Tür ve Sorumlu alanlarında anlık filtreleme yapılabilir.
+- **İstatistik Kartları**: Toplam duruş süresi, kayıt başına ortalama süre ve günlük ortalama süre dinamik hesaplanır.
+- **Dağılım Grafikleri**: Duruş Tipleri, Alt Tür / Neden ve Hücre bazlı ilk 5 kırılım Pareto mantığında gösterilir.
+
+### Excel Çıktısı ("Excel Çıktısı" Butonu)
+- Sayfanın üst barında **Dashboard** butonunun solunda yer alır.
+- **İşlevi**: Tıklandığında, **o an sayfada seçili aktif filtrelere** uyan tüm kayıtları (`sortedDetails` dizisi) Excel (.xlsx) formatında indirir.
+- **Excel Dosyası Tasarımı**:
+  - Başlık satırı koyu yeşil (`#065F46`), yazı rengi beyazdır.
+  - Veri satırları ardışık olarak beyaz ve açık yeşil (`#F0FDF4`) renklerde (zebra style) boyanmıştır.
+  - "Süre (dk)" kolonu sağa hizalı ve sonuna `" dk"` birimi eklenerek biçimlendirilmiştir.
+  - Açıklama ve çözüm notları gibi uzun metin kolonları için metin kaydırma (wrapText) etkindir.
+  - Kolon genişlikleri içeriğe göre en uygun şekilde önceden ayarlanmıştır.
 
 ---
 

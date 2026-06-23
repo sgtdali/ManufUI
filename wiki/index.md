@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-21
+updated: 2026-06-23
 
 sources: []
 ---
@@ -15,7 +15,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [Üretim Formu](systems/uretim-formu.md) | Ana sayfa (`/`): hücre+tarih bazlı saatlik üretim ve duruş girişi, validasyon kuralları, otomatik yükleme/kaydetme akışı |
 | [Ölçüm Sistemleri](systems/olcum-sistemleri.md) | Ana sayfa (`/`): FF Preform Ölçüm (ROB108-Flowform) ve Final Ölçüm (ROB110-Fosfat) bağımsız 6 satırlı ölçüm ve dinamik Red/Rework Sebepleri detay girişleri |
 | [WIP Hesabı](systems/wip-hesabi.md) | WIP stok hesabı: hücreler arası kümülatif üretim farkları, birleşik hat kuralları |
-| [Duruşlar](systems/duruslar.md) | Tüm duruş kolonları, alt tür kodları (M1/M2, E/A/M/O, P1-P3, SA1-SA2, MKB1-3), validasyon kuralları |
+| [Duruşlar](systems/duruslar.md) | Tüm duruş kolonları, alt tür kodları, validasyon kuralları, `/duruslar` takip sayfası ve Excel dışa aktarım detayları |
 | [Duruş Analiz](systems/durus-analiz.md) | `/durus-analiz` sayfası: seçili tek hücre için duruş tipi + alt tür Pareto analizi, süre/adet/pay kırılımı ve kayıt listesi |
 | [Arıza Sistemi](systems/ariza-sistemi.md) | `/ariza` sayfası: veri yapısı, mevcut görünüm, eksik trend/öngörü özellikleri, reaktif→proaktif hedef |
 | [Performans Paneli](systems/performans-paneli.md) | `/dashboardy` sayfası: Seçilen tarih aralığında hücre bazlı üretim hedeflerinin izlenmesi ve hücre özelinde hedeflenen miktarların hesaplanması |
@@ -42,6 +42,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 - `/dashboard` → Dashboard (henüz incelenmedi)
 - `/dashboardy` → [Detaylı Performans Paneli](systems/performans-paneli.md)
 - `/durus-analiz` → [Duruş Analiz](systems/durus-analiz.md)
+- `/duruslar` → [Duruşlar](systems/duruslar.md) (Duruş Takip ve Analiz & Excel Çıktısı)
 - `/kalip-takip` → [Pres Hücresi Kalıp Değişim Takibi](systems/kalip-takip.md)
 - `/aksiyon-takip` → [Aksiyon Takip](systems/aksiyon-takip.md)
 - `/veri-takip` → Veri takip (henüz incelenmedi)
