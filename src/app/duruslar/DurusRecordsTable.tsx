@@ -115,10 +115,6 @@ export function DurusRecordsTable({ details, activeDays }: Props) {
     return filteredDetails.reduce((sum, item) => sum + item.dakika, 0);
   }, [filteredDetails]);
 
-  const averageMinutes = useMemo(() => {
-    return filteredDetails.length > 0 ? Math.round(totalMinutes / filteredDetails.length) : 0;
-  }, [filteredDetails, totalMinutes]);
-
   const maxMinutes = useMemo(() => {
     return filteredDetails.length > 0 ? Math.max(...filteredDetails.map((item) => item.dakika)) : 0;
   }, [filteredDetails]);
@@ -483,9 +479,8 @@ export function DurusRecordsTable({ details, activeDays }: Props) {
       </section>
 
       {/* Metrics Grid */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2">
         <MetricCard label="Filtrelenmiş Süre" value={`${formatNumber(totalMinutes)} dk`} note={`${formatNumber(filteredDetails.length)} kayıt bulundu`} />
-        <MetricCard label="Ortalama Süre" value={`${formatNumber(averageMinutes)} dk`} note="Kayıt başına düşen süre" />
         <MetricCard label="Günlük Ortalama" value={`${formatNumber(dailyAverageMinutes)} dk`} note="Cuma-Cmt hariç (giriş yapılanlar dahil)" />
       </section>
 

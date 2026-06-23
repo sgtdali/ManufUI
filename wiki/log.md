@@ -5,6 +5,20 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-23] update | Flowform Hücresi Takım Değişimi Alt Türleri Eklendi
+
+**Yapılanlar:**
+- **Flowform Takım Değişimi Dropdown:**
+  - Günlük üretim formunda (`/`) Flowform Hücresi seçildiğinde, **Takım Değişimi** kolonuna süre (dakika) girildiğinde beliren bir alt tür dropdown'ı eklendi.
+  - Dropdown seçenekleri: `Tırnaklı Değişimi` ve `Mandrel Değişimi`.
+  - Seçimlerin veritabanına ve dışa aktarım mekanizmalarına (`takim_degisim_turu` alanı) doğru şekilde kaydedilmesi ve raporlanması sağlandı.
+- **Validasyon Kuralları:**
+  - `src/app/page.tsx` üzerindeki onSubmit validasyonuna Flowform Hücresi için `takim_degisimi` girildiyse alt tür seçimini zorunlu kılan kural eklendi.
+- **Dokümantasyon:**
+  - `wiki/systems/duruslar.md` belgesi güncellenerek bu yeni alt türler ilgili bölüme işlendi.
+
+---
+
 ## [2026-06-23] update | Duruş Takip ve Analiz Excel Çıktısı
 
 **Yapılanlar:**
@@ -17,8 +31,9 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
   - Veri satırları alternating (zebra) stilde beyaz ve açık yeşil (`#F0FDF4`) zemin renkleriyle kaplandı.
   - Süre sütunu sağa yaslandı ve sonuna `" dk"` birimi eklendi.
   - Açıklama ve çözüm notları gibi uzun metin içeren kolonlarda metin kaydırma (wrapText) etkinleştirildi.
-- **Dosya Düzenlemeleri:**
+- **Dosya Düzenlemeleri & Temizlik:**
   - Header bloğu client-side filtre listesine doğrudan erişebilmesi için Server Component olan `page.tsx`'ten Client Component olan `DurusRecordsTable.tsx`'e taşındı.
+  - "Ortalama Süre" (Kayıt başına düşen süre) metrik kartı arayüzden kaldırıldı ve ilgili hesaplama temizlenerek kalan kartların 2 kolonlu düzende dengeli hizalanması sağlandı.
   - `wiki/systems/duruslar.md` güncellenerek sayfa işlevleri ve Excel dışa aktarım tasarım standartları belgelendirildi.
 
 ---

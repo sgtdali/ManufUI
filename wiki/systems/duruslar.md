@@ -67,6 +67,8 @@ sources: [src/lib/types.ts, src/app/page.tsx, src/app/_components/ProductionTabl
 ### 5. Takım Değişimi (`takim_degisim_turu`)
 * **ETM Hücresi (Holder - Insert Değişim):**
   * `Holder Değişim`, `Holder Ayar`, `Insert Değişim`, `Punta Değişim` (Açıklama gerekmez)
+* **Flowform Hücresi (Takım Değişimi):**
+  * `Tırnaklı Değişimi`, `Mandrel Değişimi` (Açıklama gerekmez)
 
 ### 6. Kalıp Demontaj & Montaj (`kalip_demontaj_turu` / `kalip_montaj_turu`)
 * **Yalnızca Pres Hücresi** için (Açıklama gerekmez):
@@ -106,7 +108,7 @@ Müşteri duruş türü seçildiyse → musteri_durus_aciklama ZORUNLU
 ### Özellikler
 - **Tarih Aralığı, Hücre ve Duruş Kategorisi Filtreleri**: Kullanıcılar seçtikleri kriterlere göre duruş kayıtlarını süzebilir.
 - **Kelime Arama**: Açıklama, Alt Tür ve Sorumlu alanlarında anlık filtreleme yapılabilir.
-- **İstatistik Kartları**: Toplam duruş süresi, kayıt başına ortalama süre ve günlük ortalama süre dinamik hesaplanır.
+- **İstatistik Kartları**: Filtrelenmiş toplam duruş süresi ve günlük ortalama süre dinamik hesaplanır.
 - **Dağılım Grafikleri**: Duruş Tipleri, Alt Tür / Neden ve Hücre bazlı ilk 5 kırılım Pareto mantığında gösterilir.
 
 ### Excel Çıktısı ("Excel Çıktısı" Butonu)

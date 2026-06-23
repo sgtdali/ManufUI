@@ -104,6 +104,16 @@ export function ProductionTable({
         ],
       };
     }
+    if (bolum === "Flowform Hücresi" && column.key === "takim_degisimi") {
+      return {
+        ...column,
+        altTurKey: "takim_degisim_turu" as keyof ProductionRow,
+        altTurler: [
+          { code: "Tırnaklı Değişimi" },
+          { code: "Mandrel Değişimi" },
+        ],
+      };
+    }
     if (bolum === "Quench Hücresi" && column.key === "takim_degisimi") {
       return { ...column, label: "Rejim Bekleme" };
     }

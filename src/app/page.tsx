@@ -318,6 +318,8 @@ export default function ProductionFormPage() {
     ];
     if (data.bolum === "ETM Hücresi") {
       altTurKontrol.push({ key: "takim_degisimi", altTurKey: "takim_degisim_turu", label: "Holder - Insert Değişim" });
+    } else if (data.bolum === "Flowform Hücresi") {
+      altTurKontrol.push({ key: "takim_degisimi", altTurKey: "takim_degisim_turu", label: "Takım Değişimi" });
     }
     data.rows.forEach((row) => {
       altTurKontrol.forEach(({ key, altTurKey, label }) => {
