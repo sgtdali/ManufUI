@@ -5,6 +5,19 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-23] update | Flowform Hücresi Varsayılan Saatlik Üretim Hedefi 12 Yapıldı
+
+**Yapılanlar:**
+- **Flowform Hedef Güncellemesi:**
+  - Günlük üretim formunda (`/`) Flowform Hücresi seçildiğinde, **Hedef Üretim Adeti** kolonu varsayılan değeri saatlik `12` yapıldı.
+  - Hafta içi günlerde bu sütunun salt okunur (`read-only`) olması sağlandı. Hafta sonu günlerinde ise esneklik sağlamak amacıyla elle düzenlenebilir durum korundu.
+- **Dosya Düzenlemeleri:**
+  - `src/app/page.tsx` ve `src/app/_components/ProductionTable.tsx` dosyalarındaki target default ve read-only koşulları güncellendi.
+- **Dokümantasyon:**
+  - `wiki/systems/uretim-formu.md` güncellenerek Flowform hücresi için varsayılan hedef değeri 12 olarak güncellendi.
+
+---
+
 ## [2026-06-23] update | Flowform Hücresi Takım Değişimi Alt Türleri Eklendi
 
 **Yapılanlar:**

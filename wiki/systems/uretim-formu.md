@@ -56,7 +56,7 @@ Her satırda şu alanlar bulunur (Seçili hücreye göre kolonlar dinamikleşir)
 | Bir Önceki İstasyon Bekleme | `onceki_istasyon_bekleme` | Dakika, alt tür yok | Tüm |
 | Müşteri Kaynaklı Duruş | `musteri_kaynakli_durus` + `musteri_durus_turu` + `musteri_durus_aciklama` | Dakika + alt tür + açıklama | Tüm |
 | Kalite Kaynaklı Duruş | `kalite_kaynakli_durus` | Dakika, alt tür yok | Tüm |
-| Hedef Üretim | `hedef_uretim_adeti` | Sağ sütunda. Pres, ETM, ROB104, ROB108 ve ROB109 hücrelerinde cuma ve cumartesi günleri hariç varsayılan olarak `20` değerini alır ve salt okunurdur. (ROB108 için hedef adeti çalışan makine sayısına göre dinamik olarak güncellenir: 5 makine -> 20, 4 -> 13, 3 -> 10, 2 -> 6, 1 -> 3, 0 -> 0) | Tüm |
+| Hedef Üretim | `hedef_uretim_adeti` | Sağ sütunda. Pres, ETM, ROB104, ROB108 ve ROB109 hücrelerinde varsayılan `20`, N602 hücresinde `15`, Flowform hücresinde `12` değerini alır ve cuma-cumartesi günleri hariç salt okunurdur. (ROB108 için hedef adeti çalışan makine sayısına göre dinamik güncellenir: 5 makine -> 20, 4 -> 13, 3 -> 10, 2 -> 6, 1 -> 3, 0 -> 0) | Tüm |
 
 Duruş alt türleri detayları için bkz. [Duruşlar](duruslar.md).
 
