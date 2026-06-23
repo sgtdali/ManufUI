@@ -37,13 +37,20 @@ function buildEmptyRows(
   bolum?: string,
   tarih?: string
 ): ProductionFormData["rows"] {
-  const isTargetDefault20 = bolum && ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi", "N602 Hücresi"].includes(bolum);
+  const isTargetDefault20 = bolum && ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(bolum);
+  const isTargetDefault15 = bolum === "N602 Hücresi";
   let isWeekend = false;
   if (tarih) {
     const day = new Date(`${tarih}T00:00:00`).getDay();
     isWeekend = (day === 5 || day === 6);
   }
-  const defaultTarget = (isTargetDefault20 && !isWeekend) ? 20 : null;
+  const defaultTarget = isWeekend
+    ? null
+    : isTargetDefault20
+    ? 20
+    : isTargetDefault15
+    ? 15
+    : null;
 
   return zamanDilimleri.map((z) => ({
     sira_no: z.sira_no,
@@ -83,10 +90,11 @@ function applyRecordToForm(
   bolum: string,
   tarih: string
 ): ProductionFormData {
-  const isTargetDefault20 = ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi", "N602 Hücresi"].includes(bolum);
+  const isTargetDefault20 = ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(bolum);
+  const isTargetDefault15 = bolum === "N602 Hücresi";
   const day = new Date(`${tarih}T00:00:00`).getDay();
   const isWeekend = (day === 5 || day === 6);
-  const isTargetReadOnly = isTargetDefault20 && !isWeekend;
+  const isTargetReadOnly = (isTargetDefault20 || isTargetDefault15) && !isWeekend;
 
   const dbRows = (record.manuf_production_rows as Record<string, unknown>[] ?? []);
   const expectedSlots = getZamanDilimleriForCellAndDate(bolum, tarih);
@@ -114,6 +122,8 @@ function applyRecordToForm(
           0: 0
         };
         targetVal = mSayisi != null && ROB108_TARGETS[mSayisi] !== undefined ? ROB108_TARGETS[mSayisi] : 20;
+      } else if (bolum === "N602 Hücresi") {
+        targetVal = 15;
       } else {
         targetVal = 20;
       }

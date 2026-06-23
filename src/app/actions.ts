@@ -7,12 +7,15 @@ import {
   validateTargetDowntime,
 } from "@/lib/productionValidation";
 
-const TARGET_20_CELLS = ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi", "N602 Hücresi"];
+const TARGET_20_CELLS = ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"];
+const TARGET_15_CELLS = ["N602 Hücresi"];
 const ROB108_TARGETS: Record<number, number> = { 5: 20, 4: 13, 3: 10, 2: 6, 1: 3, 0: 0 };
 
 function enforceServerTargets(data: ProductionFormData): ProductionFormData {
   const bolum = data.bolum || "";
-  if (!TARGET_20_CELLS.includes(bolum)) return data;
+  const is20 = TARGET_20_CELLS.includes(bolum);
+  const is15 = TARGET_15_CELLS.includes(bolum);
+  if (!is20 && !is15) return data;
 
   const day = data.tarih ? new Date(`${data.tarih}T00:00:00`).getDay() : 1;
   const isWeekend = day === 5 || day === 6;
@@ -23,7 +26,7 @@ function enforceServerTargets(data: ProductionFormData): ProductionFormData {
   return {
     ...data,
     rows: data.rows.map((row) => {
-      let hedef = 20;
+      let hedef = is15 ? 15 : 20;
       if (bolum === "ROB108 Hücresi") {
         const m = row.calisan_makine_sayisi ?? defaultM;
         hedef = (m != null && ROB108_TARGETS[m] !== undefined) ? ROB108_TARGETS[m] : 20;
