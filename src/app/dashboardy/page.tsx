@@ -88,17 +88,30 @@ export default function DashboardyPage() {
     setSharing(true);
     toast.info("Görüntü hazırlanıyor...");
 
+    // Create a temporary hidden container to force a wide desktop-like layout
+    // This prevents text wrapping and column cut-off on mobile devices
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "absolute";
+    wrapper.style.left = "-9999px";
+    wrapper.style.top = "-9999px";
+    wrapper.style.width = "1000px";
+    wrapper.style.backgroundColor = "#fafafa";
+
+    const clone = node.cloneNode(true) as HTMLElement;
+    clone.style.width = "1000px";
+    clone.style.margin = "0";
+    clone.style.padding = "24px";
+    clone.style.borderRadius = "0px";
+
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
     try {
       const { toBlob } = await import("html-to-image");
       
-      const blob = await toBlob(node, {
+      const blob = await toBlob(clone, {
         backgroundColor: "#fafafa",
-        pixelRatio: 3,
-        style: {
-          margin: "0",
-          padding: "24px",
-          borderRadius: "0px",
-        },
+        pixelRatio: 2.5,
       });
 
       if (!blob) {
@@ -136,6 +149,9 @@ export default function DashboardyPage() {
       console.error(err);
       toast.error(`Paylaşım başarısız oldu: ${err.message || err}`);
     } finally {
+      if (document.body.contains(wrapper)) {
+        document.body.removeChild(wrapper);
+      }
       setSharing(false);
     }
   };
