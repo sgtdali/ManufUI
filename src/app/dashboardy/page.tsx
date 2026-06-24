@@ -232,33 +232,33 @@ export default function DashboardyPage() {
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleShare}
-              disabled={sharing || loading}
-              className="text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 px-3.5 py-2 rounded-lg transition-all border border-indigo-700 disabled:border-indigo-500 flex items-center gap-1.5 shadow-xs cursor-pointer disabled:cursor-not-allowed active:scale-95 disabled:scale-100"
-            >
-              {sharing ? (
-                <>
-                  <RotateCw className="h-3.5 w-3.5 animate-spin" />
-                  Hazırlanıyor...
-                </>
-              ) : (
-                <>
-                  <Share2 className="h-3.5 w-3.5" />
-                  Raporu Paylaş
-                </>
-              )}
-            </button>
-            {!isReadOnly && (
+          {!isReadOnly && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleShare}
+                disabled={sharing || loading}
+                className="text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 px-3.5 py-2 rounded-lg transition-all border border-indigo-700 disabled:border-indigo-500 flex items-center gap-1.5 shadow-xs cursor-pointer disabled:cursor-not-allowed active:scale-95 disabled:scale-100"
+              >
+                {sharing ? (
+                  <>
+                    <RotateCw className="h-3.5 w-3.5 animate-spin" />
+                    Hazırlanıyor...
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-3.5 w-3.5" />
+                    Raporu Paylaş
+                  </>
+                )}
+              </button>
               <Link
                 href="/dashboard"
                 className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 px-3 py-2 rounded-lg hover:bg-zinc-100 transition-all border border-zinc-200 bg-zinc-50"
               >
                 Standart OEE Dashboard
               </Link>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </header>
 
