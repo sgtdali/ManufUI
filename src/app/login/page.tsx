@@ -8,16 +8,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
-    if (password === "rmk_hf901") {
-      // Set cookie for 30 days with max-age and expires for max browser/device compatibility
+    const validPasswords = ["rmk_hf901", "password_ncms"];
+    if (validPasswords.includes(password)) {
       const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toUTCString();
-      document.cookie = `password_auth=rmk_hf901; path=/; max-age=2592000; expires=${expiryDate}; SameSite=Lax`;
-      toast.success("Giriş başarılı, yönlendiriliyorsunuz...");
+      document.cookie = `password_auth=${password}; path=/; max-age=2592000; expires=${expiryDate}; SameSite=Lax`;
+      const label = password === "password_ncms" ? "Salt okunur erisim" : "Tam yetki";
+      toast.success(`Giris basarili (${label}), yonlendiriliyorsunuz...`);
       setTimeout(() => {
         window.location.href = "/";
       }, 500);
     } else {
-      toast.error("Hatalı şifre girdiniz!");
+      toast.error("Hatali sifre girdiniz!");
     }
   };
 

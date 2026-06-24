@@ -22,6 +22,7 @@ import {
   validateTargetDowntime,
 } from "@/lib/productionValidation";
 
+import { isReadOnlyUser } from "@/lib/useAuthRole";
 import { FormHeader } from "./_components/FormHeader";
 import { ProductionTable } from "./_components/ProductionTable";
 import { FFPreformTable } from "./_components/FFPreformTable";
@@ -203,6 +204,7 @@ export default function ProductionFormPage() {
       },
     });
 
+  const [readOnly, setReadOnly] = useState(false);
   const [saving, setSaving] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);
   const [hasExistingRecord, setHasExistingRecord] = useState(false);
@@ -212,6 +214,8 @@ export default function ProductionFormPage() {
 
   // Açıklama dialog state
   const [aciklamaDialog, setAciklamaDialog] = useState<AciklamaDialogType | null>(null);
+
+  useEffect(() => { setReadOnly(isReadOnlyUser()); }, []);
 
   // URL parametrelerini başlangıçta oku
   useEffect(() => {
@@ -306,6 +310,10 @@ export default function ProductionFormPage() {
   }, []);
 
   const onSubmit = useCallback(async (data: ProductionFormData) => {
+    if (readOnly) {
+      toast.error("Salt okunur erisim — veri kaydetme yetkiniz yok.");
+      return;
+    }
     if (!data.bolum) {
       toast.error("Bölüm zorunludur.");
       return;
@@ -522,6 +530,7 @@ export default function ProductionFormPage() {
             Günlük Üretim Takip Formu
           </h1>
         </header>
+
 
         {/* Form Başlığı Bileşeni */}
         <FormHeader

@@ -19,7 +19,7 @@ export async function middleware(request: NextRequest) {
 
   // Check password authentication
   const authCookie = request.cookies.get('password_auth')?.value
-  const isAuthenticated = authCookie === 'rmk_hf901'
+  const isAuthenticated = authCookie === 'rmk_hf901' || authCookie === 'password_ncms'
 
   // If not authenticated and not visiting dashboardy, redirect to login page
   if (!isAuthenticated && pathname !== '/dashboardy') {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { ArrowLeft, CheckCircle2, Circle, Filter } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { BOLUMLER } from "@/lib/types";
@@ -53,6 +54,9 @@ export default async function OnerilerPage({
   const params = searchParams ? await searchParams : {};
   const selectedBolum = getStringParam(params.bolum);
   const selectedDurum = getStringParam(params.durum);
+
+  const cookieStore = await cookies();
+  const isReadOnly = cookieStore.get("password_auth")?.value === "password_ncms";
 
   const supabase = await createClient();
   let query = supabase
@@ -186,7 +190,7 @@ export default async function OnerilerPage({
                     </p>
                   </div>
 
-                  {!isCompleted ? (
+                  {!isCompleted && !isReadOnly ? (
                     <CompleteSuggestionForm suggestionId={suggestion.id} />
                   ) : null}
                 </div>

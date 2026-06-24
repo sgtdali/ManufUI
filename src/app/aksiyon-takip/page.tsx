@@ -17,6 +17,7 @@ import {
   LockOpen,
 } from "lucide-react";
 import { BOLUMLER } from "@/lib/types";
+import { isReadOnlyUser } from "@/lib/useAuthRole";
 import {
   loadActionItems,
   createActionItem,
@@ -132,12 +133,15 @@ function removeItemBranch(items: ActionItem[], id: string) {
 }
 
 export default function AksiyonTakipPage() {
+  const [globalReadOnly, setGlobalReadOnly] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    const ro = isReadOnlyUser();
+    setGlobalReadOnly(ro);
+    if (typeof window !== "undefined" && !ro) {
       const auth = localStorage.getItem("action_items_authorized") === "true";
       setIsAuthorized(auth);
     }
@@ -150,6 +154,10 @@ export default function AksiyonTakipPage() {
   };
 
   const handleConfirmPassword = (pw: string): boolean => {
+    if (globalReadOnly) {
+      toast.error("Salt okunur erisim — duzenleme yetkiniz yok.");
+      return false;
+    }
     if (pw === "repkonopm") {
       setIsAuthorized(true);
       localStorage.setItem("action_items_authorized", "true");
@@ -164,6 +172,10 @@ export default function AksiyonTakipPage() {
   };
 
   const ensureAuthorized = (callback: () => void) => {
+    if (globalReadOnly) {
+      toast.error("Salt okunur erisim — duzenleme yetkiniz yok.");
+      return;
+    }
     if (isAuthorized) {
       callback();
     } else {

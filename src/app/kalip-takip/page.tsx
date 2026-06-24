@@ -27,6 +27,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { isReadOnlyUser } from "@/lib/useAuthRole";
 import {
   Select,
   SelectContent,
@@ -52,6 +53,7 @@ interface MoldChangeRecord {
 }
 
 export default function KalipTakipPage() {
+  const [readOnly, setReadOnly] = useState(false);
   const [records, setRecords] = useState<MoldChangeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -81,11 +83,17 @@ export default function KalipTakipPage() {
     }
   };
 
+  useEffect(() => { setReadOnly(isReadOnlyUser()); }, []);
+
   useEffect(() => {
     fetchRecords();
   }, []);
 
   const handleSave = () => {
+    if (readOnly) {
+      toast.error("Salt okunur erisim — veri kaydetme yetkiniz yok.");
+      return;
+    }
     if (!tarih) {
       toast.error("Lütfen bir tarih seçiniz.");
       return;
@@ -135,6 +143,10 @@ export default function KalipTakipPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (readOnly) {
+      toast.error("Salt okunur erisim — silme yetkiniz yok.");
+      return;
+    }
     if (!confirm("Bu kalıp değişim kaydını silmek istediğinize emin misiniz?")) {
       return;
     }
