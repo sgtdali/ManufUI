@@ -3,6 +3,7 @@
 import { useState, useEffect, startTransition } from "react";
 import Link from "next/link";
 import { loadProductionSumByDateRange } from "../actions";
+import { toast } from "sonner";
 
 const DISPLAY_CELLS = [
   "Pres Hücresi",
@@ -58,7 +59,8 @@ import {
   TrendingUp, 
   ArrowLeft, 
   RotateCw,
-  LayoutDashboard
+  LayoutDashboard,
+  Share2
 } from "lucide-react";
 
 export default function DashboardyPage() {
@@ -74,6 +76,69 @@ export default function DashboardyPage() {
   const [data, setData] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [isReadOnly, setIsReadOnly] = useState(true);
+  const [sharing, setSharing] = useState(false);
+
+  const handleShare = async () => {
+    const node = document.getElementById("performance-table-container");
+    if (!node) {
+      toast.error("Paylaşılacak tablo bulunamadı.");
+      return;
+    }
+
+    setSharing(true);
+    toast.info("Görüntü hazırlanıyor...");
+
+    try {
+      const { toBlob } = await import("html-to-image");
+      
+      const blob = await toBlob(node, {
+        backgroundColor: "#fafafa",
+        pixelRatio: 3,
+        style: {
+          margin: "0",
+          padding: "24px",
+          borderRadius: "0px",
+        },
+      });
+
+      if (!blob) {
+        throw new Error("Görüntü oluşturulamadı.");
+      }
+
+      const file = new File([blob], `HF901_Performans_Raporu_${startDate}_${endDate}.png`, { type: "image/png" });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+        });
+        toast.success("Paylaşım ekranı açıldı.");
+      } else {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              [blob.type]: blob
+            })
+          ]);
+          toast.success("Görüntü panoya kopyalandı! WhatsApp'ta doğrudan yapıştırabilirsiniz (Ctrl+V).");
+        } catch (clipErr) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `HF901_Performans_Raporu_${startDate}_${endDate}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          toast.success("Görüntü indirildi, WhatsApp'tan gönderebilirsiniz.");
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Paylaşım başarısız oldu: ${err.message || err}`);
+    } finally {
+      setSharing(false);
+    }
+  };
 
   const fetchData = (start: string, end: string) => {
     setLoading(true);
@@ -167,14 +232,33 @@ export default function DashboardyPage() {
             </div>
           </div>
           
-          {!isReadOnly && (
-            <Link
-              href="/dashboard"
-              className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 px-3 py-2 rounded-lg hover:bg-zinc-100 transition-all border border-zinc-200 bg-zinc-50"
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleShare}
+              disabled={sharing || loading}
+              className="text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 px-3.5 py-2 rounded-lg transition-all border border-indigo-700 disabled:border-indigo-500 flex items-center gap-1.5 shadow-xs cursor-pointer disabled:cursor-not-allowed active:scale-95 disabled:scale-100"
             >
-              Standart OEE Dashboard
-            </Link>
-          )}
+              {sharing ? (
+                <>
+                  <RotateCw className="h-3.5 w-3.5 animate-spin" />
+                  Hazırlanıyor...
+                </>
+              ) : (
+                <>
+                  <Share2 className="h-3.5 w-3.5" />
+                  Raporu Paylaş
+                </>
+              )}
+            </button>
+            {!isReadOnly && (
+              <Link
+                href="/dashboard"
+                className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 px-3 py-2 rounded-lg hover:bg-zinc-100 transition-all border border-zinc-200 bg-zinc-50"
+              >
+                Standart OEE Dashboard
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
@@ -246,37 +330,63 @@ export default function DashboardyPage() {
           </div>
         </section>
 
-        {/* Global Summary Card */}
-        <section className="bg-gradient-to-r from-indigo-900 to-indigo-950 text-white rounded-2xl border border-indigo-950 p-6 shadow-md mb-8 relative overflow-hidden">
-          <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-x-12 translate-y-12">
-            <TrendingUp className="h-64 w-64" />
-          </div>
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-200/80 bg-indigo-800/40 px-2.5 py-1 rounded-full border border-indigo-700/50">
-                Genel İlerleme Durumu
-              </span>
-              <h2 className="text-3xl font-extrabold tracking-tight mt-3 flex items-baseline gap-2">
-                %{overallPercentage}
-                <span className="text-lg font-medium text-indigo-200/80">
-                  (%{targetPercentage})
-                </span>
-              </h2>
-            </div>
-
-            <div className="flex-1 max-w-md">
-              <div className="h-3 w-full bg-indigo-950/80 rounded-full overflow-hidden border border-indigo-800/30 p-[2px]">
-                <div 
-                  className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${overallPercentage}%` }}
+        {/* Share Wrapper */}
+        <div id="performance-table-container" className="space-y-8 p-4 -m-4 rounded-3xl bg-[#fafafa]">
+          {/* Global Summary Card */}
+          <section className="bg-[#18174f] text-white rounded-[24px] border border-[#232168] p-7 shadow-lg relative overflow-hidden">
+            {/* Custom SVG Trendline Background */}
+            <div className="absolute right-0 bottom-0 w-[55%] h-[85%] pointer-events-none select-none">
+              <svg
+                className="w-full h-full opacity-60"
+                viewBox="0 0 300 150"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                preserveAspectRatio="none"
+              >
+                <path
+                  d="M 20 120 L 120 50 L 195 105 L 290 15"
+                  stroke="#2d2b7c"
+                  strokeWidth="16"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
+                <path
+                  d="M 20 120 L 120 50 L 195 105 L 290 15"
+                  stroke="#3d3ab2"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="opacity-70"
+                />
+              </svg>
+            </div>
+            
+            <div className="relative z-10 flex flex-col gap-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-widest text-[#9caaf5] bg-[#201d6d]/60 px-3.5 py-1.5 rounded-full border border-[#3e3ab4]/70">
+                  Genel İlerleme Durumu
+                </span>
+                <h2 className="text-4xl font-semibold mt-4 flex items-baseline">
+                  <span className="font-serif text-white">% {overallPercentage}</span>
+                  <span className="text-lg font-normal text-[#8d8ab7] ml-2 font-sans">
+                    (%{targetPercentage})
+                  </span>
+                </h2>
+              </div>
+
+              <div className="w-full mt-2">
+                <div className="h-5 w-full bg-[#11103c]/90 rounded-full overflow-hidden border border-[#2d2b70] p-[3px]">
+                  <div 
+                    className="h-full bg-[#1ada93] rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${overallPercentage}%` }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Cells Rows Table */}
-        <section className="relative bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-sm">
+          {/* Cells Rows Table */}
+          <section className="relative bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-sm">
           {loading && (
             <div className="absolute inset-0 bg-white/40 backdrop-blur-xs flex items-center justify-center z-10" />
           )}
@@ -357,7 +467,8 @@ export default function DashboardyPage() {
             </table>
           </div>
         </section>
-      </main>
+      </div>
+    </main>
     </div>
   );
 }
