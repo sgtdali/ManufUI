@@ -1,64 +1,81 @@
 ---
-updated: 2026-06-23
-sources: [supabase/migrations/20260623160000_notify_teams_on_action_item.sql, docs/teams-integration.md]
+updated: 2026-06-24
+sources: [supabase/migrations/20260624110000_integration_settings.sql, src/app/entegrasyon/page.tsx, src/app/actions.ts]
 ---
 
-# Microsoft Teams ve E-posta Entegrasyonu
+# Otomasyon & Entegrasyon Eşleştirme Paneli
 
-Aksiyon Takip Sistemi (`/aksiyon-takip`) üzerinde yapılan kritik görev değişikliklerinin (yeni görev ekleme ve görevin tamamlanması) Teams sohbet kanalları ve Outlook e-posta üzerinden anlık olarak bildirilmesini sağlayan sistem mimarisi.
+Uygulamanın e-posta gönderimi ve Microsoft Teams kanalları gibi dış servislerle olan tüm bağlantılarını, zamanlanmış cron job'larını tek bir noktadan yönetmek, görselleştirmek ve açıklama notları eklemek için tasarlanmış yönetim panelidir.
 
 ## Sistem Mimarisi
 
-Entegrasyon, veritabanı olaylarını (database events) yakalayıp Teams Webhook URL'sine asenkron HTTP POST istekleri atan bir PostgreSQL trigger mekanizması üzerine kurulmuştur.
+Entegrasyon, veritabanı olayları ve zamanlanmış cron job'lar ile tetiklenen PostgreSQL fonksiyonlarının, hedef webhook adreslerini dinamik olarak `manuf_automations` tablosundan okuyup asenkron HTTP POST istekleri atması üzerine kurulmuştur.
 
 ```mermaid
 flowchart TD
-    A[Arayüzde Aksiyon Değişikliği] --> B[Supabase Veritabanı INSERT/UPDATE]
-    B --> C{Trigger Koşulu?}
-    C -->|Yeni Kayıt / Tamamlandı Durumu| D[notify_teams_on_action_item Fonksiyonu]
-    C -->|Diğer Güncellemeler| E[İşlemi Sonlandır]
-    D --> F[Adaptive Card JSON Oluştur]
-    F --> G[pg_net ile Asenkron HTTP POST]
-    G --> H[Teams Workflows Webhook URL]
-    H --> I{Teams Akışı}
-    I --> J[Kullanıcı Özel Sohbetine Mesaj Gönder]
-    I --> K[Outlook Üzerinden Görev E-postası Gönder]
+    A[Arayüzde Düzenleme] -->|Yönetici Girişi| B[actions.ts: saveManufAutomation]
+    B -->|SQL UPDATE| C[(manuf_automations Tablosu)]
+    
+    D[Tetikleyici Olayı / Cron Job] --> E{Hangi Otomasyon?}
+    E -->|Aksiyon Ekleme/Tamamlama| F[notify_teams_on_action_item]
+    E -->|Zamanlanmış Rapor Raporu| G[send_daily_production_email_func]
+    
+    F -->|SELECT webhook_url| C
+    G -->|SELECT webhook_url| C
+    
+    F -->|Net HTTP POST| H[Teams Adaptive Card Webhook]
+    G -->|Net HTTP POST| I[Power Automate Email Webhook]
 ```
 
 ---
 
-## 1. Microsoft Teams İş Akışı (Workflow) Yapılandırması
+## 1. Veritabanı Modeli (`manuf_automations`)
 
-* **Kullanılan Uygulama:** Microsoft Teams Workflows (İş Akışları)
-* **Şablon:** "Bir kanala web kancası uyarıları gönder" (Post webhook warnings to a channel)
-* **Tetikleyici URL'si:**
-  `https://defaultf7bf3ca5444c4640b15d4ad9a8bc7f.82.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/8d45236face2416cb3cbd4162c44757d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=OoR5t6WOta7PXyTH8Eb7vZB-yGGRcvHeecddHZkr3ys`
+Tüm otomasyon eşleştirmeleri ve kullanıcı açıklamaları `manuf_automations` tablosunda saklanır:
 
-### Eylem Yapılandırma Detayları:
-* **Farklı Gönder (Post as):** `Akış botu` (Flow bot) - Kurumsal kısıtlamaları aşmak için kullanılır.
-* **Şuraya Gönder (Post in):** `Akış botu ile sohbet edin` (Chat with Flow bot) - Doğrudan kişiye özel sohbet (DM) gönderilmesini sağlar.
-* **Alıcı (Recipient):** `Ensar Gül` (Özel sohbet olarak mesajın iletileceği kişi).
-* **E-posta Gönder (Send an email V2):** Outlook üzerinden `Kime` alanına girilen kişiye e-posta gönderimi yapar.
+| Kolon | Tip | Açıklama |
+|-------|-----|----------|
+| `id` | TEXT (PK) | Benzersiz otomasyon kimliği (Örn: `daily_report_cron`) |
+| `type` | TEXT | Otomasyon tetiklenme türü: `cron` veya `trigger` |
+| `name` | TEXT | Kullanıcı dostu görünür başlık |
+| `schedule` | TEXT | Cron ifadesi (Sadece `cron` türü için, örn: `0 5 * * *`) |
+| `source_event` | TEXT | Tetikleyici tablo ve olay bilgisi (Sadece `trigger` türü için) |
+| `target_function` | TEXT | PostgreSQL üzerinde tetiklenen hedef fonksiyon adı |
+| `webhook_url` | TEXT | İstek atılan dış API/Webhook adresi |
+| `description` | TEXT | Kullanıcının panelden düzenleyebileceği özel not/açıklama alanı |
+| `is_active` | BOOLEAN | Otomasyonun aktiflik durumu (Trigger/Cron kontrolü için) |
 
 ---
 
-## 2. Veritabanı Katmanı ve Tetikleyici (Trigger) Kuralları
+## 2. Arayüz ve Sunucu Eylemleri (Server Actions)
 
-Tüm mantıksal süreç PostgreSQL veritabanı fonksiyonu olan `notify_teams_on_action_item()` içinde döner:
+Panelin frontend arayüzü `/entegrasyon` rotasında yer alır.
 
-### Bildirim Koşulları:
-1. **Yeni Aksiyon Eklendiğinde (INSERT):**
-   * Teams kart başlığı: `📌 Yeni Aksiyon Maddesi` olur.
-   * Kart sol kenarlık rengi: Yeşil (`Good`) renkli vurgu alır.
-2. **Aksiyon Durumu "Tamamlandı" Yapıldığında (UPDATE):**
-   * Teams kart başlığı: `✅ Aksiyon Tamamlandı!` olur.
-   * Kart sol kenarlık rengi: Mavi (`Accent`) renkli vurgu alır.
-3. **Diğer Güncellemeler:** Sadece isim, tarih veya açıklama değişikliklerinde Teams'i meşgul etmemek adına tetikleyici işlemi sessizce sonlandırır.
+### Sayfa Özellikleri:
+* **Giriş Yetkilendirmesi:** Sayfaya doğrudan yönlendiren linkler yoktur. Kullanıcı `password_auth=rmk_hf901` yetkilendirmesi ile sayfayı açabilir.
+* **Görsel İlişki Haritası:** Her otomasyon satırında `Tetikleyici ➡️ pgSQL Fonksiyonu ➡️ Webhook URL` ilişkisini gösteren CSS akış diyagramı yer alır.
+* **Bağımsız Güncelleme:** Webhook adresi, cron ifadesi veya notlar her kart için ayrı olarak kaydedilir.
+* **Otomatik Kurulum Tespiti:** Veritabanında `manuf_automations` tablosunun bulunup bulunmadığı kontrol edilir. Yoksa, kopyalanabilir hazır SQL göç kodu ekranda belirir.
+
+### Sunucu Eylemleri (`actions.ts`):
+* `getManufAutomations()`: Otomasyon kayıtlarını çeker.
+* `saveManufAutomation(id, updates)`: webhook ve açıklamaları günceller. Eğer cron sıklığı değiştiyse `update_manuf_cron_schedule(new_schedule)` RPC'si ile `pg_cron` görevini otomatik yeniden planlar.
+* `triggerCronAutomation(id)`: Zamanlama saatini beklemeden hedef e-posta fonksiyonunu manuel olarak anlık tetikler.
+
+---
+
+## 3. Dinamik PostgreSQL Tetikleyicileri
+
+### Microsoft Teams Bildirimi
+Aksiyon Takip Sistemi (`/aksiyon-takip`) üzerinde yeni bir madde eklendiğinde (`INSERT`) veya mevcut bir madde "Tamamlandı" durumuna geçtiğinde (`UPDATE`), `notify_teams_on_action_item()` fonksiyonu çalışır. Fonksiyon webhook adresini `manuf_automations` tablosundaki `action_item_trigger` satırından dinamik okuyarak Teams'e Adaptive Card gönderir.
+
+### Günlük E-posta Raporu
+Her sabah TRT 08:00'de (`0 5 * * *` UTC) `send_daily_production_email_func()` fonksiyonu tetiklenir. Bu fonksiyon dünün üretim adetlerini kümülatif toplayarak, `daily_report_cron` satırındaki webhook URL'ine (Power Automate) gönderim yapar.
 
 ---
 
 ## İlgili Dosyalar
 
-* [20260623160000_notify_teams_on_action_item.sql](../../supabase/migrations/20260623160000_notify_teams_on_action_item.sql) — Veritabanı tetikleyici ve fonksiyon kodu
-* [teams-integration.md](../../docs/teams-integration.md) — Entegrasyonun genel teknik dokümantasyonu
-* [test_teams.js](../../scratch/test_teams.js) — Yerel entegrasyon test scripti
+* [20260624110000_integration_settings.sql](../../supabase/migrations/20260624110000_integration_settings.sql) — Otomasyon DDL göç kodu
+* [src/app/entegrasyon/page.tsx](../../src/app/entegrasyon/page.tsx) — Panel arayüz dosyası
+* [src/app/actions.ts](../../src/app/actions.ts) — Sunucu eylemleri

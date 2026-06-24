@@ -5,6 +5,23 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-24] update | Otomasyon & Entegrasyon Eşleştirme Paneli
+
+**Yapılanlar:**
+- **Dinamik Otomasyon ve Eşleştirme Yapısı:**
+  - E-posta cron job'ı (`daily_report_cron`) ve Teams aksiyon trigger'ının (`action_item_trigger`) dış webhook adreslerini kodun içinden değil, veritabanından dinamik okumasını sağlayacak `manuf_automations` tablosu modellendi.
+  - Veritabanı trigger ve cron fonksiyonları (`send_daily_production_email_func()` ve `notify_teams_on_action_item()`) bu tablodan dinamik sorgu yapacak şekilde revize edildi.
+  - Veritabanı kurulumu ve trigger/cron güncellemeleri `supabase/migrations/20260624110000_integration_settings.sql` dosyasına kaydedildi.
+- **Sunucu Eylemleri (Server Actions):**
+  - `src/app/actions.ts` dosyasında `getManufAutomations()`, `saveManufAutomation()` ve `triggerCronAutomation()` sunucu eylemleri kodlandı.
+- **Eşleştirme Arayüzü (`/entegrasyon`):**
+  - Eski statik ayarlar arayüzü yerine, otomasyonları kartlar halinde listeleyen, `Tetikleyici ➡️ pgSQL Fonksiyonu ➡️ Webhook URL` görsel akış diyagramını barındıran premium bir dashboard geliştirildi.
+  - Her kart için webhook URL'i, zamanlaması ve açıklama notları düzenlenip bağımsız kaydedilebilir hale getirildi.
+  - E-posta zamanlı görevi için anlık test gönderim butonu yerleştirildi.
+  - Veritabanında tablo eksikliğini otomatik tespit edip SQL kurulum kodunu gösteren akıllı kurulum yapısı entegre edildi.
+
+---
+
 ## [2026-06-23] update | Microsoft Teams ve Outlook E-posta Bildirim Entegrasyonu
 
 **Yapılanlar:**

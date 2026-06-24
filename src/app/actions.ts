@@ -652,3 +652,146 @@ export async function deleteMoldChange(id: string) {
 
   return { success: true };
 }
+
+export async function getManufSettings() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_settings")
+    .select("key, value");
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  const settings: Record<string, string> = {};
+  if (data) {
+    data.forEach((row: any) => {
+      settings[row.key] = row.value;
+    });
+  }
+
+  return { success: true, data: settings };
+}
+
+export async function saveManufSettings(settings: Record<string, string>) {
+  const supabase = await createClient();
+  
+  const rows = Object.entries(settings).map(([key, value]) => ({
+    key,
+    value,
+    updated_at: new Date().toISOString()
+  }));
+
+  const { error } = await supabase
+    .from("manuf_settings")
+    .upsert(rows, { onConflict: "key" });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  // If schedule is changed, trigger reschedule function in postgres
+  if (settings["daily_production_cron_schedule"]) {
+    const { error: rpcError } = await supabase.rpc("update_manuf_cron_schedule", {
+      new_schedule: settings["daily_production_cron_schedule"]
+    });
+    if (rpcError) {
+      console.error("Reschedule error:", rpcError);
+    }
+  }
+
+  return { success: true };
+}
+
+export async function triggerDailyProductionEmailAction() {
+  const supabase = await createClient();
+  
+  const { error } = await supabase.rpc("send_daily_production_email_func");
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+export interface ManufAutomation {
+  id: string;
+  type: "cron" | "trigger";
+  name: string;
+  schedule: string | null;
+  source_event: string | null;
+  target_function: string;
+  webhook_url: string | null;
+  description: string | null;
+  is_active: boolean;
+  updated_at: string;
+}
+
+export async function getManufAutomations() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_automations")
+    .select("*")
+    .order("type", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data: data as ManufAutomation[] };
+}
+
+export async function saveManufAutomation(
+  id: string,
+  updates: {
+    webhook_url?: string | null;
+    description?: string | null;
+    schedule?: string | null;
+    is_active?: boolean;
+  }
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("manuf_automations")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  // If schedule is changed and it's a cron automation, trigger reschedule function in postgres
+  if (updates.schedule) {
+    const { error: rpcError } = await supabase.rpc("update_manuf_cron_schedule", {
+      new_schedule: updates.schedule
+    });
+    if (rpcError) {
+      console.error("Reschedule error:", rpcError);
+      return { success: false, error: `Cron zamanlaması güncellenirken hata oluştu: ${rpcError.message}` };
+    }
+  }
+
+  return { success: true };
+}
+
+export async function triggerCronAutomation(id: string) {
+  const supabase = await createClient();
+  let functionName = "";
+  if (id === "daily_report_cron") {
+    functionName = "send_daily_production_email_func";
+  } else {
+    return { success: false, error: "Tetiklenebilir bir cron fonksiyonu bulunamadı." };
+  }
+
+  const { error } = await supabase.rpc(functionName);
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
