@@ -5,6 +5,21 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-25] update | ROB110-111 Hücresi Saatlik Hedef Üretim Adedi 20 Yapıldı
+
+**Yapılanlar:**
+- **ROB110-111 Hedef Güncellemesi:**
+  - Günlük üretim formunda (`/`) ROB110-111 Hücresi seçildiğinde, **Hedef Üretim Adeti** kolonu varsayılan değeri saatlik `20` yapıldı (ETM ve diğer hedef-20 hücreleriyle aynı).
+  - Hafta içi günlerde bu sütunun salt okunur (`read-only`) olması sağlandı. Hafta sonu günlerinde ise elle düzenlenebilir durum korundu.
+  - Server tarafında (`enforceServerTargets`) hedef 20 olarak zorlanması için `TARGET_20_CELLS` listesine eklendi.
+- **Dosya Düzenlemeleri:**
+  - `src/app/actions.ts` — `TARGET_20_CELLS` listesine "ROB110-111 Hücresi" eklendi.
+  - `src/app/page.tsx` — `buildEmptyRows` ve `applyRecordToForm` fonksiyonlarındaki hedef-20 listelerine eklendi.
+  - `src/app/_components/ProductionTable.tsx` — `isTargetDefault20` listesine eklendi.
+- **Wiki Güncellemesi:** `wiki/systems/uretim-formu.md` güncellendi.
+
+---
+
 ## [2026-06-24] update | Otomasyon & Entegrasyon Eşleştirme Paneli
 
 **Yapılanlar:**
