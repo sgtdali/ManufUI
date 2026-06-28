@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-24
+updated: 2026-06-28
 
 sources: []
 ---
@@ -52,6 +52,9 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 
 **Anahtar dosyalar:**
 - `src/lib/types.ts` — BOLUMLER, DURUS_KOLONLARI, ZAMAN_DILIMLERI
+- `src/app/actions.ts` — Barrel re-export, gerçek mantık `_actions/` altındaki 6 dosyada
+- `src/app/_helpers/` — formHelpers.ts (buildEmptyRows, applyRecordToForm), formValidation.ts (validateAltTurSelections, validateAciklamaFields)
+- `src/app/_components/` — ProductionTable, FFPreformTable, FinalOlcumTable, RejectReworkTables, productionColumns
 
 ## Log
 
