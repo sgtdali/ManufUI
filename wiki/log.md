@@ -7,24 +7,34 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ## [2026-06-28] update | Aksiyon Takip - Teams Planner Tam Senkronizasyonu
 
-**Yapılanlar:**
-- **Planner Callback API (`/api/planner-callback`):**
-  - Power Automate Planner'da görev oluşturduktan sonra `planner_task_id`'yi `manuf_action_items` tablosuna geri yazmak için POST endpoint oluşturuldu.
-- **Ters Yön Senkronizasyon API (`/api/planner-sync`):**
-  - Planner'da tamamlanan/güncellenen görevlerin ManufUI'daki durumunu otomatik güncelleyen POST endpoint oluşturuldu. `completed`/`in_progress`/`not_started` durum eşlemesi ve `percent_complete` desteği eklendi.
-- **Durum Senkronizasyonu (DB Trigger):**
-  - `notify_assignee_on_task_assignment()` fonksiyonu genişletilerek durum değişiklikleri de Power Automate'e bildirilir hale getirildi.
-  - Yeni olay tipleri: `COMPLETE` (Tamamlandı → Planner'da kapat), `STATUS_UPDATE` (Devam Ediyor → Planner %50).
-  - Payload'a `status`, `cell`, `title` alanları eklendi.
-- **UI Planner Senkron Göstergesi:**
-  - Aksiyon takip tablosunda görev başlığının yanına senkron durumu rozetleri eklendi:
-    - Mavi "Planner" rozeti: Görev Planner'a senkronize (`planner_task_id` mevcut)
-    - Gri "Bekliyor" rozeti: Sorumlu atanmış ama Planner görevi henüz oluşturulmamış
-- **Entegrasyon Paneli Otomasyonları:**
-  - `manuf_automations` tablosuna `planner_callback` ve `planner_reverse_sync` kayıtları eklendi.
-- **Wiki Güncellemesi:**
-  - `wiki/systems/teams-entegrasyonu.md` Planner senkronizasyonu bölümü eklendi.
-  - `wiki/systems/aksiyon-takip.md` yeni alanlar ve UI göstergeleri belgelendi.
+### Kod Tarafı (Tamamlandı)
+- **Planner Callback API (`/api/planner-callback`):** Power Automate'den `planner_task_id` geri yazımı endpoint'i.
+- **Ters Yön Senkronizasyon API (`/api/planner-sync`):** Planner → ManufUI durum güncelleme endpoint'i.
+- **DB Trigger güncellemesi:** `notify_assignee_on_task_assignment()` fonksiyonuna `COMPLETE` ve `STATUS_UPDATE` olay tipleri eklendi. Payload'a `status`, `cell`, `title` eklendi. `event_type` alanında `btrim` ile `\n` temizliği yapıldı.
+- **UI Planner Senkron Göstergesi:** Mavi "Planner" (senkron) / Gri "Bekliyor" rozetleri eklendi.
+- **Entegrasyon Paneli:** `manuf_automations` tablosuna `planner_callback` ve `planner_reverse_sync` kayıtları eklendi.
+- **Wiki:** `teams-entegrasyonu.md` ve `aksiyon-takip.md` güncellendi.
+
+### Power Automate Tarafı (Yarım Kaldı)
+**Akış adı:** HF901 Aksiyon Sorumlu Atama Bildirim Sistemi
+**Webhook URL:** `action_item_assignee_trigger` (workflow `22ed5ef2ee7b...`)
+
+**Tamamlanan adımlar:**
+1. Switch aksiyonu eklendi (`event_type` üzerine dallanma): CREATE / COMPLETE / UPDATE case'leri
+2. **CREATE case:** "Create a task" (Planner) aksiyonu eklendi — Group/Plan: HF901 Aksiyon Takip, Title: `title [action_item_id]`, Due Date: `due_date`, Assigned: `email`
+3. **COMPLETE case:** "Update a task" aksiyonu eklendi — Task Id: filtrelenmiş Id, Progress: Completed
+4. **UPDATE case:** "Update a task" aksiyonu eklendi — Task Id: filtrelenmiş Id, Title + Due Date güncelleme
+5. "Diziyi filtrele" ifadesindeki `contains()` 3. parametre hatası düzeltildi
+
+**Kalan sorun — `event_type` içinde `\n` karakteri:**
+- Switch'e gelen değer `"CREATE\n"` (sonda satır sonu var), `"CREATE"` ile eşleşmiyor.
+- `trim()` Power Automate'de `\n` temizlemiyor.
+- **Çözüm seçenekleri (yarın yapılacak):**
+  - **Seçenek A (Önerilen):** Switch'i silip yerine iç içe **Condition** blokları kullanmak. `contains()` fonksiyonu `"CREATE\n"` içinde `"CREATE"` bulur, `\n` sorun olmaz.
+  - **Seçenek B:** Switch On alanında `replace` ile `\n` temizlemek: `@{replace(replace(variables('Body')?['event_type'],decodeUriComponent('%0A'),''),decodeUriComponent('%0D'),'')}`
+  - **Seçenek C:** DB trigger'daki `btrim` düzeltmesini Supabase'e uygulayıp tekrar denemek (migration `20260628160000` güncellendi ama henüz DB'ye uygulanmadı).
+
+**Not:** HTTP callback adımı Premium gerektirdiği için atlandı. Planner görev eşleşmesi başlıktaki `[action_item_id]` üzerinden yapılıyor.
 
 ---
 
