@@ -15,6 +15,8 @@ import {
   ArrowUpDown,
   Lock,
   LockOpen,
+  CloudOff,
+  RefreshCw,
 } from "lucide-react";
 import { BOLUMLER } from "@/lib/types";
 import { isReadOnlyUser } from "@/lib/useAuthRole";
@@ -996,12 +998,14 @@ function ActionRow({
           </div>
         </td>
         <td className="px-3 py-3">
-          <span
-            className={`font-medium ${item.status === "Tamamlandı" ? "text-zinc-400 line-through" : "text-zinc-900"}`}
-            style={{ paddingLeft: depth > 0 ? depth * 12 : 0 }}
-          >
-            {item.title}
-          </span>
+          <div className="flex items-center gap-1.5" style={{ paddingLeft: depth > 0 ? depth * 12 : 0 }}>
+            <span
+              className={`font-medium ${item.status === "Tamamlandı" ? "text-zinc-400 line-through" : "text-zinc-900"}`}
+            >
+              {item.title}
+            </span>
+            <PlannerSyncBadge item={item} />
+          </div>
         </td>
         {showCellColumn ? (
           <td className="px-3 py-3">
@@ -1176,6 +1180,32 @@ function ActionRow({
           ))
         : null}
     </>
+  );
+}
+
+function PlannerSyncBadge({ item }: { item: ActionItem }) {
+  if (!item.assignee_email) return null;
+
+  if (item.planner_task_id) {
+    return (
+      <span
+        className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-200"
+        title={`Planner senkron (ID: ${item.planner_task_id})`}
+      >
+        <RefreshCw className="size-2.5" />
+        Planner
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-zinc-50 text-zinc-400 border border-zinc-200"
+      title="Planner görevi henüz oluşturulmadı"
+    >
+      <CloudOff className="size-2.5" />
+      Bekliyor
+    </span>
   );
 }
 

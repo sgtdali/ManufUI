@@ -1,6 +1,6 @@
 ---
-updated: 2026-06-21
-sources: [src/app/aksiyon-takip/page.tsx, src/app/aksiyon-takip/actions.ts, supabase/migrations/20260620120000_create_manuf_action_items.sql, supabase/migrations/20260621120000_allow_empty_action_priority.sql]
+updated: 2026-06-28
+sources: [src/app/aksiyon-takip/page.tsx, src/app/aksiyon-takip/actions.ts, supabase/migrations/20260620120000_create_manuf_action_items.sql, supabase/migrations/20260621120000_allow_empty_action_priority.sql, supabase/migrations/20260628144000_create_manuf_assignees.sql, supabase/migrations/20260628160000_complete_planner_sync.sql]
 ---
 
 # Aksiyon Takip Sistemi
@@ -18,6 +18,8 @@ Tek tablo: `manuf_action_items`
 | `cell` | text | Hücre adı (`BOLUMLER` listesinden; ölçüm hücreleri dahil) |
 | `title` | text | Aksiyon başlığı / açıklaması |
 | `assignee` | text | Sorumlu kişi. Otomatik atanmaz, boş başlayabilir ve tablodan düzenlenebilir |
+| `assignee_email` | text | Sorumlu e-posta adresi. `manuf_assignees` tablosundan otomatik eşleştirilir |
+| `planner_task_id` | text | Microsoft Planner görev ID'si. Power Automate callback ile geri yazılır |
 | `due_date` | date | Termin tarihi (opsiyonel) |
 | `priority` | text nullable | `Yüksek` / `Orta` / `Düşük` veya boş. `20260621120000_allow_empty_action_priority.sql` sonrası default yoktur ve `null` kabul edilir |
 | `status` | text | `Açık` (varsayılan) / `Devam Ediyor` / `Tamamlandı` |
@@ -46,7 +48,8 @@ Kolonlar: Başlık, Hücre (sadece `Tüm hücreler` görünümünde), Sorumlu, T
 - **Ana maddeler** satır olarak listelenir.
 - **Alt maddeler** ana madde genişletildiğinde indentli gösterilir.
 - Alt maddesi olan ana maddelerin açma/kapama oku yeşil renkte görünür; alt maddesi olmayanlarda pasif gri kalır.
-- **Sorumlu düzenleme:** Inline `<input>` ile doğrudan tablodan düzenlenir; boş bırakılabilir.
+- **Sorumlu düzenleme:** `AssigneeAutocomplete` bileşeni ile `manuf_assignees` tablosundan otomatik tamamlamalı seçim yapılır. Seçim yapıldığında `assignee_email` otomatik eşleştirilir.
+- **Planner Senkron Rozeti:** Başlık yanında sorumlu atanmış görevler için mavi "Planner" (senkron) veya gri "Bekliyor" (henüz oluşturulmamış) rozeti gösterilir.
 - **Termin tarihi düzenleme:** Inline `<input type="date">` ile doğrudan tablodan düzenlenir.
 - **Öncelik düzenleme:** Inline `<select>` ile `Yüksek` / `Orta` / `Düşük` seçilir veya boş bırakılır.
 - **Durum değiştirme:** Inline `<select>` ile `Açık` / `Devam Ediyor` / `Tamamlandı` seçilir.

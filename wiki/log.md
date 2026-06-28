@@ -5,6 +5,29 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-28] update | Aksiyon Takip - Teams Planner Tam Senkronizasyonu
+
+**Yapılanlar:**
+- **Planner Callback API (`/api/planner-callback`):**
+  - Power Automate Planner'da görev oluşturduktan sonra `planner_task_id`'yi `manuf_action_items` tablosuna geri yazmak için POST endpoint oluşturuldu.
+- **Ters Yön Senkronizasyon API (`/api/planner-sync`):**
+  - Planner'da tamamlanan/güncellenen görevlerin ManufUI'daki durumunu otomatik güncelleyen POST endpoint oluşturuldu. `completed`/`in_progress`/`not_started` durum eşlemesi ve `percent_complete` desteği eklendi.
+- **Durum Senkronizasyonu (DB Trigger):**
+  - `notify_assignee_on_task_assignment()` fonksiyonu genişletilerek durum değişiklikleri de Power Automate'e bildirilir hale getirildi.
+  - Yeni olay tipleri: `COMPLETE` (Tamamlandı → Planner'da kapat), `STATUS_UPDATE` (Devam Ediyor → Planner %50).
+  - Payload'a `status`, `cell`, `title` alanları eklendi.
+- **UI Planner Senkron Göstergesi:**
+  - Aksiyon takip tablosunda görev başlığının yanına senkron durumu rozetleri eklendi:
+    - Mavi "Planner" rozeti: Görev Planner'a senkronize (`planner_task_id` mevcut)
+    - Gri "Bekliyor" rozeti: Sorumlu atanmış ama Planner görevi henüz oluşturulmamış
+- **Entegrasyon Paneli Otomasyonları:**
+  - `manuf_automations` tablosuna `planner_callback` ve `planner_reverse_sync` kayıtları eklendi.
+- **Wiki Güncellemesi:**
+  - `wiki/systems/teams-entegrasyonu.md` Planner senkronizasyonu bölümü eklendi.
+  - `wiki/systems/aksiyon-takip.md` yeni alanlar ve UI göstergeleri belgelendi.
+
+---
+
 ## [2026-06-25] update | ROB110-111 Hücresi Saatlik Hedef Üretim Adedi 20 Yapıldı
 
 **Yapılanlar:**
