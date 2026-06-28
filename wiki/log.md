@@ -5,6 +5,46 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-28] refactor | Tüm Proje Dosyaları Maks 300/500 Satır Refaktörü
+
+Tüm kaynak dosyalar (wiki hariç) maksimum 300 satır (mümkün değilse 500) olacak şekilde atomik olarak refactor edildi. Hiçbir veri kaybı, arayüz değişikliği veya işlevsellik bozulması yok.
+
+### Yapılan Bölünmeler
+
+| Orijinal Dosya | Satır (Önce→Sonra) | Çıkarılan Dosyalar |
+|---|---|---|
+| `src/app/actions.ts` | 960→47 | `_actions/production.ts`, `_actions/ffPreform.ts`, `_actions/finalOlcum.ts`, `_actions/moldChanges.ts`, `_actions/settings.ts`, `_actions/automations.ts` |
+| `src/app/page.tsx` | 607→213 | `_helpers/formHelpers.ts`, `_helpers/formValidation.ts` |
+| `src/app/entegrasyon/page.tsx` | 1302→364 | `_components/constants.ts`, `_components/generatePreviewSQL.ts`, `_components/WizardSteps.tsx`, `_components/ManualForm.tsx`, `_components/AutomationTableRow.tsx`, `_components/LoginScreen.tsx`, `_components/WizardPanel.tsx` |
+| `src/app/aksiyon-takip/page.tsx` | 1291→~290 | `_components/helpers.ts`, `_components/CellSidebar.tsx`, `_components/AssigneeAutocomplete.tsx`, `_components/ActionRow.tsx`, `_components/InlineActionCreateRow.tsx`, `_components/PasswordDialog.tsx` |
+| `src/app/duruslar/DurusRecordsTable.tsx` | 675→215 | `_components/helpers.tsx`, `_components/MetricCard.tsx`, `_components/SummaryPanel.tsx`, `_components/exportExcel.ts`, `_components/FilterPanel.tsx` |
+| `src/app/dashboard/page.tsx` | 491→~230 | `_components/helpers.ts`, `_components/MetricCard.tsx` |
+| `src/app/dashboardy/page.tsx` | 490→~195 | `_components/constants.ts`, `_components/shareReport.ts` |
+| `src/app/kalip-takip/page.tsx` | 454→134 | `_components/StatsCards.tsx`, `_components/MoldChangeDialog.tsx`, `_components/RecordsTable.tsx` |
+| `src/app/ariza/ArizaRecordsTable.tsx` | 446→174 | `_components/helpers.ts`, `_components/ResolveDialog.tsx`, `_components/TypeSelector.tsx` |
+| `src/app/_components/ProductionTable.tsx` | 428→186 | `productionColumns.ts` (getVisibleColumns, getAltOptions) |
+| `src/app/_components/FFPreformTable.tsx` | 461→174 | `RejectReworkTables.tsx` (paylaşılan) |
+| `src/app/_components/FinalOlcumTable.tsx` | 461→174 | `RejectReworkTables.tsx` (paylaşılan) |
+
+### Kullanılan Kalıplar
+- **Barrel re-export**: `actions.ts` → `_actions/` alt dosyaları (geriye dönük uyumluluk)
+- **`_components/` alt dizin**: Sayfa-özel bileşen çıkarımları
+- **`_helpers/` dizin**: Çapraz-bileşen yardımcı fonksiyonlar
+- **Paylaşılan bileşen**: `RejectReworkTables.tsx` (FFPreform + FinalOlcum ortak tablo)
+- **Kolon yapılandırma ayrımı**: `productionColumns.ts` (ProductionTable'dan çıkarıldı)
+
+### Kalan 300+ Dosyalar (Hepsi <500)
+- `entegrasyon/page.tsx` (364) — sıkı bağlı handler mantığı
+- `types.ts` (323) — paylaşılan tip tanımları
+- `WizardSteps.tsx` (311) — 4 sihirbaz adımı bileşeni
+- `veri-takip/page.tsx` (305) — sunucu bileşeni
+
+### Düzeltmeler
+- `duruslar/_components/helpers.ts` → `.tsx` olarak yeniden adlandırıldı (JSX içeriyor)
+- `actions.ts` barrel dosyasından `"use server"` kaldırıldı (alt dosyalarda zaten var, barrel'da type export'u engelliyordu)
+
+---
+
 ## [2026-06-28] update | Aksiyon Takip - Teams Planner Tam Senkronizasyonu
 
 ### Kod Tarafı (Tamamlandı)
