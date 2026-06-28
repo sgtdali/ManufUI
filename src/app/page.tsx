@@ -39,7 +39,7 @@ function buildEmptyRows(
   tarih?: string
 ): ProductionFormData["rows"] {
   const isTargetDefault20 = bolum && ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(bolum);
-  const isTargetDefault15 = bolum === "N602 Hücresi";
+  const isTargetDefault15 = bolum && ["N602 Hücresi", "ROB110-111 Hücresi"].includes(bolum);
   const isTargetDefault12 = bolum === "Flowform Hücresi";
   let isWeekend = false;
   if (tarih) {
@@ -95,7 +95,7 @@ function applyRecordToForm(
   tarih: string
 ): ProductionFormData {
   const isTargetDefault20 = ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(bolum);
-  const isTargetDefault15 = bolum === "N602 Hücresi";
+  const isTargetDefault15 = bolum && ["N602 Hücresi", "ROB110-111 Hücresi"].includes(bolum);
   const isTargetDefault12 = bolum === "Flowform Hücresi";
   const day = new Date(`${tarih}T00:00:00`).getDay();
   const isWeekend = (day === 5 || day === 6);
@@ -127,7 +127,7 @@ function applyRecordToForm(
           0: 0
         };
         targetVal = mSayisi != null && ROB108_TARGETS[mSayisi] !== undefined ? ROB108_TARGETS[mSayisi] : 20;
-      } else if (bolum === "N602 Hücresi") {
+      } else if (bolum === "N602 Hücresi" || bolum === "ROB110-111 Hücresi") {
         targetVal = 15;
       } else if (bolum === "Flowform Hücresi") {
         targetVal = 12;

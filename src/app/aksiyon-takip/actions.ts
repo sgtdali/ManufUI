@@ -8,6 +8,8 @@ export type ActionItem = {
   cell: string;
   title: string;
   assignee: string;
+  assignee_email: string | null;
+  planner_task_id: string | null;
   due_date: string | null;
   priority: string | null;
   status: "Açık" | "Devam Ediyor" | "Tamamlandı";
@@ -15,6 +17,25 @@ export type ActionItem = {
   updated_at: string;
   children?: ActionItem[];
 };
+
+export type Assignee = {
+  id: string;
+  name: string;
+  email: string;
+  title: string | null;
+  department: string | null;
+};
+
+export async function loadAssignees() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_assignees")
+    .select("*")
+    .order("name", { ascending: true });
+
+  if (error) return { success: false as const, error: error.message };
+  return { success: true as const, data: data as Assignee[] };
+}
 
 export async function loadActionItems() {
   const supabase = await createClient();
@@ -32,6 +53,7 @@ export async function createActionItem(item: {
   cell: string;
   title: string;
   assignee: string;
+  assignee_email?: string | null;
   due_date?: string | null;
   priority?: string | null;
 }) {
@@ -43,6 +65,7 @@ export async function createActionItem(item: {
       cell: item.cell,
       title: item.title,
       assignee: item.assignee,
+      assignee_email: item.assignee_email || null,
       due_date: item.due_date || null,
       priority: item.priority || null,
       status: "Açık",
@@ -59,6 +82,8 @@ export async function updateActionItem(
   updates: {
     title?: string;
     assignee?: string;
+    assignee_email?: string | null;
+    planner_task_id?: string | null;
     due_date?: string | null;
     priority?: string | null;
     status?: string;

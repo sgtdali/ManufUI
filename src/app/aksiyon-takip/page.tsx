@@ -23,8 +23,9 @@ import {
   createActionItem,
   updateActionItem,
   deleteActionItem,
+  loadAssignees,
 } from "./actions";
-import type { ActionItem } from "./actions";
+import type { ActionItem, Assignee } from "./actions";
 
 const PRIORITIES = ["Yüksek", "Orta", "Düşük"] as const;
 const STATUSES = ["Açık", "Devam Ediyor", "Tamamlandı"] as const;
@@ -190,6 +191,7 @@ export default function AksiyonTakipPage() {
   };
 
   const [items, setItems] = useState<ActionItem[]>([]);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
@@ -235,11 +237,19 @@ export default function AksiyonTakipPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const res = await loadActionItems();
-    if (res.success) {
-      setItems(res.data);
+    const [actionItemsRes, assigneesRes] = await Promise.all([
+      loadActionItems(),
+      loadAssignees(),
+    ]);
+    if (actionItemsRes.success) {
+      setItems(actionItemsRes.data);
     } else {
-      toast.error("Veriler yüklenemedi: " + res.error);
+      toast.error("Veriler yüklenemedi: " + actionItemsRes.error);
+    }
+    if (assigneesRes.success) {
+      setAssignees(assigneesRes.data);
+    } else {
+      toast.error("Sorumlu listesi yüklenemedi: " + assigneesRes.error);
     }
     setLoading(false);
   };
@@ -350,13 +360,15 @@ export default function AksiyonTakipPage() {
     });
   };
 
-  const handleAssigneeChange = (id: string, assignee: string) => {
+  const handleAssigneeChange = (id: string, assignee: string, assignee_email: string | null) => {
     startTransition(async () => {
-      const res = await updateActionItem(id, { assignee });
+      const res = await updateActionItem(id, { assignee, assignee_email });
       if (res.success) {
         toast.success("Sorumlu güncellendi.");
         setItems((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, assignee } : item))
+          prev.map((item) =>
+            item.id === id ? { ...item, assignee, assignee_email } : item
+          )
         );
       } else {
         toast.error("Güncelleme hatası: " + res.error);
@@ -575,9 +587,10 @@ export default function AksiyonTakipPage() {
                     depth={0}
                     expandedRows={expandedRows}
                     toggleExpand={toggleExpand}
+                    assignees={assignees}
                     onStatusChange={(id, status) => ensureAuthorized(() => handleStatusChange(id, status))}
                     onPriorityChange={(id, priority) => ensureAuthorized(() => handlePriorityChange(id, priority))}
-                    onAssigneeChange={(id, assignee) => ensureAuthorized(() => handleAssigneeChange(id, assignee))}
+                    onAssigneeChange={(id, assignee, assignee_email) => ensureAuthorized(() => handleAssigneeChange(id, assignee, assignee_email))}
                     onDueDateChange={(id, due_date) => ensureAuthorized(() => handleDueDateChange(id, due_date))}
                     onDelete={(id) => ensureAuthorized(() => handleDelete(id))}
                     onAddSub={(parentId, parentCell) => ensureAuthorized(() => openSubForm(parentId, parentCell))}
@@ -794,11 +807,124 @@ function InlineActionCreateRow({
   );
 }
 
+function AssigneeAutocomplete({
+  value,
+  assignees,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  assignees: Assignee[];
+  onChange: (name: string, email: string | null) => void;
+  disabled: boolean;
+}) {
+  const [search, setSearch] = useState(value || "");
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+
+  useEffect(() => {
+    setSearch(value || "");
+  }, [value]);
+
+  const filtered = assignees.filter(
+    (a) =>
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      a.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSelect = (assignee: Assignee) => {
+    setSearch(assignee.name);
+    onChange(assignee.name, assignee.email);
+    setIsOpen(false);
+    setHighlightedIndex(-1);
+  };
+
+  const handleBlur = () => {
+    setTimeout(() => {
+      setIsOpen(false);
+      const match = assignees.find(
+        (a) => a.name.toLowerCase() === search.trim().toLowerCase()
+      );
+      if (match) {
+        onChange(match.name, match.email);
+      } else {
+        onChange(search.trim(), null);
+      }
+    }, 250);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setIsOpen(true);
+      setHighlightedIndex((prev) => (prev + 1 < filtered.length ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setIsOpen(true);
+      setHighlightedIndex((prev) => (prev - 1 >= 0 ? prev - 1 : filtered.length - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (isOpen && highlightedIndex >= 0 && highlightedIndex < filtered.length) {
+        handleSelect(filtered[highlightedIndex]);
+      } else {
+        e.currentTarget.blur();
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
+  return (
+    <div className="relative w-36">
+      <input
+        className="h-8 w-full rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20 disabled:cursor-not-allowed disabled:opacity-75"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setIsOpen(true);
+          setHighlightedIndex(0);
+        }}
+        onFocus={() => {
+          setIsOpen(true);
+          setHighlightedIndex(-1);
+        }}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        placeholder="Sorumlu"
+        disabled={disabled}
+      />
+      {isOpen && filtered.length > 0 && (
+        <div className="absolute left-0 z-50 mt-1 max-h-60 w-64 overflow-y-auto rounded-md border border-zinc-200 bg-white p-1 shadow-lg">
+          {filtered.map((assignee, idx) => (
+            <div
+              key={assignee.id}
+              className={`cursor-pointer rounded px-2 py-1.5 text-left text-xs ${
+                idx === highlightedIndex
+                  ? "bg-emerald-50 text-emerald-900 font-medium"
+                  : "text-zinc-700 hover:bg-zinc-50"
+              }`}
+              onMouseDown={() => handleSelect(assignee)}
+            >
+              <div className="font-semibold">{assignee.name}</div>
+              <div className="text-[10px] text-zinc-400 flex justify-between gap-2 mt-0.5">
+                <span>{assignee.email}</span>
+                {assignee.title && <span className="italic">{assignee.title}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ActionRow({
   item,
   depth,
   expandedRows,
   toggleExpand,
+  assignees,
   onStatusChange,
   onPriorityChange,
   onAssigneeChange,
@@ -819,9 +945,10 @@ function ActionRow({
   depth: number;
   expandedRows: Set<string>;
   toggleExpand: (id: string) => void;
+  assignees: Assignee[];
   onStatusChange: (id: string, status: string) => void;
   onPriorityChange: (id: string, priority: string | null) => void;
-  onAssigneeChange: (id: string, assignee: string) => void;
+  onAssigneeChange: (id: string, assignee: string, assignee_email: string | null) => void;
   onDueDateChange: (id: string, due_date: string) => void;
   onDelete: (id: string) => void;
   onAddSub: (parentId: string, parentCell: string) => void;
@@ -893,21 +1020,14 @@ function ActionRow({
               }
             }}
           >
-            <input
-              className="h-8 w-36 rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20 disabled:cursor-not-allowed disabled:opacity-75"
-              defaultValue={item.assignee}
-              onBlur={(e) => {
-                if (e.target.value !== item.assignee) {
-                  onAssigneeChange(item.id, e.target.value.trim());
+            <AssigneeAutocomplete
+              value={item.assignee}
+              assignees={assignees}
+              onChange={(name, email) => {
+                if (name !== item.assignee || email !== item.assignee_email) {
+                  onAssigneeChange(item.id, name, email);
                 }
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  e.currentTarget.blur();
-                }
-              }}
-              placeholder="Sorumlu"
               disabled={isPending || !isAuthorized}
             />
           </div>
@@ -928,8 +1048,8 @@ function ActionRow({
                 isOverdue
                   ? "border-rose-300 bg-rose-50 font-medium text-rose-600"
                   : "border-zinc-200 bg-transparent text-zinc-700"
-              } focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20 disabled:cursor-not-allowed`}
-              value={item.due_date ?? ""}
+              }`}
+              value={item.due_date || ""}
               onChange={(e) => onDueDateChange(item.id, e.target.value)}
               disabled={isPending || !isAuthorized}
             />
@@ -946,12 +1066,20 @@ function ActionRow({
             }}
           >
             <select
-              className={`rounded-md px-2 py-1 text-xs font-medium outline-none disabled:cursor-not-allowed ${item.priority ? priorityColor(item.priority) : "bg-zinc-100 text-zinc-500"}`}
-              value={item.priority ?? ""}
+              className={`h-8 w-24 rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none disabled:cursor-not-allowed ${
+                item.priority === "Yüksek"
+                  ? "text-rose-600 font-semibold"
+                  : item.priority === "Orta"
+                    ? "text-amber-600 font-medium"
+                    : item.priority === "Düşük"
+                      ? "text-blue-600 font-medium"
+                      : "text-zinc-400"
+              }`}
+              value={item.priority || ""}
               onChange={(e) => onPriorityChange(item.id, e.target.value || null)}
               disabled={isPending || !isAuthorized}
             >
-              <option value="">Seçiniz</option>
+              <option value="">Öncelik</option>
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -1028,6 +1156,7 @@ function ActionRow({
               depth={depth + 1}
               expandedRows={expandedRows}
               toggleExpand={toggleExpand}
+              assignees={assignees}
               onStatusChange={onStatusChange}
               onPriorityChange={onPriorityChange}
               onAssigneeChange={onAssigneeChange}

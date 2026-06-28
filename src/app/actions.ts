@@ -8,7 +8,7 @@ import {
 } from "@/lib/productionValidation";
 
 const TARGET_20_CELLS = ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"];
-const TARGET_15_CELLS = ["N602 Hücresi"];
+const TARGET_15_CELLS = ["N602 Hücresi", "ROB110-111 Hücresi"];
 const ROB108_TARGETS: Record<number, number> = { 5: 20, 4: 13, 3: 10, 2: 6, 1: 3, 0: 0 };
 
 function enforceServerTargets(data: ProductionFormData): ProductionFormData {

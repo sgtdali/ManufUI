@@ -57,7 +57,7 @@ export function ProductionTable({
   tarih,
 }: Props) {
   const isTargetDefault20 = bolum && ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"].includes(bolum);
-  const isTargetDefault15 = bolum === "N602 Hücresi";
+  const isTargetDefault15 = bolum && ["N602 Hücresi", "ROB110-111 Hücresi"].includes(bolum);
   const isTargetDefault12 = bolum === "Flowform Hücresi";
   let isWeekend = false;
   if (tarih) {
