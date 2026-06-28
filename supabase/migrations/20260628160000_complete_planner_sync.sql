@@ -111,7 +111,7 @@ BEGIN
   payload := jsonb_build_object(
     'action_item_id', NEW.id::text,
     'planner_task_id', coalesce(NEW.planner_task_id, ''),
-    'event_type', v_event_type,
+    'event_type', btrim(v_event_type, E' \t\n\r'),
     'status', NEW.status,
     'email', coalesce(NEW.assignee_email, ''),
     'name', coalesce(NEW.assignee, ''),
