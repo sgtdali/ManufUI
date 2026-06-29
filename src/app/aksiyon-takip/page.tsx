@@ -15,6 +15,7 @@ import {
   ArrowUpDown,
   Lock,
   LockOpen,
+  Pencil,
 } from "lucide-react";
 import { BOLUMLER } from "@/lib/types";
 import { isReadOnlyUser } from "@/lib/useAuthRole";
@@ -394,6 +395,20 @@ export default function AksiyonTakipPage() {
     });
   };
 
+  const handleTitleChange = (id: string, title: string) => {
+    startTransition(async () => {
+      const res = await updateActionItem(id, { title });
+      if (res.success) {
+        toast.success("Başlık güncellendi.");
+        setItems((prev) =>
+          prev.map((item) => (item.id === id ? { ...item, title } : item))
+        );
+      } else {
+        toast.error("Güncelleme hatası: " + res.error);
+      }
+    });
+  };
+
   const handleDelete = (id: string) => {
     if (!confirm("Bu aksiyonu silmek istediğinize emin misiniz?")) return;
     startTransition(async () => {
@@ -603,6 +618,7 @@ export default function AksiyonTakipPage() {
                     showCellColumn={showCellColumn}
                     isAuthorized={isAuthorized}
                     ensureAuthorized={ensureAuthorized}
+                    onTitleChange={(id, title) => ensureAuthorized(() => handleTitleChange(id, title))}
                   />
                 ))}
                 <InlineActionCreateRow
@@ -940,6 +956,7 @@ function ActionRow({
   showCellColumn,
   isAuthorized,
   ensureAuthorized,
+  onTitleChange,
 }: {
   item: ActionItem;
   depth: number;
@@ -961,6 +978,7 @@ function ActionRow({
   showCellColumn: boolean;
   isAuthorized: boolean;
   ensureAuthorized: (cb: () => void) => void;
+  onTitleChange: (id: string, title: string) => void;
 }) {
   const hasChildren = item.children && item.children.length > 0;
   const isExpanded = expandedRows.has(item.id);
@@ -968,6 +986,26 @@ function ActionRow({
     item.due_date &&
     item.status !== "Tamamlandı" &&
     new Date(item.due_date) < new Date(new Date().toISOString().split("T")[0]);
+
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState(item.title);
+
+  useEffect(() => {
+    setTempTitle(item.title);
+  }, [item.title]);
+
+  const handleSaveTitle = () => {
+    const trimmed = tempTitle.trim();
+    if (!trimmed) {
+      setTempTitle(item.title);
+      setIsEditingTitle(false);
+      return;
+    }
+    if (trimmed !== item.title) {
+      onTitleChange(item.id, trimmed);
+    }
+    setIsEditingTitle(false);
+  };
 
   return (
     <>
@@ -996,12 +1034,51 @@ function ActionRow({
           </div>
         </td>
         <td className="px-3 py-3">
-          <span
-            className={`font-medium ${item.status === "Tamamlandı" ? "text-zinc-400 line-through" : "text-zinc-900"}`}
+          <div
+            className="flex items-center group cursor-pointer"
             style={{ paddingLeft: depth > 0 ? depth * 12 : 0 }}
+            onClick={() => {
+              if (isEditingTitle) return;
+              ensureAuthorized(() => {
+                setTempTitle(item.title);
+                setIsEditingTitle(true);
+              });
+            }}
           >
-            {item.title}
-          </span>
+            {isEditingTitle ? (
+              <input
+                type="text"
+                className="w-full max-w-md rounded border border-zinc-300 px-2 py-0.5 text-xs text-zinc-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                value={tempTitle}
+                onChange={(e) => setTempTitle(e.target.value)}
+                onBlur={() => handleSaveTitle()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSaveTitle();
+                  } else if (e.key === "Escape") {
+                    setTempTitle(item.title);
+                    setIsEditingTitle(false);
+                  }
+                }}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <div className="flex items-center min-w-0">
+                <span
+                  className={`font-medium truncate ${item.status === "Tamamlandı" ? "text-zinc-400 line-through" : "text-zinc-900"}`}
+                >
+                  {item.title}
+                </span>
+                <button
+                  className="ml-2 text-zinc-400 hover:text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-zinc-100 shrink-0"
+                  title="Başlığı Düzenle"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
         </td>
         {showCellColumn ? (
           <td className="px-3 py-3">
@@ -1172,6 +1249,7 @@ function ActionRow({
               showCellColumn={showCellColumn}
               isAuthorized={isAuthorized}
               ensureAuthorized={ensureAuthorized}
+              onTitleChange={onTitleChange}
             />
           ))
         : null}
