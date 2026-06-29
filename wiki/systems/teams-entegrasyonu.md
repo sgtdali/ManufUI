@@ -1,6 +1,6 @@
 ---
-updated: 2026-06-24
-sources: [supabase/migrations/20260624110000_integration_settings.sql, src/app/entegrasyon/page.tsx, src/app/actions.ts]
+updated: 2026-06-28
+sources: [supabase/migrations/20260624110000_integration_settings.sql, supabase/migrations/20260628160000_complete_planner_sync.sql, src/app/entegrasyon/page.tsx, src/app/actions.ts, src/app/api/planner-callback/route.ts, src/app/api/planner-sync/route.ts]
 ---
 
 # Otomasyon & Entegrasyon Eşleştirme Paneli
@@ -74,8 +74,63 @@ Her sabah TRT 08:00'de (`0 5 * * *` UTC) `send_daily_production_email_func()` fo
 
 ---
 
+---
+
+## 4. Microsoft Planner Senkronizasyonu
+
+Aksiyon takip sayfasındaki görevler, Teams Planner ile çift yönlü senkronize edilebilir. Senkronizasyon Power Automate akışları üzerinden çalışır.
+
+### Akış Mimarisi
+
+```
+ManufUI → Power Automate → Planner (İleri Yön)
+  - CREATE: Yeni görev + sorumlu atandığında Planner'da task oluştur
+  - UPDATE: Başlık/termin/sorumlu değiştiğinde Planner task güncelle
+  - COMPLETE: Durum "Tamamlandı" olduğunda Planner task'ı kapat
+  - STATUS_UPDATE: Durum "Devam Ediyor" olduğunda Planner %50 yap
+
+Planner → Power Automate → ManufUI (Ters Yön)
+  - POST /api/planner-callback: Task oluşturulduktan sonra planner_task_id geri yazımı
+  - POST /api/planner-sync: Planner'da tamamlanan görevlerin ManufUI'da güncellenmesi
+```
+
+### Veritabanı Alanları (`manuf_action_items`)
+
+| Kolon | Açıklama |
+|-------|----------|
+| `assignee_email` | Sorumlu e-posta (manuf_assignees tablosundan) |
+| `planner_task_id` | Planner'daki görev ID (callback ile geri yazılır) |
+
+### API Endpoint'leri
+
+| Endpoint | Metot | Açıklama |
+|----------|-------|----------|
+| `/api/planner-callback` | POST | Power Automate'in planner_task_id geri yazması için |
+| `/api/planner-sync` | POST | Planner → ManufUI ters yön durum senkronizasyonu |
+
+### Trigger Olay Tipleri (`event_type`)
+
+| Tip | Tetiklenme Koşulu |
+|-----|-------------------|
+| `CREATE` | assignee_email atandı ve planner_task_id boş |
+| `UPDATE` | title/due_date/assignee değişti ve planner_task_id dolu |
+| `COMPLETE` | status → "Tamamlandı" ve planner_task_id dolu |
+| `STATUS_UPDATE` | status → "Devam Ediyor" ve planner_task_id dolu |
+
+### UI Göstergeleri
+
+Aksiyon takip tablosunda her görevin yanında:
+- **Mavi "Planner" rozeti**: Görev Planner'a senkronize (planner_task_id mevcut)
+- **Gri "Bekliyor" rozeti**: Sorumlu atanmış ama Planner görevi henüz oluşturulmamış
+- Sorumlu atanmamış görevlerde rozet gösterilmez
+
+---
+
 ## İlgili Dosyalar
 
 * [20260624110000_integration_settings.sql](../../supabase/migrations/20260624110000_integration_settings.sql) — Otomasyon DDL göç kodu
+* [20260628160000_complete_planner_sync.sql](../../supabase/migrations/20260628160000_complete_planner_sync.sql) — Planner senkronizasyon trigger güncellemesi
+* [src/app/api/planner-callback/route.ts](../../src/app/api/planner-callback/route.ts) — Planner task ID callback endpoint
+* [src/app/api/planner-sync/route.ts](../../src/app/api/planner-sync/route.ts) — Ters yön durum senkronizasyonu endpoint
 * [src/app/entegrasyon/page.tsx](../../src/app/entegrasyon/page.tsx) — Panel arayüz dosyası
 * [src/app/actions.ts](../../src/app/actions.ts) — Sunucu eylemleri

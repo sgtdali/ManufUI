@@ -5,6 +5,79 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-28] refactor | Tüm Proje Dosyaları Maks 300/500 Satır Refaktörü
+
+Tüm kaynak dosyalar (wiki hariç) maksimum 300 satır (mümkün değilse 500) olacak şekilde atomik olarak refactor edildi. Hiçbir veri kaybı, arayüz değişikliği veya işlevsellik bozulması yok.
+
+### Yapılan Bölünmeler
+
+| Orijinal Dosya | Satır (Önce→Sonra) | Çıkarılan Dosyalar |
+|---|---|---|
+| `src/app/actions.ts` | 960→47 | `_actions/production.ts`, `_actions/ffPreform.ts`, `_actions/finalOlcum.ts`, `_actions/moldChanges.ts`, `_actions/settings.ts`, `_actions/automations.ts` |
+| `src/app/page.tsx` | 607→213 | `_helpers/formHelpers.ts`, `_helpers/formValidation.ts` |
+| `src/app/entegrasyon/page.tsx` | 1302→364 | `_components/constants.ts`, `_components/generatePreviewSQL.ts`, `_components/WizardSteps.tsx`, `_components/ManualForm.tsx`, `_components/AutomationTableRow.tsx`, `_components/LoginScreen.tsx`, `_components/WizardPanel.tsx` |
+| `src/app/aksiyon-takip/page.tsx` | 1291→~290 | `_components/helpers.ts`, `_components/CellSidebar.tsx`, `_components/AssigneeAutocomplete.tsx`, `_components/ActionRow.tsx`, `_components/InlineActionCreateRow.tsx`, `_components/PasswordDialog.tsx` |
+| `src/app/duruslar/DurusRecordsTable.tsx` | 675→215 | `_components/helpers.tsx`, `_components/MetricCard.tsx`, `_components/SummaryPanel.tsx`, `_components/exportExcel.ts`, `_components/FilterPanel.tsx` |
+| `src/app/dashboard/page.tsx` | 491→~230 | `_components/helpers.ts`, `_components/MetricCard.tsx` |
+| `src/app/dashboardy/page.tsx` | 490→~195 | `_components/constants.ts`, `_components/shareReport.ts` |
+| `src/app/kalip-takip/page.tsx` | 454→134 | `_components/StatsCards.tsx`, `_components/MoldChangeDialog.tsx`, `_components/RecordsTable.tsx` |
+| `src/app/ariza/ArizaRecordsTable.tsx` | 446→174 | `_components/helpers.ts`, `_components/ResolveDialog.tsx`, `_components/TypeSelector.tsx` |
+| `src/app/_components/ProductionTable.tsx` | 428→186 | `productionColumns.ts` (getVisibleColumns, getAltOptions) |
+| `src/app/_components/FFPreformTable.tsx` | 461→174 | `RejectReworkTables.tsx` (paylaşılan) |
+| `src/app/_components/FinalOlcumTable.tsx` | 461→174 | `RejectReworkTables.tsx` (paylaşılan) |
+
+### Kullanılan Kalıplar
+- **Barrel re-export**: `actions.ts` → `_actions/` alt dosyaları (geriye dönük uyumluluk)
+- **`_components/` alt dizin**: Sayfa-özel bileşen çıkarımları
+- **`_helpers/` dizin**: Çapraz-bileşen yardımcı fonksiyonlar
+- **Paylaşılan bileşen**: `RejectReworkTables.tsx` (FFPreform + FinalOlcum ortak tablo)
+- **Kolon yapılandırma ayrımı**: `productionColumns.ts` (ProductionTable'dan çıkarıldı)
+
+### Kalan 300+ Dosyalar (Hepsi <500)
+- `entegrasyon/page.tsx` (364) — sıkı bağlı handler mantığı
+- `types.ts` (323) — paylaşılan tip tanımları
+- `WizardSteps.tsx` (311) — 4 sihirbaz adımı bileşeni
+- `veri-takip/page.tsx` (305) — sunucu bileşeni
+
+### Düzeltmeler
+- `duruslar/_components/helpers.ts` → `.tsx` olarak yeniden adlandırıldı (JSX içeriyor)
+- `actions.ts` barrel dosyasından `"use server"` kaldırıldı (alt dosyalarda zaten var, barrel'da type export'u engelliyordu)
+
+---
+
+## [2026-06-28] update | Aksiyon Takip - Teams Planner Tam Senkronizasyonu
+
+### Kod Tarafı (Tamamlandı)
+- **Planner Callback API (`/api/planner-callback`):** Power Automate'den `planner_task_id` geri yazımı endpoint'i.
+- **Ters Yön Senkronizasyon API (`/api/planner-sync`):** Planner → ManufUI durum güncelleme endpoint'i.
+- **DB Trigger güncellemesi:** `notify_assignee_on_task_assignment()` fonksiyonuna `COMPLETE` ve `STATUS_UPDATE` olay tipleri eklendi. Payload'a `status`, `cell`, `title` eklendi. `event_type` alanında `btrim` ile `\n` temizliği yapıldı.
+- **UI Planner Senkron Göstergesi:** Mavi "Planner" (senkron) / Gri "Bekliyor" rozetleri eklendi.
+- **Entegrasyon Paneli:** `manuf_automations` tablosuna `planner_callback` ve `planner_reverse_sync` kayıtları eklendi.
+- **Wiki:** `teams-entegrasyonu.md` ve `aksiyon-takip.md` güncellendi.
+
+### Power Automate Tarafı (Yarım Kaldı)
+**Akış adı:** HF901 Aksiyon Sorumlu Atama Bildirim Sistemi
+**Webhook URL:** `action_item_assignee_trigger` (workflow `22ed5ef2ee7b...`)
+
+**Tamamlanan adımlar:**
+1. Switch aksiyonu eklendi (`event_type` üzerine dallanma): CREATE / COMPLETE / UPDATE case'leri
+2. **CREATE case:** "Create a task" (Planner) aksiyonu eklendi — Group/Plan: HF901 Aksiyon Takip, Title: `title [action_item_id]`, Due Date: `due_date`, Assigned: `email`
+3. **COMPLETE case:** "Update a task" aksiyonu eklendi — Task Id: filtrelenmiş Id, Progress: Completed
+4. **UPDATE case:** "Update a task" aksiyonu eklendi — Task Id: filtrelenmiş Id, Title + Due Date güncelleme
+5. "Diziyi filtrele" ifadesindeki `contains()` 3. parametre hatası düzeltildi
+
+**Kalan sorun — `event_type` içinde `\n` karakteri:**
+- Switch'e gelen değer `"CREATE\n"` (sonda satır sonu var), `"CREATE"` ile eşleşmiyor.
+- `trim()` Power Automate'de `\n` temizlemiyor.
+- **Çözüm seçenekleri (yarın yapılacak):**
+  - **Seçenek A (Önerilen):** Switch'i silip yerine iç içe **Condition** blokları kullanmak. `contains()` fonksiyonu `"CREATE\n"` içinde `"CREATE"` bulur, `\n` sorun olmaz.
+  - **Seçenek B:** Switch On alanında `replace` ile `\n` temizlemek: `@{replace(replace(variables('Body')?['event_type'],decodeUriComponent('%0A'),''),decodeUriComponent('%0D'),'')}`
+  - **Seçenek C:** DB trigger'daki `btrim` düzeltmesini Supabase'e uygulayıp tekrar denemek (migration `20260628160000` güncellendi ama henüz DB'ye uygulanmadı).
+
+**Not:** HTTP callback adımı Premium gerektirdiği için atlandı. Planner görev eşleşmesi başlıktaki `[action_item_id]` üzerinden yapılıyor.
+
+---
+
 ## [2026-06-25] update | ROB110-111 Hücresi Saatlik Hedef Üretim Adedi 20 Yapıldı
 
 **Yapılanlar:**

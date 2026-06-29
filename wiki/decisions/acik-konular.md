@@ -1,5 +1,5 @@
 ---
-updated: 2026-05-28
+updated: 2026-06-28
 sources: [src/lib/types.ts, supabase/migrations/, src/app/schedule/]
 ---
 
@@ -74,6 +74,28 @@ Repodaki en eski migration `20260413` tarihlidir ve sadece `ALTER TABLE` içerir
 `/dashboard` sayfası var ama bu wiki'de ele alınmadı.
 
 **Yapılacak**: Dashboard sayfasını oku, hangi metrikleri gösterdiğini belgele.
+
+## Planner Senkronizasyonu — Power Automate Yapılandırması Yarım
+
+**Öncelik: Yüksek**
+**Durum: Devam ediyor**
+
+Kod tarafı (API endpoint'ler, DB trigger'lar, UI rozetleri) tamamlandı. Power Automate akışı yarım kaldı.
+
+**Akış:** HF901 Aksiyon Sorumlu Atama Bildirim Sistemi (make.powerautomate.com)
+
+**Sorun:** DB trigger'dan gelen `event_type` değerinin sonunda `\n` (satır sonu) karakteri var. Power Automate Switch aksiyonu `"CREATE\n"` ile `"CREATE"` eşleştiremiyor.
+
+**Çözüm seçenekleri:**
+1. **(Önerilen)** Switch'i silip iç içe Condition blokları kullanmak — `contains("CREATE\n", "CREATE")` true döner
+2. Switch On ifadesinde `replace(replace(...),decodeUriComponent('%0A'),'')` ile `\n` temizlemek
+3. DB migration'ı (`20260628160000`) Supabase'e uygulamak — `btrim` ile `\n` kaynakta temizlenir
+
+**Tamamlanan Power Automate adımları:** Switch + 3 case (CREATE/COMPLETE/UPDATE) + Planner Create/Update task aksiyonları ekli. Sadece `\n` sorunu çözülünce çalışacak.
+
+**Not:** HTTP callback (Premium) olmadığı için `planner_task_id` geri yazımı yapılamıyor. Görev eşleşmesi başlıktaki `[action_item_id]` ile sağlanıyor.
+
+---
 
 ## Cuma/Cumartesi Zaman Dilimi Tutarsızlığı [ÇÖZÜLDÜ]
 
