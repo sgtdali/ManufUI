@@ -5,7 +5,7 @@ import { statusColor } from "./helpers";
 export function InlineActionCreateRow({
   selectedCell, title, isPending, onTitleChange, onCreate,
   onEmptyBlur, depth = 0, placeholder, showCellColumn,
-  isAuthorized, ensureAuthorized,
+  isAuthorized, ensureAuthorized, titleWidth,
 }: {
   selectedCell: string;
   title: string;
@@ -18,6 +18,7 @@ export function InlineActionCreateRow({
   showCellColumn: boolean;
   isAuthorized: boolean;
   ensureAuthorized: (cb: () => void) => void;
+  titleWidth?: number;
 }) {
   const disabled = !selectedCell || isPending;
 
@@ -26,7 +27,7 @@ export function InlineActionCreateRow({
       <td className="px-3 py-3 text-zinc-300">
         {depth > 0 ? <span style={{ marginLeft: depth * 12 }}>└</span> : "+"}
       </td>
-      <td className="px-3 py-3">
+      <td className="px-3 py-3" style={titleWidth ? { width: titleWidth, minWidth: titleWidth, maxWidth: titleWidth } : undefined}>
         <div
           onClickCapture={(e) => {
             if (!isAuthorized) {

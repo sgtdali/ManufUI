@@ -38,7 +38,7 @@ export function ActionRow({
   onStatusChange, onPriorityChange, onAssigneeChange,
   onDueDateChange, onTitleChange, onDelete, onAddSub, onCreateSub, onCloseSub,
   isPending, subFormParentId, subTitle, onSubTitleChange,
-  showCellColumn, isAuthorized, ensureAuthorized,
+  showCellColumn, isAuthorized, ensureAuthorized, titleWidth,
 }: {
   item: ActionItem;
   depth: number;
@@ -61,6 +61,7 @@ export function ActionRow({
   showCellColumn: boolean;
   isAuthorized: boolean;
   ensureAuthorized: (cb: () => void) => void;
+  titleWidth: number;
 }) {
   const hasChildren = item.children && item.children.length > 0;
   const isExpanded = expandedRows.has(item.id);
@@ -114,9 +115,9 @@ export function ActionRow({
             )}
           </div>
         </td>
-        <td className="px-3 py-3">
+        <td className="px-3 py-3" style={{ width: titleWidth, minWidth: titleWidth, maxWidth: titleWidth }}>
           <div
-            className="flex items-center gap-1.5 group cursor-pointer"
+            className="flex items-start gap-1.5 group cursor-pointer"
             style={{ paddingLeft: depth > 0 ? depth * 12 : 0 }}
             onClick={() => {
               if (isEditingTitle) return;
@@ -129,7 +130,7 @@ export function ActionRow({
             {isEditingTitle ? (
               <input
                 type="text"
-                className="w-full max-w-md rounded border border-zinc-300 px-2 py-0.5 text-xs text-zinc-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded border border-zinc-300 px-2 py-0.5 text-xs text-zinc-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 value={tempTitle}
                 onChange={(e) => setTempTitle(e.target.value)}
                 onBlur={() => handleSaveTitle()}
@@ -145,21 +146,21 @@ export function ActionRow({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <div className="flex items-center min-w-0">
+              <div className="flex items-start min-w-0 flex-wrap gap-1.5 whitespace-normal break-words w-full">
                 <span
-                  className={`font-medium truncate ${item.status === "Tamamlandı" ? "text-zinc-400 line-through" : "text-zinc-900"}`}
+                  className={`font-medium whitespace-normal break-words ${item.status === "Tamamlandı" ? "text-zinc-400 line-through" : "text-zinc-900"}`}
                 >
                   {item.title}
                 </span>
+                <PlannerSyncBadge item={item} />
                 <button
-                  className="ml-2 text-zinc-400 hover:text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-zinc-100 shrink-0"
+                  className="text-zinc-400 hover:text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-zinc-100 shrink-0 inline-flex items-center justify-center"
                   title="Başlığı Düzenle"
                 >
                   <Pencil className="size-3.5" />
                 </button>
               </div>
             )}
-            <PlannerSyncBadge item={item} />
           </div>
         </td>
         {showCellColumn ? (
@@ -234,6 +235,7 @@ export function ActionRow({
           onTitleChange={onSubTitleChange} onCreate={() => onCreateSub(item.id, item.cell)}
           onEmptyBlur={onCloseSub} depth={depth + 1} placeholder="Alt madde yazın, Enter ile ekleyin"
           showCellColumn={showCellColumn} isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized}
+          titleWidth={titleWidth}
         />
       ) : null}
       {isExpanded && hasChildren
@@ -246,7 +248,8 @@ export function ActionRow({
               onDelete={onDelete} onAddSub={onAddSub} onCreateSub={onCreateSub} onCloseSub={onCloseSub}
               isPending={isPending} subFormParentId={subFormParentId} subTitle={subTitle}
               onSubTitleChange={onSubTitleChange} showCellColumn={showCellColumn}
-              isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized} />
+              isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized}
+              titleWidth={titleWidth} />
           ))
         : null}
     </>

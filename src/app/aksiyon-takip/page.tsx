@@ -57,6 +57,38 @@ export default function AksiyonTakipPage() {
     if (isAuthorized) { callback(); } else { setPendingAction(() => callback); setIsPasswordDialogOpen(true); }
   };
 
+  const [titleWidth, setTitleWidth] = useState(300);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("action_title_width");
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if (!parsed) return;
+      setTitleWidth(parsed);
+    }
+  }, []);
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.pageX;
+    const startWidth = titleWidth;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(150, startWidth + (moveEvent.pageX - startX));
+      setTitleWidth(newWidth);
+    };
+
+    const handleMouseUp = (moveEvent: MouseEvent) => {
+      const finalWidth = Math.max(150, startWidth + (moveEvent.pageX - startX));
+      localStorage.setItem("action_title_width", finalWidth.toString());
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
   const [items, setItems] = useState<ActionItem[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -263,7 +295,17 @@ export default function AksiyonTakipPage() {
                 <thead className="sticky top-0 z-10 bg-zinc-50">
                   <tr className="bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700 select-none">
                     <th className="w-8 px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]"></th>
-                    <th className="px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]">Başlık</th>
+                    <th
+                      className="relative px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] group/resize select-none"
+                      style={{ width: titleWidth, minWidth: titleWidth, maxWidth: titleWidth }}
+                    >
+                      <span>Başlık</span>
+                      <div
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-zinc-300 hover:bg-emerald-600 hover:w-1.5 active:bg-emerald-800 active:w-1.5 transition-all"
+                        onMouseDown={handleResizeMouseDown}
+                        title="Sütun genişliğini ayarlamak için sürükleyin"
+                      />
+                    </th>
                     {showCellColumn ? <th className="px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]">Hücre</th> : null}
                     {(["assignee", "due_date", "priority", "status"] as const).map((field) => (
                       <th key={field} className="group cursor-pointer px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
@@ -280,6 +322,7 @@ export default function AksiyonTakipPage() {
                 <tbody className="divide-y divide-zinc-100">
                   {tree.map((item) => (
                     <ActionRow key={item.id} item={item} depth={0}
+                      titleWidth={titleWidth}
                       expandedRows={expandedRows} toggleExpand={toggleExpand} assignees={assignees}
                       onStatusChange={(id, status) => ensureAuthorized(() => handleStatusChange(id, status))}
                       onPriorityChange={(id, priority) => ensureAuthorized(() => handlePriorityChange(id, priority))}
@@ -295,6 +338,7 @@ export default function AksiyonTakipPage() {
                       isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized} />
                   ))}
                   <InlineActionCreateRow selectedCell={filterCell} title={inlineTitle} isPending={isPending}
+                    titleWidth={titleWidth}
                     onTitleChange={setInlineTitle} onCreate={() => ensureAuthorized(() => handleInlineCreate())}
                     showCellColumn={showCellColumn} isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized} />
                 </tbody>
