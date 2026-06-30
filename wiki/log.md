@@ -5,6 +5,34 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-30] feature | Hat Kapanış Tahmini Sayfası (`/hat-forecast`)
+
+**Kaynak:** Kullanıcı konuşması + `src/app/hat-forecast/`
+
+### Amaç
+Pres hücresi 9 Temmuz 2026'da üretimi durdurduktan sonra hattaki kalan parçaların downstream hücrelerden ne zaman geçeceğini simüle eden rundown tahmini sayfası.
+
+### Tasarım Kararları (Konuşma Özeti)
+- **WIP başlangıcı**: Aktüel DB verilerinden kümülatif fark (manuf_wip_stock tablosundan değil)
+- **Ortalama birimi**: Saatlik (günlük değil) — saat × hücre bazında seçim
+- **Seçim granülaritesi**: Hücre bazında bağımsız gün+saat seçimi; münferit olayları (arıza, özel durum) manuel olarak elemek için
+- **Her slotta ne gösterilir**: Üretim adedi + duruş özeti (o saatte ne yaşandığını görmek için)
+- **Hafta sonu**: Varsayılan 0; müdahale ile açılabilir
+- **Mesai hesabı**: `saatlik_ort × (9 + ekstra_saat) / 9` (orantısal)
+- **Müdahale birimi**: Gün × hücre bazında bağımsız
+
+### Uygulama
+- 7 dosya, ~1050 satır
+- `_lib/constants.ts` ayrımı: `"use server"` dosyasına sabit/tip export edilemeyeceğinden FORECAST_CELLS ve tipler ayrı dosyaya taşındı
+- N602/N603 paralel: kombine WIP havuzu, orantısal tüketim
+- `useMemo` ile saf fonksiyon projeksiyon — müdahale anında yeniden hesaplama
+
+### Dosyalar
+- **Yeni**: `src/app/hat-forecast/page.tsx`, `_actions/actions.ts`, `_lib/constants.ts`, `_components/forecastUtils.ts`, `_components/ForecastClient.tsx`, `_components/CalibrationTable.tsx`, `_components/ProjectionView.tsx`, `_components/InterventionPanel.tsx`
+- **Wiki**: `wiki/systems/hat-forecast.md` oluşturuldu, `wiki/index.md` güncellendi
+
+---
+
 ## [2026-06-30] update | Aksiyon Takip: ClickUp Eksik Özellikleri, Magic-Link Yetkilendirme ve Koyu Tema
 
 **Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/*`, `src/middleware.ts`, `src/app/auth/callback/route.ts`, `supabase/migrations/20260630120000_add_action_item_description_dates_comments.sql`
