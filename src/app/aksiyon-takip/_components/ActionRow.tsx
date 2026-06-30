@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, ChevronDown, ChevronRight, CloudOff, RefreshCw, Pencil } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, CloudOff, RefreshCw, Pencil, MessageSquare } from "lucide-react";
 import type { ActionItem, Assignee } from "../actions";
 import { PRIORITIES, STATUSES, statusColor } from "./helpers";
 import { AssigneeAutocomplete } from "./AssigneeAutocomplete";
@@ -36,9 +36,9 @@ function PlannerSyncBadge({ item }: { item: ActionItem }) {
 export function ActionRow({
   item, depth, expandedRows, toggleExpand, assignees,
   onStatusChange, onPriorityChange, onAssigneeChange,
-  onDueDateChange, onTitleChange, onDelete, onAddSub, onCreateSub, onCloseSub,
+  onStartDateChange, onDueDateChange, onTitleChange, onDelete, onAddSub, onCreateSub, onCloseSub,
   isPending, subFormParentId, subTitle, onSubTitleChange,
-  showCellColumn, isAuthorized, ensureAuthorized, titleWidth,
+  showCellColumn, isAuthorized, ensureAuthorized, titleWidth, onOpenDetail,
 }: {
   item: ActionItem;
   depth: number;
@@ -48,6 +48,7 @@ export function ActionRow({
   onStatusChange: (id: string, status: string) => void;
   onPriorityChange: (id: string, priority: string | null) => void;
   onAssigneeChange: (id: string, assignee: string, assignee_email: string | null) => void;
+  onStartDateChange: (id: string, start_date: string) => void;
   onDueDateChange: (id: string, due_date: string) => void;
   onTitleChange: (id: string, title: string) => void;
   onDelete: (id: string) => void;
@@ -62,6 +63,7 @@ export function ActionRow({
   isAuthorized: boolean;
   ensureAuthorized: (cb: () => void) => void;
   titleWidth: number;
+  onOpenDetail: (item: ActionItem) => void;
 }) {
   const hasChildren = item.children && item.children.length > 0;
   const isExpanded = expandedRows.has(item.id);
@@ -184,6 +186,14 @@ export function ActionRow({
         <td className="px-3 py-3">
           <div onClickCapture={authGuard}>
             <input type="date"
+              className="h-8 w-32 rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none"
+              value={item.start_date || ""} onChange={(e) => onStartDateChange(item.id, e.target.value)}
+              disabled={isPending || !isAuthorized} />
+          </div>
+        </td>
+        <td className="px-3 py-3">
+          <div onClickCapture={authGuard}>
+            <input type="date"
               className={`h-8 w-32 rounded-md border px-2 text-xs outline-none ${
                 isOverdue ? "border-rose-300 bg-rose-50 font-medium text-rose-600" : "border-zinc-200 bg-transparent text-zinc-700"
               }`}
@@ -218,6 +228,10 @@ export function ActionRow({
         </td>
         <td className="px-3 py-3">
           <div className="flex gap-1">
+            <button className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-emerald-700" title="Detay / Yorumlar"
+              onClick={() => onOpenDetail(item)}>
+              <MessageSquare className="size-4" />
+            </button>
             <button className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-emerald-700" title="Alt madde ekle"
               onClick={() => onAddSub(item.id, item.cell)}>
               <Plus className="size-4" />
@@ -243,13 +257,13 @@ export function ActionRow({
             <ActionRow key={child.id} item={child} depth={depth + 1}
               expandedRows={expandedRows} toggleExpand={toggleExpand} assignees={assignees}
               onStatusChange={onStatusChange} onPriorityChange={onPriorityChange}
-              onAssigneeChange={onAssigneeChange} onDueDateChange={onDueDateChange}
+              onAssigneeChange={onAssigneeChange} onStartDateChange={onStartDateChange} onDueDateChange={onDueDateChange}
               onTitleChange={onTitleChange}
               onDelete={onDelete} onAddSub={onAddSub} onCreateSub={onCreateSub} onCloseSub={onCloseSub}
               isPending={isPending} subFormParentId={subFormParentId} subTitle={subTitle}
               onSubTitleChange={onSubTitleChange} showCellColumn={showCellColumn}
               isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized}
-              titleWidth={titleWidth} />
+              titleWidth={titleWidth} onOpenDetail={onOpenDetail} />
           ))
         : null}
     </>

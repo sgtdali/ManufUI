@@ -66,6 +66,7 @@ export function InlineActionCreateRow({
       <td className="px-3 py-3 text-zinc-400">-</td>
       <td className="px-3 py-3 text-zinc-400">-</td>
       <td className="px-3 py-3 text-zinc-400">-</td>
+      <td className="px-3 py-3 text-zinc-400">-</td>
       <td className="px-3 py-3">
         <span className={`inline-block rounded-md px-2 py-1 text-xs font-medium ${statusColor("Açık")}`}>Açık</span>
       </td>

@@ -3,16 +3,20 @@
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Lock, LockOpen } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Lock, LockOpen, Search, Download } from "lucide-react";
 import { BOLUMLER } from "@/lib/types";
 import { isReadOnlyUser } from "@/lib/useAuthRole";
-import { loadActionItems, createActionItem, updateActionItem, deleteActionItem, loadAssignees } from "./actions";
-import type { ActionItem, Assignee } from "./actions";
-import { PRIORITIES, STATUSES, buildTree, sortTree, removeItemBranch } from "./_components/helpers";
+import {
+  loadActionItems, createActionItem, updateActionItem, deleteActionItem, loadAssignees,
+  loadComments, addComment,
+} from "./actions";
+import type { ActionItem, Assignee, ActionComment } from "./actions";
+import { PRIORITIES, STATUSES, buildTree, sortTree, removeItemBranch, filterBySearch, flattenTree, exportItemsToExcel } from "./_components/helpers";
 import { CellSidebar } from "./_components/CellSidebar";
 import { ActionRow } from "./_components/ActionRow";
 import { InlineActionCreateRow } from "./_components/InlineActionCreateRow";
 import { PasswordDialog } from "./_components/PasswordDialog";
+import { ActionDetailModal } from "./_components/ActionDetailModal";
 
 const ACTION_CELLS = [...BOLUMLER];
 
@@ -97,7 +101,24 @@ export default function AksiyonTakipPage() {
   const [filterCell, setFilterCell] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
+  const [filterAssignee, setFilterAssignee] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [subFormParentId, setSubFormParentId] = useState<string | null>(null);
+
+  const [detailItem, setDetailItem] = useState<ActionItem | null>(null);
+  const [detailComments, setDetailComments] = useState<ActionComment[]>([]);
+  const [detailCommentsLoading, setDetailCommentsLoading] = useState(false);
+  const [commenterName, setCommenterName] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("action_commenter_name");
+    if (saved) setCommenterName(saved);
+  }, []);
+
+  const handleCommenterNameChange = (name: string) => {
+    setCommenterName(name);
+    localStorage.setItem("action_commenter_name", name);
+  };
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [inlineTitle, setInlineTitle] = useState("");
   const [subInlineTitle, setSubInlineTitle] = useState("");
@@ -135,10 +156,12 @@ export default function AksiyonTakipPage() {
   const itemsMatchingStatusAndPriority = items.filter((item) => {
     if (filterStatus && item.status !== filterStatus) return false;
     if (filterPriority && item.priority !== filterPriority) return false;
+    if (filterAssignee && item.assignee !== filterAssignee) return false;
     return true;
   });
 
-  const filteredItems = itemsMatchingStatusAndPriority.filter((item) => !filterCell || item.cell === filterCell);
+  const cellFilteredItems = itemsMatchingStatusAndPriority.filter((item) => !filterCell || item.cell === filterCell);
+  const filteredItems = filterBySearch(cellFilteredItems, searchQuery);
   const rawTree = buildTree(filteredItems);
   const tree = sortTree(rawTree, sortField, sortDirection);
 
@@ -147,13 +170,17 @@ export default function AksiyonTakipPage() {
     return acc;
   }, {});
 
+  const assigneeOptions = Array.from(new Set(items.map((i) => i.assignee).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, "tr-TR")
+  );
+
   const handleInlineCreate = () => {
     const title = inlineTitle.trim();
     if (!filterCell) { toast.error("Yeni aksiyon eklemek için soldan bir hücre seçin."); return; }
     if (!title) return;
     startTransition(async () => {
       const res = await createActionItem({ parent_id: null, cell: filterCell, title, assignee: "", due_date: null, priority: null });
-      if (res.success) { setItems((prev) => [res.data, ...prev]); setInlineTitle(""); }
+      if (res.success) { setItems((prev) => [...prev, res.data]); setInlineTitle(""); }
       else toast.error("Kayıt hatası: " + res.error);
     });
   };
@@ -163,40 +190,101 @@ export default function AksiyonTakipPage() {
     if (!title) return;
     startTransition(async () => {
       const res = await createActionItem({ parent_id: parentId, cell, title, assignee: "", due_date: null, priority: null });
-      if (res.success) { setItems((prev) => [res.data, ...prev]); setSubInlineTitle(""); setSubFormParentId(null); }
+      if (res.success) { setItems((prev) => [...prev, res.data]); setSubInlineTitle(""); setSubFormParentId(null); }
       else toast.error("Kayıt hatası: " + res.error);
+    });
+  };
+
+  const handleStartDateChange = (id: string, start_date: string) => {
+    startTransition(async () => {
+      const res = await updateActionItem(id, { start_date: start_date || null });
+      if (res.success) {
+        toast.success("Başlangıç tarihi güncellendi.");
+        setItems((prev) => prev.map((item) => item.id === id ? { ...item, start_date: res.data.start_date, updated_at: res.data.updated_at } : item));
+        setDetailItem((prev) => prev && prev.id === id ? { ...prev, start_date: res.data.start_date, updated_at: res.data.updated_at } : prev);
+      } else toast.error("Güncelleme hatası: " + res.error);
+    });
+  };
+
+  const handleDescriptionChange = (id: string, description: string) => {
+    startTransition(async () => {
+      const res = await updateActionItem(id, { description: description || null });
+      if (res.success) {
+        setItems((prev) => prev.map((item) => item.id === id ? { ...item, description: res.data.description, updated_at: res.data.updated_at } : item));
+        setDetailItem((prev) => prev && prev.id === id ? { ...prev, description: res.data.description, updated_at: res.data.updated_at } : prev);
+      } else toast.error("Güncelleme hatası: " + res.error);
+    });
+  };
+
+  const handleOpenDetail = (item: ActionItem) => {
+    setDetailItem(item);
+    setDetailComments([]);
+    setDetailCommentsLoading(true);
+    startTransition(async () => {
+      const res = await loadComments(item.id);
+      if (res.success) setDetailComments(res.data);
+      else toast.error("Yorumlar yüklenemedi: " + res.error);
+      setDetailCommentsLoading(false);
+    });
+  };
+
+  const handleAddComment = (id: string, author: string, comment: string) => {
+    startTransition(async () => {
+      const res = await addComment(id, author, comment);
+      if (res.success) setDetailComments((prev) => [...prev, res.data]);
+      else toast.error("Yorum eklenemedi: " + res.error);
+    });
+  };
+
+  const handleExportExcel = () => {
+    const flat = flattenTree(tree);
+    if (flat.length === 0) { toast.error("Dışa aktarılacak kayıt yok."); return; }
+    startTransition(async () => {
+      await exportItemsToExcel(flat, `aksiyon-takip-${new Date().toISOString().split("T")[0]}.xlsx`);
     });
   };
 
   const handleStatusChange = (id: string, status: string) => {
     startTransition(async () => {
       const res = await updateActionItem(id, { status });
-      if (res.success) { toast.success("Durum güncellendi."); setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status: status as ActionItem["status"] } : item))); }
-      else toast.error("Güncelleme hatası: " + res.error);
+      if (res.success) {
+        toast.success("Durum güncellendi.");
+        setItems((prev) => prev.map((item) => (item.id === id ? { ...item, status: res.data.status, updated_at: res.data.updated_at } : item)));
+        setDetailItem((prev) => prev && prev.id === id ? { ...prev, status: res.data.status, updated_at: res.data.updated_at } : prev);
+      } else toast.error("Güncelleme hatası: " + res.error);
     });
   };
 
   const handlePriorityChange = (id: string, priority: string | null) => {
     startTransition(async () => {
       const res = await updateActionItem(id, { priority });
-      if (res.success) { toast.success("Öncelik güncellendi."); setItems((prev) => prev.map((item) => (item.id === id ? { ...item, priority } : item))); }
-      else toast.error("Güncelleme hatası: " + res.error);
+      if (res.success) {
+        toast.success("Öncelik güncellendi.");
+        setItems((prev) => prev.map((item) => (item.id === id ? { ...item, priority: res.data.priority, updated_at: res.data.updated_at } : item)));
+        setDetailItem((prev) => prev && prev.id === id ? { ...prev, priority: res.data.priority, updated_at: res.data.updated_at } : prev);
+      } else toast.error("Güncelleme hatası: " + res.error);
     });
   };
 
   const handleAssigneeChange = (id: string, assignee: string, assignee_email: string | null) => {
     startTransition(async () => {
       const res = await updateActionItem(id, { assignee, assignee_email });
-      if (res.success) { toast.success("Sorumlu güncellendi."); setItems((prev) => prev.map((item) => item.id === id ? { ...item, assignee, assignee_email } : item)); }
-      else toast.error("Güncelleme hatası: " + res.error);
+      if (res.success) {
+        toast.success("Sorumlu güncellendi.");
+        setItems((prev) => prev.map((item) => item.id === id ? { ...item, assignee: res.data.assignee, assignee_email: res.data.assignee_email, updated_at: res.data.updated_at } : item));
+        setDetailItem((prev) => prev && prev.id === id ? { ...prev, assignee: res.data.assignee, assignee_email: res.data.assignee_email, updated_at: res.data.updated_at } : prev);
+      } else toast.error("Güncelleme hatası: " + res.error);
     });
   };
 
   const handleDueDateChange = (id: string, due_date: string) => {
     startTransition(async () => {
       const res = await updateActionItem(id, { due_date: due_date || null });
-      if (res.success) { toast.success("Termin tarihi güncellendi."); setItems((prev) => prev.map((item) => item.id === id ? { ...item, due_date: due_date || null } : item)); }
-      else toast.error("Güncelleme hatası: " + res.error);
+      if (res.success) {
+        toast.success("Termin tarihi güncellendi.");
+        setItems((prev) => prev.map((item) => item.id === id ? { ...item, due_date: res.data.due_date, updated_at: res.data.updated_at } : item));
+        setDetailItem((prev) => prev && prev.id === id ? { ...prev, due_date: res.data.due_date, updated_at: res.data.updated_at } : prev);
+      } else toast.error("Güncelleme hatası: " + res.error);
     });
   };
 
@@ -205,9 +293,8 @@ export default function AksiyonTakipPage() {
       const res = await updateActionItem(id, { title });
       if (res.success) {
         toast.success("Başlık güncellendi.");
-        setItems((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, title } : item))
-        );
+        setItems((prev) => prev.map((item) => (item.id === id ? { ...item, title: res.data.title, updated_at: res.data.updated_at } : item)));
+        setDetailItem((prev) => prev && prev.id === id ? { ...prev, title: res.data.title, updated_at: res.data.updated_at } : prev);
       } else {
         toast.error("Güncelleme hatası: " + res.error);
       }
@@ -263,7 +350,17 @@ export default function AksiyonTakipPage() {
 
         <div className="flex min-w-0 flex-col gap-4">
           <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-            <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+            <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-zinc-600">Ara</label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
+                  <input type="text"
+                    className="h-9 w-full rounded-md border border-zinc-300 bg-white pl-8 pr-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
+                    placeholder="Başlık veya açıklamada ara..."
+                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                </div>
+              </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-zinc-600">Durum</label>
                 <select className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
@@ -280,9 +377,21 @@ export default function AksiyonTakipPage() {
                   {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-zinc-600">Sorumlu</label>
+                <select className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
+                  value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
+                  <option value="">Tümü</option>
+                  {assigneeOptions.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
               <button className="self-end rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
-                onClick={() => { setFilterCell(""); setFilterStatus(""); setFilterPriority(""); }}>
+                onClick={() => { setFilterCell(""); setFilterStatus(""); setFilterPriority(""); setFilterAssignee(""); setSearchQuery(""); }}>
                 Temizle
+              </button>
+              <button className="inline-flex items-center gap-1.5 self-end rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+                onClick={handleExportExcel} title="Excel olarak dışa aktar">
+                <Download className="size-4" /> Dışa Aktar
               </button>
             </div>
           </section>
@@ -307,11 +416,16 @@ export default function AksiyonTakipPage() {
                       />
                     </th>
                     {showCellColumn ? <th className="px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]">Hücre</th> : null}
-                    {(["assignee", "due_date", "priority", "status"] as const).map((field) => (
+                    <th className="group cursor-pointer px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                      onClick={() => handleSort("assignee")}>
+                      <div className="flex items-center gap-1"><span>Sorumlu</span>{getSortIcon("assignee")}</div>
+                    </th>
+                    <th className="px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]">Başlangıç</th>
+                    {(["due_date", "priority", "status"] as const).map((field) => (
                       <th key={field} className="group cursor-pointer px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
                         onClick={() => handleSort(field)}>
                         <div className="flex items-center gap-1">
-                          <span>{field === "assignee" ? "Sorumlu" : field === "due_date" ? "Termin" : field === "priority" ? "Öncelik" : "Durum"}</span>
+                          <span>{field === "due_date" ? "Termin" : field === "priority" ? "Öncelik" : "Durum"}</span>
                           {getSortIcon(field)}
                         </div>
                       </th>
@@ -327,6 +441,7 @@ export default function AksiyonTakipPage() {
                       onStatusChange={(id, status) => ensureAuthorized(() => handleStatusChange(id, status))}
                       onPriorityChange={(id, priority) => ensureAuthorized(() => handlePriorityChange(id, priority))}
                       onAssigneeChange={(id, assignee, email) => ensureAuthorized(() => handleAssigneeChange(id, assignee, email))}
+                      onStartDateChange={(id, start_date) => ensureAuthorized(() => handleStartDateChange(id, start_date))}
                       onDueDateChange={(id, due_date) => ensureAuthorized(() => handleDueDateChange(id, due_date))}
                       onTitleChange={(id, title) => ensureAuthorized(() => handleTitleChange(id, title))}
                       onDelete={(id) => ensureAuthorized(() => handleDelete(id))}
@@ -335,7 +450,8 @@ export default function AksiyonTakipPage() {
                       onCloseSub={() => setSubFormParentId(null)}
                       isPending={isPending} subFormParentId={subFormParentId} subTitle={subInlineTitle}
                       onSubTitleChange={setSubInlineTitle} showCellColumn={showCellColumn}
-                      isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized} />
+                      isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized}
+                      onOpenDetail={handleOpenDetail} />
                   ))}
                   <InlineActionCreateRow selectedCell={filterCell} title={inlineTitle} isPending={isPending}
                     titleWidth={titleWidth}
@@ -350,6 +466,20 @@ export default function AksiyonTakipPage() {
       <PasswordDialog isOpen={isPasswordDialogOpen}
         onClose={() => { setIsPasswordDialogOpen(false); setPendingAction(null); }}
         onConfirm={handleConfirmPassword} />
+      {detailItem ? (
+        <ActionDetailModal
+          item={detailItem}
+          comments={detailComments}
+          commentsLoading={detailCommentsLoading}
+          commenterName={commenterName}
+          onCommenterNameChange={handleCommenterNameChange}
+          onClose={() => setDetailItem(null)}
+          onDescriptionChange={(id, description) => ensureAuthorized(() => handleDescriptionChange(id, description))}
+          onAddComment={handleAddComment}
+          isAuthorized={isAuthorized}
+          ensureAuthorized={ensureAuthorized}
+        />
+      ) : null}
     </main>
   );
 }
