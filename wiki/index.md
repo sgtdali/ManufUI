@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-28
+updated: 2026-06-30
 
 sources: []
 ---
@@ -20,8 +20,8 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [Arıza Sistemi](systems/ariza-sistemi.md) | `/ariza` sayfası: veri yapısı, mevcut görünüm, eksik trend/öngörü özellikleri, reaktif→proaktif hedef |
 | [Performans Paneli](systems/performans-paneli.md) | `/dashboardy` sayfası: Seçilen tarih aralığında hücre bazlı üretim hedeflerinin izlenmesi ve hücre özelinde hedeflenen miktarların hesaplanması |
 | [Kalıp Takip](systems/kalip-takip.md) | `/kalip-takip` sayfası: Pres hücresi kalıp değişimlerinin takibi, manual giriş, senkronizasyon ve kümülatif parça adetleri takibi |
-| [Aksiyon Takip](systems/aksiyon-takip.md) | `/aksiyon-takip` sayfası: Sol hücre sidebar'ı, ClickUp tarzı inline ana/alt madde ekleme, düzenlenebilir sorumlu/termin/öncelik/durum ve local state ile yenilemesiz işlem akışı |
-| [Global Şifre Koruması](systems/sifre-korumasi.md) | Tüm sitenin genel şifre yetkilendirmesi (`rmk_hf901`), middleware kontrolü ve şifresiz salt okunur performans paneli erişimi |
+| [Aksiyon Takip](systems/aksiyon-takip.md) | `/aksiyon-takip` sayfası (koyu tema): açıklama/yorum, arama, başlangıç tarihi, Excel export, magic-link e-posta girişi + satır bazlı sorumlu yetkisi, admin şifresi, özel Select bileşeni |
+| [Global Şifre Koruması](systems/sifre-korumasi.md) | Tüm sitenin genel şifre yetkilendirmesi (`rmk_hf901`), middleware kontrolü, şifresiz salt okunur performans paneli erişimi ve `/aksiyon-takip` istisnası |
 | [Otomasyon & Entegrasyon Paneli](systems/teams-entegrasyonu.md) | Günlük e-posta raporu, Teams bildirimleri, cron joblar ve webhook adreslerini yöneten şifre korumalı panel |
 
 ## Entities — Varlıklar ve Veri Yapıları

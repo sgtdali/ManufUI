@@ -1,6 +1,6 @@
 ---
-updated: 2026-06-23
-sources: [src/middleware.ts, src/app/login/page.tsx, src/app/dashboardy/page.tsx]
+updated: 2026-06-30
+sources: [src/middleware.ts, src/app/login/page.tsx, src/app/dashboardy/page.tsx, src/app/aksiyon-takip/page.tsx]
 ---
 
 # Global Şifre Koruması
@@ -33,9 +33,10 @@ flowchart TD
 ---
 
 ## 2. Middleware Kontrolü (`src/middleware.ts`)
-* Uygulamanın statik dosyaları (`_next`, resimler, ikonlar), API rotaları ve `/login` sayfası dışındaki tüm istekler yakalanır.
+* Uygulamanın statik dosyaları (`_next`, resimler, ikonlar), API rotaları, `/login` sayfası, `/auth` (Supabase auth callback) ve `/aksiyon-takip` dışındaki tüm istekler yakalanır.
 * `password_auth` çerezinin değeri `rmk_hf901` değilse ve istenen sayfa `/dashboardy` değilse, istek otomatik olarak `/login` sayfasına yönlendirilir (`307 Temporary Redirect`).
 * Yönlendirme esnasında Supabase oturum çerezlerinin kaybolmaması için gelen response üzerindeki tüm çerezler redirect response'una kopyalanır.
+* **`/aksiyon-takip` istisnası (2026-06-30):** Bu sayfa, kendi içinde ayrı bir yetkilendirme modeli (magic-link e-posta girişi + admin şifresi) kullandığı için site geneli şifre duvarının tamamen dışına alınmıştır — şifresiz görüntülenebilir. Detaylar için [Aksiyon Takip](aksiyon-takip.md#yetkilendirme-modeli). Diğer tüm sayfalar bu değişiklikten etkilenmemiştir.
 
 ---
 

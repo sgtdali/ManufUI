@@ -5,6 +5,51 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-06-30] update | Aksiyon Takip: ClickUp Eksik Özellikleri, Magic-Link Yetkilendirme ve Koyu Tema
+
+**Kaynak:** Kullanıcı konuşması + `src/app/aksiyon-takip/*`, `src/middleware.ts`, `src/app/auth/callback/route.ts`, `supabase/migrations/20260630120000_add_action_item_description_dates_comments.sql`
+
+### 1. ClickUp Kıyaslı Fonksiyonel Eksiklerin Kapatılması
+Kullanıcının seçtiği 7 madde uygulandı:
+- **Açıklama (description):** `manuf_action_items.description` kolonu eklendi, `ActionDetailModal`'da düzenlenebilir textarea ile.
+- **Yorum/Aktivite:** Yeni `manuf_action_item_comments` tablosu (yazar adı serbest metin — gerçek kullanıcı kimliği olmadığı için), detay modalında kronolojik liste + ekleme formu. `created_at`/`updated_at` zaman damgaları da modalda gösterilmeye başlandı. Not: alan-bazlı otomatik audit/aktivite log'u yapılmadı, sadece manuel yorumlar + zaman damgaları var.
+- **Arama:** Başlık/açıklama üzerinde metin araması (`filterBySearch`), eşleşen alt maddelerin ataları da korunarak ağaç bütünlüğü bozulmuyor.
+- **Başlangıç tarihi:** `start_date` kolonu, varsayılan `current_date` (hem DB default hem `createActionItem` içinde client default).
+- **Excel export:** Önce CSV olarak yapıldı, kullanıcı "excel çıktısı csv geliyor" diye düzeltti — `exceljs` ile gerçek `.xlsx` (projedeki `duruslar`/üretim exportlarıyla aynı görsel standart: yeşil başlık, zebra satır).
+- **Yeni madde sona ekleniyor:** `setItems(prev => [...prev, yeni])` (önceden `[yeni, ...prev]` ile en üste gidiyordu).
+- **Sorumlu filtresi:** Veritabanındaki benzersiz `assignee` değerlerinden dinamik filtre dropdown'ı.
+
+**Düzeltme:** `updateActionItem` önceden sadece `{success:true}` dönüyordu, `updated_at` UI'da yenilenmiyordu ("son güncelleme tarihi değişmiyor" bug raporu) — fonksiyon artık güncel satırı `select().single()` ile geri döndürüyor, tüm handler'lar `res.data` üzerinden `items` ve açık `detailItem` state'ini güncelliyor.
+
+### 2. Magic-Link Yetkilendirme (Sadece Bu Sayfa)
+- **Sorun:** Tüm düzenlemeler tek paylaşılan admin şifresine (`"repkonopm"`) bağlıydı; sorumluların kendi maddelerini güncelleyebilmesi isteniyordu.
+- **Karar:** Supabase Auth magic-link (e-posta ile şifresiz giriş). Site geneli şifre duvarı tüm diğer sayfalarda korunmalıydı — kullanıcı onayıyla **sadece `/aksiyon-takip` ve `/auth`** middleware istisnasına alındı, diğer sayfalar etkilenmedi.
+- **Uygulama:** `src/app/auth/callback/route.ts` (code exchange), `AssigneeAuthControl.tsx` (e-posta giriş/çıkış UI), `canEditItem`/`ensureRowAuthorized` (satır bazlı yetki: giriş yapan e-posta `assignee_email` ile eşleşirse o maddede başlık/açıklama/durum/öncelik/tarih düzenlenebilir; sorumlu atama/silme/alt madde admin şifresine tabi kaldı).
+- **Admin e-postaları:** `ADMIN_EMAILS` listesi (`tayfun.vural@repkon.com.tr`, `baris.sahinoglu@repkon.com.tr`, sonra `ahmet.akin@repkon.com.tr` eklendi) magic-link ile girince otomatik tam yetki (`isFullyAuthorized`) — şifresiz.
+- **SMTP serüveni (sırasıyla denenip vazgeçildi):**
+  1. Supabase varsayılan mailer → saatte 2 e-posta limiti çok düşük bulundu.
+  2. Office365 SMTP (`smtp.office365.com`) → 504 Gateway Timeout (kiracıda SMTP AUTH kapalı, IT gerektirir).
+  3. Resend (`onboarding@resend.dev`) → 403 (sandbox modda sadece hesap sahibinin kendi e-postasına gönderim yapılabiliyor, domain doğrulaması IT/DNS gerektirir).
+  4. Gmail SMTP (App Password) → çalıştı ama kurumsal alıcılarda spam/junk'a düşüyor (kişisel gmail + "Repkon" görünen adı phishing paterni gibi algılanıyor).
+  - **Sonuç:** Kullanıcı "tamam kalsın bu böyle" dedi — varsayılan Supabase mailer ile devam ediliyor, alıcılar ilk seferde göndereni güvenli listeye eklemeli.
+- **Yapılandırma hatası:** İlk testte magic-link `localhost:3000`'e yönlendirdi (production domain'den istek yapılmasına rağmen) — sebep Supabase **Redirect URLs** listesinin boş olmasıydı (Site URL doğruydu ama spesifik callback URL allow-list'te yoktu). Hem `https://manuf-ui.vercel.app/auth/callback` hem `http://localhost:3000/auth/callback` Redirect URLs'e eklenerek çözüldü — Site URL değiştirilmedi.
+- **E-posta şablonları:** Repkon markalı Türkçe HTML şablonları (Confirm Signup + Magic Link) kullanıcıya verildi, Dashboard'a kendisi yapıştırdı (kod tarafında saklı değil).
+
+### 3. Koyu Tema (Dark Mode) Yeniden Tasarımı
+- Kullanıcı "basit bir demo arayüz gibi, kurumsal hale getir" dedi → "Linear/Notion tarzı koyu SaaS paneli" yönü seçildi.
+- Tüm sayfa bileşenleri (`page.tsx`, `CellSidebar`, `ActionRow`, `InlineActionCreateRow`, `ActionDetailModal`, `PasswordDialog`, `AssigneeAuthControl`, `AssigneeAutocomplete`, `helpers.ts` rozet renkleri) zinc-900/800/700 paleti + emerald vurgu rengiyle yeniden yazıldı.
+- İlk taslak "çok koyu" bulundu → tüm `zinc-NNN` sınıfları tek seferlik bir Node script ile (zinc-950→900→...→100 kademe kaydırması, regex tabanlı tek-geçiş mapping, cascading riski olmadan) bir ton açık tona çekildi.
+- **Native select sorunu:** Tarayıcı/OS'nin çizdiği `<option>` listesi (gri zemin + mavi seçili satır) CSS ile tema rengine çekilemediği için, `_components/Select.tsx` adında özel bir dropdown bileşeni yazıldı; üstteki Durum/Öncelik/Sorumlu filtreleri ve satır içi Öncelik/Durum alanları buna geçirildi.
+- **Scrollbar:** Tablo/sidebar/modal/dropdown'daki kaydırma çubukları Tailwind arbitrary-variant (`[&::-webkit-scrollbar]:...`) ile koyu temaya uyarlandı.
+- **Okunabilirlik:** Koyu fonda ince (400 ağırlık) ikincil metinler "erimiş" göründüğü için, etiket/zaman damgası/yardımcı metinlere `font-medium` eklendi (font ailesi — Geist Sans — değiştirilmedi, sadece ağırlık).
+
+### Dosya Değişiklikleri
+- **Yeni:** `_components/ActionDetailModal.tsx`, `_components/AssigneeAuthControl.tsx`, `_components/Select.tsx`, `src/app/auth/callback/route.ts`, `supabase/migrations/20260630120000_add_action_item_description_dates_comments.sql`
+- **Güncellenen:** `page.tsx`, `actions.ts`, `_components/ActionRow.tsx`, `_components/InlineActionCreateRow.tsx`, `_components/CellSidebar.tsx`, `_components/AssigneeAutocomplete.tsx`, `_components/helpers.ts`, `src/middleware.ts`
+- **Wiki:** `wiki/systems/aksiyon-takip.md` (kapsamlı yeniden yazım), `wiki/systems/sifre-korumasi.md` (middleware istisnası eklendi), `wiki/index.md`, `wiki/log.md`
+
+---
+
 ## [2026-06-28] refactor | Tüm Proje Dosyaları Maks 300/500 Satır Refaktörü
 
 Tüm kaynak dosyalar (wiki hariç) maksimum 300 satır (mümkün değilse 500) olacak şekilde atomik olarak refactor edildi. Hiçbir veri kaybı, arayüz değişikliği veya işlevsellik bozulması yok.
