@@ -39,6 +39,7 @@ export function ActionRow({
   onStartDateChange, onDueDateChange, onTitleChange, onDelete, onAddSub, onCreateSub, onCloseSub,
   isPending, subFormParentId, subTitle, onSubTitleChange,
   showCellColumn, isAuthorized, ensureAuthorized, titleWidth, onOpenDetail,
+  canEditItem, ensureRowAuthorized,
 }: {
   item: ActionItem;
   depth: number;
@@ -64,8 +65,11 @@ export function ActionRow({
   ensureAuthorized: (cb: () => void) => void;
   titleWidth: number;
   onOpenDetail: (item: ActionItem) => void;
+  canEditItem: (item: ActionItem) => boolean;
+  ensureRowAuthorized: (item: ActionItem, cb: () => void) => void;
 }) {
   const hasChildren = item.children && item.children.length > 0;
+  const rowEditable = canEditItem(item);
   const isExpanded = expandedRows.has(item.id);
   const isOverdue =
     item.due_date &&
@@ -100,6 +104,14 @@ export function ActionRow({
     }
   };
 
+  const rowGuard = (e: React.MouseEvent) => {
+    if (!rowEditable) {
+      e.stopPropagation();
+      e.preventDefault();
+      ensureRowAuthorized(item, () => {});
+    }
+  };
+
   return (
     <>
       <tr className={`hover:bg-zinc-50 ${depth > 0 ? "bg-zinc-25" : ""}`}>
@@ -123,7 +135,7 @@ export function ActionRow({
             style={{ paddingLeft: depth > 0 ? depth * 12 : 0 }}
             onClick={() => {
               if (isEditingTitle) return;
-              ensureAuthorized(() => {
+              ensureRowAuthorized(item, () => {
                 setTempTitle(item.title);
                 setIsEditingTitle(true);
               });
@@ -184,25 +196,25 @@ export function ActionRow({
           </div>
         </td>
         <td className="px-3 py-3">
-          <div onClickCapture={authGuard}>
+          <div onClickCapture={rowGuard}>
             <input type="date"
               className="h-8 w-32 rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none"
               value={item.start_date || ""} onChange={(e) => onStartDateChange(item.id, e.target.value)}
-              disabled={isPending || !isAuthorized} />
+              disabled={isPending || !rowEditable} />
           </div>
         </td>
         <td className="px-3 py-3">
-          <div onClickCapture={authGuard}>
+          <div onClickCapture={rowGuard}>
             <input type="date"
               className={`h-8 w-32 rounded-md border px-2 text-xs outline-none ${
                 isOverdue ? "border-rose-300 bg-rose-50 font-medium text-rose-600" : "border-zinc-200 bg-transparent text-zinc-700"
               }`}
               value={item.due_date || ""} onChange={(e) => onDueDateChange(item.id, e.target.value)}
-              disabled={isPending || !isAuthorized} />
+              disabled={isPending || !rowEditable} />
           </div>
         </td>
         <td className="px-3 py-3">
-          <div onClickCapture={authGuard}>
+          <div onClickCapture={rowGuard}>
             <select
               className={`h-8 w-24 rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none disabled:cursor-not-allowed ${
                 item.priority === "Yüksek" ? "text-rose-600 font-semibold" :
@@ -210,18 +222,18 @@ export function ActionRow({
                 item.priority === "Düşük" ? "text-blue-600 font-medium" : "text-zinc-400"
               }`}
               value={item.priority || ""} onChange={(e) => onPriorityChange(item.id, e.target.value || null)}
-              disabled={isPending || !isAuthorized}>
+              disabled={isPending || !rowEditable}>
               <option value="">Öncelik</option>
               {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
         </td>
         <td className="px-3 py-3">
-          <div onClickCapture={authGuard}>
+          <div onClickCapture={rowGuard}>
             <select
               className={`rounded-md px-2 py-1 text-xs font-medium outline-none disabled:cursor-not-allowed ${statusColor(item.status)}`}
               value={item.status} onChange={(e) => onStatusChange(item.id, e.target.value)}
-              disabled={isPending || !isAuthorized}>
+              disabled={isPending || !rowEditable}>
               {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -263,7 +275,8 @@ export function ActionRow({
               isPending={isPending} subFormParentId={subFormParentId} subTitle={subTitle}
               onSubTitleChange={onSubTitleChange} showCellColumn={showCellColumn}
               isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized}
-              titleWidth={titleWidth} onOpenDetail={onOpenDetail} />
+              titleWidth={titleWidth} onOpenDetail={onOpenDetail}
+              canEditItem={canEditItem} ensureRowAuthorized={ensureRowAuthorized} />
           ))
         : null}
     </>

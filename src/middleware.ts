@@ -6,12 +6,15 @@ export async function middleware(request: NextRequest) {
   const response = await updateSession(request)
   const { pathname } = request.nextUrl
 
-  // Allow static files, api routes, and the login page
+  // Allow static files, api routes, the login page, the Supabase auth callback,
+  // and the Aksiyon Takip page (it has its own magic-link / per-row auth model)
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname === '/favicon.ico' ||
     pathname === '/login' ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/aksiyon-takip') ||
     /\.(?:svg|png|jpg|jpeg|gif|webp)$/.test(pathname)
   ) {
     return response

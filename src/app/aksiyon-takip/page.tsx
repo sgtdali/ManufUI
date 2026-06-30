@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { ArrowLeft, ArrowUp, ArrowDown, ArrowUpDown, Lock, LockOpen, Search, Download } from "lucide-react";
 import { BOLUMLER } from "@/lib/types";
 import { isReadOnlyUser } from "@/lib/useAuthRole";
+import { createClient } from "@/lib/supabase/client";
+import { AssigneeAuthControl } from "./_components/AssigneeAuthControl";
 import {
   loadActionItems, createActionItem, updateActionItem, deleteActionItem, loadAssignees,
   loadComments, addComment,
@@ -19,6 +21,9 @@ import { PasswordDialog } from "./_components/PasswordDialog";
 import { ActionDetailModal } from "./_components/ActionDetailModal";
 
 const ACTION_CELLS = [...BOLUMLER];
+
+const ADMIN_EMAILS = ["tayfun.vural@repkon.com.tr", "baris.sahinoglu@repkon.com.tr"];
+const isAdminEmail = (email: string | null) => !!email && ADMIN_EMAILS.includes(email.toLowerCase());
 
 export default function AksiyonTakipPage() {
   const [globalReadOnly, setGlobalReadOnly] = useState(false);
@@ -56,9 +61,34 @@ export default function AksiyonTakipPage() {
     return false;
   };
 
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // tayfun.vural / baris.sahinoglu için magic-link girişi, "repkonopm" şifresini girmiş gibi tam yetki verir
+  const isFullyAuthorized = isAuthorized || isAdminEmail(userEmail);
+
   const ensureAuthorized = (callback: () => void) => {
     if (globalReadOnly) { toast.error("Salt okunur erisim — duzenleme yetkiniz yok."); return; }
-    if (isAuthorized) { callback(); } else { setPendingAction(() => callback); setIsPasswordDialogOpen(true); }
+    if (isFullyAuthorized) { callback(); } else { setPendingAction(() => callback); setIsPasswordDialogOpen(true); }
+  };
+
+  const isOwnerOfItem = (item: ActionItem | null | undefined): boolean =>
+    !!item && !!userEmail && !!item.assignee_email && userEmail.toLowerCase() === item.assignee_email.toLowerCase();
+
+  const canEditItem = (item: ActionItem | null | undefined): boolean => isFullyAuthorized || isOwnerOfItem(item);
+
+  const ensureRowAuthorized = (item: ActionItem | null | undefined, callback: () => void) => {
+    if (globalReadOnly) { toast.error("Salt okunur erisim — duzenleme yetkiniz yok."); return; }
+    if (canEditItem(item)) { callback(); return; }
+    ensureAuthorized(callback);
   };
 
   const [titleWidth, setTitleWidth] = useState(300);
@@ -327,9 +357,12 @@ export default function AksiyonTakipPage() {
       <header className="flex flex-col gap-2 border-b border-zinc-200 pb-3 md:flex-row md:items-end md:justify-between w-full">
         <div><h1 className="text-2xl font-semibold tracking-normal">Aksiyon Takip</h1></div>
         <div className="flex flex-wrap gap-2 items-center">
-          {isAuthorized ? (
-            <button onClick={handleLock}
-              className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 shadow-sm hover:bg-rose-100 transition" title="Düzenleme modunu kapat">
+          <AssigneeAuthControl userEmail={userEmail} onSignedOut={() => setUserEmail(null)} />
+          {isFullyAuthorized ? (
+            <button onClick={isAdminEmail(userEmail) ? undefined : handleLock}
+              disabled={isAdminEmail(userEmail)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 shadow-sm hover:bg-rose-100 transition disabled:cursor-default disabled:hover:bg-rose-50"
+              title={isAdminEmail(userEmail) ? "Yönetici e-postası ile tam yetkili giriş" : "Düzenleme modunu kapat"}>
               <LockOpen className="size-4" /> Düzenleme Açık
             </button>
           ) : (
@@ -438,25 +471,26 @@ export default function AksiyonTakipPage() {
                     <ActionRow key={item.id} item={item} depth={0}
                       titleWidth={titleWidth}
                       expandedRows={expandedRows} toggleExpand={toggleExpand} assignees={assignees}
-                      onStatusChange={(id, status) => ensureAuthorized(() => handleStatusChange(id, status))}
-                      onPriorityChange={(id, priority) => ensureAuthorized(() => handlePriorityChange(id, priority))}
+                      onStatusChange={(id, status) => ensureRowAuthorized(items.find((i) => i.id === id), () => handleStatusChange(id, status))}
+                      onPriorityChange={(id, priority) => ensureRowAuthorized(items.find((i) => i.id === id), () => handlePriorityChange(id, priority))}
                       onAssigneeChange={(id, assignee, email) => ensureAuthorized(() => handleAssigneeChange(id, assignee, email))}
-                      onStartDateChange={(id, start_date) => ensureAuthorized(() => handleStartDateChange(id, start_date))}
-                      onDueDateChange={(id, due_date) => ensureAuthorized(() => handleDueDateChange(id, due_date))}
-                      onTitleChange={(id, title) => ensureAuthorized(() => handleTitleChange(id, title))}
+                      onStartDateChange={(id, start_date) => ensureRowAuthorized(items.find((i) => i.id === id), () => handleStartDateChange(id, start_date))}
+                      onDueDateChange={(id, due_date) => ensureRowAuthorized(items.find((i) => i.id === id), () => handleDueDateChange(id, due_date))}
+                      onTitleChange={(id, title) => ensureRowAuthorized(items.find((i) => i.id === id), () => handleTitleChange(id, title))}
                       onDelete={(id) => ensureAuthorized(() => handleDelete(id))}
                       onAddSub={(parentId, _parentCell) => ensureAuthorized(() => openSubForm(parentId))}
                       onCreateSub={(parentId, parentCell) => ensureAuthorized(() => handleSubInlineCreate(parentId, parentCell))}
                       onCloseSub={() => setSubFormParentId(null)}
                       isPending={isPending} subFormParentId={subFormParentId} subTitle={subInlineTitle}
                       onSubTitleChange={setSubInlineTitle} showCellColumn={showCellColumn}
-                      isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized}
-                      onOpenDetail={handleOpenDetail} />
+                      isAuthorized={isFullyAuthorized} ensureAuthorized={ensureAuthorized}
+                      onOpenDetail={handleOpenDetail}
+                      canEditItem={canEditItem} ensureRowAuthorized={ensureRowAuthorized} />
                   ))}
                   <InlineActionCreateRow selectedCell={filterCell} title={inlineTitle} isPending={isPending}
                     titleWidth={titleWidth}
                     onTitleChange={setInlineTitle} onCreate={() => ensureAuthorized(() => handleInlineCreate())}
-                    showCellColumn={showCellColumn} isAuthorized={isAuthorized} ensureAuthorized={ensureAuthorized} />
+                    showCellColumn={showCellColumn} isAuthorized={isFullyAuthorized} ensureAuthorized={ensureAuthorized} />
                 </tbody>
               </table>
             )}
@@ -474,10 +508,10 @@ export default function AksiyonTakipPage() {
           commenterName={commenterName}
           onCommenterNameChange={handleCommenterNameChange}
           onClose={() => setDetailItem(null)}
-          onDescriptionChange={(id, description) => ensureAuthorized(() => handleDescriptionChange(id, description))}
+          onDescriptionChange={(id, description) => ensureRowAuthorized(detailItem, () => handleDescriptionChange(id, description))}
           onAddComment={handleAddComment}
-          isAuthorized={isAuthorized}
-          ensureAuthorized={ensureAuthorized}
+          isAuthorized={canEditItem(detailItem)}
+          ensureAuthorized={(cb) => ensureRowAuthorized(detailItem, cb)}
         />
       ) : null}
     </main>
