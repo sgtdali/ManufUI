@@ -23,6 +23,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [Aksiyon Takip](systems/aksiyon-takip.md) | `/aksiyon-takip` sayfası (koyu tema): açıklama/yorum, arama, başlangıç tarihi, Excel export, magic-link e-posta girişi + satır bazlı sorumlu yetkisi, admin şifresi, özel Select bileşeni |
 | [Global Şifre Koruması](systems/sifre-korumasi.md) | Tüm sitenin genel şifre yetkilendirmesi (`rmk_hf901`), middleware kontrolü, şifresiz salt okunur performans paneli erişimi ve `/aksiyon-takip` istisnası |
 | [Otomasyon & Entegrasyon Paneli](systems/teams-entegrasyonu.md) | Günlük e-posta raporu, Teams bildirimleri, cron joblar ve webhook adreslerini yöneten şifre korumalı panel |
+| [Hat Kapanış Tahmini](systems/hat-forecast.md) | `/hat-forecast` sayfası: Pres'in 9 Temmuz'da kapanması sonrası hattaki tüm hücrelerin ne zaman biteceğini hesaplayan rundown simülasyonu |
 
 ## Entities — Varlıklar ve Veri Yapıları
 
@@ -49,6 +50,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 - `/kalip-takip` → [Pres Hücresi Kalıp Değişim Takibi](systems/kalip-takip.md)
 - `/aksiyon-takip` → [Aksiyon Takip](systems/aksiyon-takip.md)
 - `/veri-takip` → Veri takip (henüz incelenmedi)
+- `/hat-forecast` → [Hat Kapanış Tahmini](systems/hat-forecast.md)
 
 **Anahtar dosyalar:**
 - `src/lib/types.ts` — BOLUMLER, DURUS_KOLONLARI, ZAMAN_DILIMLERI
