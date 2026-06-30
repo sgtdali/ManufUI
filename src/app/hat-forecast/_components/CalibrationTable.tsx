@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { SlotActual } from "../_actions/actions";
-import { FORECAST_CELLS, ForecastCell } from "../_actions/actions";
+import { SlotActual, FORECAST_CELLS } from "../_lib/constants";
 import { slotKey, SlotKey } from "./forecastUtils";
 
 type Props = {

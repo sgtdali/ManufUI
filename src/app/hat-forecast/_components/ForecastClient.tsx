@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useTransition, type ReactNode } from "react";
 import { Calculator, TrendingUp, Sliders } from "lucide-react";
-import { SlotActual } from "../_actions/actions";
+import { SlotActual } from "../_lib/constants";
 import {
   SlotKey, slotKey, InterventionMap, Intervention,
   computeCellAverages, computeCurrentWip, computeProjection, computeFinishDates,

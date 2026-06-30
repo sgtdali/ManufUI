@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, X, Pencil } from "lucide-react";
-import { FORECAST_CELLS, ForecastCell } from "../_actions/actions";
+import { FORECAST_CELLS } from "../_lib/constants";
 import { InterventionMap, Intervention } from "./forecastUtils";
 
 type Props = {

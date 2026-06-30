@@ -1,4 +1,4 @@
-import { SlotActual, FORECAST_CELLS } from "../_actions/actions";
+import { SlotActual, FORECAST_CELLS } from "../_lib/constants";
 
 export type SlotKey = string; // `${bolum}||${tarih}||${zamanDilimi}`
 export type Intervention = { disabled?: boolean; extraHours?: number };

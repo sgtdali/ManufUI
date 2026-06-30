@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { CheckCircle, Clock, AlertCircle } from "lucide-react";
-import { FORECAST_CELLS } from "../_actions/actions";
+import { FORECAST_CELLS } from "../_lib/constants";
 import { ProjectionDay } from "./forecastUtils";
 
 type Props = {
