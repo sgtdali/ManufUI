@@ -6,6 +6,7 @@ import type { ActionItem, Assignee } from "../actions";
 import { PRIORITIES, STATUSES, statusColor } from "./helpers";
 import { AssigneeAutocomplete } from "./AssigneeAutocomplete";
 import { InlineActionCreateRow } from "./InlineActionCreateRow";
+import { Select } from "./Select";
 
 function PlannerSyncBadge({ item }: { item: ActionItem }) {
   if (!item.assignee_email) return null;
@@ -13,7 +14,7 @@ function PlannerSyncBadge({ item }: { item: ActionItem }) {
   if (item.planner_task_id) {
     return (
       <span
-        className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-200"
+        className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20"
         title={`Planner senkron (ID: ${item.planner_task_id})`}
       >
         <RefreshCw className="size-2.5" />
@@ -24,7 +25,7 @@ function PlannerSyncBadge({ item }: { item: ActionItem }) {
 
   return (
     <span
-      className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-zinc-50 text-zinc-400 border border-zinc-200"
+      className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-zinc-700 text-zinc-400 ring-1 ring-inset ring-zinc-600"
       title="Planner görevi henüz oluşturulmadı"
     >
       <CloudOff className="size-2.5" />
@@ -114,16 +115,16 @@ export function ActionRow({
 
   return (
     <>
-      <tr className={`hover:bg-zinc-50 ${depth > 0 ? "bg-zinc-25" : ""}`}>
+      <tr className={`hover:bg-zinc-700/40 transition-colors ${depth > 0 ? "bg-zinc-800/30" : ""}`}>
         <td className="px-3 py-3">
           <div className="flex items-center" style={{ marginLeft: depth > 0 ? depth * 12 : 0 }}>
             {hasChildren ? (
-              <button className="text-emerald-700 hover:text-emerald-900 mr-1" onClick={() => toggleExpand(item.id)}
+              <button className="text-emerald-400 hover:text-emerald-300 mr-1" onClick={() => toggleExpand(item.id)}
                 title="Alt maddeleri göster/gizle">
                 {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
               </button>
             ) : depth > 0 ? (
-              <span className="inline-block text-zinc-300 w-5 mr-1 text-center">└</span>
+              <span className="inline-block text-zinc-600 w-5 mr-1 text-center">└</span>
             ) : (
               <span className="inline-block w-5 mr-1" />
             )}
@@ -144,7 +145,7 @@ export function ActionRow({
             {isEditingTitle ? (
               <input
                 type="text"
-                className="w-full rounded border border-zinc-300 px-2 py-0.5 text-xs text-zinc-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded border border-zinc-600 bg-zinc-700 px-2 py-0.5 text-xs text-zinc-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 value={tempTitle}
                 onChange={(e) => setTempTitle(e.target.value)}
                 onBlur={() => handleSaveTitle()}
@@ -162,13 +163,13 @@ export function ActionRow({
             ) : (
               <div className="flex items-start min-w-0 flex-wrap gap-1.5 whitespace-normal break-words w-full">
                 <span
-                  className={`font-medium whitespace-normal break-words ${item.status === "Tamamlandı" ? "text-zinc-400 line-through" : "text-zinc-900"}`}
+                  className={`font-medium whitespace-normal break-words ${item.status === "Tamamlandı" ? "text-zinc-500 line-through" : "text-zinc-100"}`}
                 >
                   {item.title}
                 </span>
                 <PlannerSyncBadge item={item} />
                 <button
-                  className="text-zinc-400 hover:text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-zinc-100 shrink-0 inline-flex items-center justify-center"
+                  className="text-zinc-500 hover:text-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-zinc-700 shrink-0 inline-flex items-center justify-center"
                   title="Başlığı Düzenle"
                 >
                   <Pencil className="size-3.5" />
@@ -179,7 +180,7 @@ export function ActionRow({
         </td>
         {showCellColumn ? (
           <td className="px-3 py-3">
-            <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">{item.cell}</span>
+            <span className="rounded-md bg-zinc-700 px-2 py-1 text-xs font-medium text-zinc-200">{item.cell}</span>
           </td>
         ) : null}
         <td className="px-3 py-3">
@@ -198,7 +199,7 @@ export function ActionRow({
         <td className="px-3 py-3">
           <div onClickCapture={rowGuard}>
             <input type="date"
-              className="h-8 w-32 rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none"
+              className="h-8 w-32 rounded-md border border-zinc-600 bg-zinc-700/60 px-2 text-xs text-zinc-200 outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 [color-scheme:dark]"
               value={item.start_date || ""} onChange={(e) => onStartDateChange(item.id, e.target.value)}
               disabled={isPending || !rowEditable} />
           </div>
@@ -206,8 +207,8 @@ export function ActionRow({
         <td className="px-3 py-3">
           <div onClickCapture={rowGuard}>
             <input type="date"
-              className={`h-8 w-32 rounded-md border px-2 text-xs outline-none ${
-                isOverdue ? "border-rose-300 bg-rose-50 font-medium text-rose-600" : "border-zinc-200 bg-transparent text-zinc-700"
+              className={`h-8 w-32 rounded-md border px-2 text-xs outline-none disabled:cursor-not-allowed disabled:opacity-60 [color-scheme:dark] ${
+                isOverdue ? "border-rose-500/40 bg-rose-500/10 font-medium text-rose-400" : "border-zinc-600 bg-zinc-700/60 text-zinc-200 focus:border-emerald-500"
               }`}
               value={item.due_date || ""} onChange={(e) => onDueDateChange(item.id, e.target.value)}
               disabled={isPending || !rowEditable} />
@@ -215,40 +216,39 @@ export function ActionRow({
         </td>
         <td className="px-3 py-3">
           <div onClickCapture={rowGuard}>
-            <select
-              className={`h-8 w-24 rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none disabled:cursor-not-allowed ${
-                item.priority === "Yüksek" ? "text-rose-600 font-semibold" :
-                item.priority === "Orta" ? "text-amber-600 font-medium" :
-                item.priority === "Düşük" ? "text-blue-600 font-medium" : "text-zinc-400"
+            <Select
+              value={item.priority || ""} onChange={(v) => onPriorityChange(item.id, v || null)}
+              disabled={isPending || !rowEditable} placeholder="Öncelik"
+              options={[{ value: "", label: "Öncelik" }, ...PRIORITIES.map((p) => ({ value: p, label: p }))]}
+              triggerClassName={`h-8 w-24 inline-flex items-center justify-between gap-1 rounded-md border border-zinc-600 bg-zinc-700/40 px-2 text-xs outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                item.priority === "Yüksek" ? "text-rose-400 font-semibold" :
+                item.priority === "Orta" ? "text-amber-400 font-medium" :
+                item.priority === "Düşük" ? "text-blue-400 font-medium" : "text-zinc-400 font-medium"
               }`}
-              value={item.priority || ""} onChange={(e) => onPriorityChange(item.id, e.target.value || null)}
-              disabled={isPending || !rowEditable}>
-              <option value="">Öncelik</option>
-              {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
+            />
           </div>
         </td>
         <td className="px-3 py-3">
           <div onClickCapture={rowGuard}>
-            <select
-              className={`rounded-md px-2 py-1 text-xs font-medium outline-none disabled:cursor-not-allowed ${statusColor(item.status)}`}
-              value={item.status} onChange={(e) => onStatusChange(item.id, e.target.value)}
-              disabled={isPending || !rowEditable}>
-              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <Select
+              value={item.status} onChange={(v) => onStatusChange(item.id, v)}
+              disabled={isPending || !rowEditable}
+              options={STATUSES.map((s) => ({ value: s, label: s }))}
+              triggerClassName={`inline-flex items-center justify-between gap-1 rounded-md px-2 py-1 text-xs font-medium outline-none disabled:cursor-not-allowed disabled:opacity-60 ${statusColor(item.status)}`}
+            />
           </div>
         </td>
         <td className="px-3 py-3">
           <div className="flex gap-1">
-            <button className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-emerald-700" title="Detay / Yorumlar"
+            <button className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-emerald-400 transition-colors" title="Detay / Yorumlar"
               onClick={() => onOpenDetail(item)}>
               <MessageSquare className="size-4" />
             </button>
-            <button className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-emerald-700" title="Alt madde ekle"
+            <button className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-emerald-400 transition-colors" title="Alt madde ekle"
               onClick={() => onAddSub(item.id, item.cell)}>
               <Plus className="size-4" />
             </button>
-            <button className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-rose-600" title="Sil"
+            <button className="rounded p-1 text-zinc-400 hover:bg-zinc-700 hover:text-rose-400 transition-colors" title="Sil"
               onClick={() => onDelete(item.id)}>
               <Trash2 className="size-4" />
             </button>

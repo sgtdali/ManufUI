@@ -74,7 +74,7 @@ export function AssigneeAutocomplete({
   return (
     <div className="relative w-36">
       <input
-        className="h-8 w-full rounded-md border border-zinc-200 bg-transparent px-2 text-xs text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20 disabled:cursor-not-allowed disabled:opacity-75"
+        className="h-8 w-full rounded-md border border-zinc-600 bg-zinc-700/60 px-2 text-xs text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);
@@ -91,19 +91,19 @@ export function AssigneeAutocomplete({
         disabled={disabled}
       />
       {isOpen && filtered.length > 0 && (
-        <div className="absolute left-0 z-50 mt-1 max-h-60 w-64 overflow-y-auto rounded-md border border-zinc-200 bg-white p-1 shadow-lg">
+        <div className="absolute left-0 z-50 mt-1 max-h-60 w-64 overflow-y-auto rounded-md border border-zinc-700 bg-zinc-800 p-1 shadow-xl [scrollbar-color:theme(colors.zinc.600)_theme(colors.zinc.900)] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-zinc-900 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-600">
           {filtered.map((assignee, idx) => (
             <div
               key={assignee.id}
               className={`cursor-pointer rounded px-2 py-1.5 text-left text-xs ${
                 idx === highlightedIndex
-                  ? "bg-emerald-50 text-emerald-900 font-medium"
-                  : "text-zinc-700 hover:bg-zinc-50"
+                  ? "bg-emerald-500/10 text-emerald-300 font-medium"
+                  : "text-zinc-200 hover:bg-zinc-700"
               }`}
               onMouseDown={() => handleSelect(assignee)}
             >
               <div className="font-semibold">{assignee.name}</div>
-              <div className="text-[10px] text-zinc-400 flex justify-between gap-2 mt-0.5">
+              <div className="text-[10px] font-medium text-zinc-400 flex justify-between gap-2 mt-0.5">
                 <span>{assignee.email}</span>
                 {assignee.title && <span className="italic">{assignee.title}</span>}
               </div>

@@ -4,15 +4,15 @@ export const PRIORITIES = ["Yüksek", "Orta", "Düşük"] as const;
 export const STATUSES = ["Açık", "Devam Ediyor", "Tamamlandı"] as const;
 
 export function priorityColor(p: string) {
-  if (p === "Yüksek") return "bg-rose-100 text-rose-800";
-  if (p === "Düşük") return "bg-zinc-100 text-zinc-600";
-  return "bg-amber-100 text-amber-800";
+  if (p === "Yüksek") return "bg-rose-500/10 text-rose-400 ring-1 ring-inset ring-rose-500/20";
+  if (p === "Düşük") return "bg-zinc-600/40 text-zinc-300 ring-1 ring-inset ring-zinc-500/40";
+  return "bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20";
 }
 
 export function statusColor(s: string) {
-  if (s === "Tamamlandı") return "bg-emerald-100 text-emerald-800";
-  if (s === "Devam Ediyor") return "bg-blue-100 text-blue-800";
-  return "bg-zinc-100 text-zinc-700";
+  if (s === "Tamamlandı") return "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20";
+  if (s === "Devam Ediyor") return "bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20";
+  return "bg-zinc-600/40 text-zinc-200 ring-1 ring-inset ring-zinc-500/40";
 }
 
 export function formatDate(d: string | null) {

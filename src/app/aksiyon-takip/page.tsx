@@ -8,6 +8,7 @@ import { BOLUMLER } from "@/lib/types";
 import { isReadOnlyUser } from "@/lib/useAuthRole";
 import { createClient } from "@/lib/supabase/client";
 import { AssigneeAuthControl } from "./_components/AssigneeAuthControl";
+import { Select } from "./_components/Select";
 import {
   loadActionItems, createActionItem, updateActionItem, deleteActionItem, loadAssignees,
   loadComments, addComment,
@@ -22,7 +23,7 @@ import { ActionDetailModal } from "./_components/ActionDetailModal";
 
 const ACTION_CELLS = [...BOLUMLER];
 
-const ADMIN_EMAILS = ["tayfun.vural@repkon.com.tr", "baris.sahinoglu@repkon.com.tr"];
+const ADMIN_EMAILS = ["tayfun.vural@repkon.com.tr", "baris.sahinoglu@repkon.com.tr", "ahmet.akin@repkon.com.tr"];
 const isAdminEmail = (email: string | null) => !!email && ADMIN_EMAILS.includes(email.toLowerCase());
 
 export default function AksiyonTakipPage() {
@@ -166,9 +167,9 @@ export default function AksiyonTakipPage() {
 
   const getSortIcon = (field: "assignee" | "due_date" | "priority" | "status") => {
     if (sortField !== field || sortDirection === "default")
-      return <ArrowUpDown className="size-3.5 text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity" />;
-    if (sortDirection === "asc") return <ArrowUp className="size-3.5 text-emerald-600" />;
-    return <ArrowDown className="size-3.5 text-emerald-600" />;
+      return <ArrowUpDown className="size-3.5 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />;
+    if (sortDirection === "asc") return <ArrowUp className="size-3.5 text-emerald-400" />;
+    return <ArrowDown className="size-3.5 text-emerald-400" />;
   };
 
   const fetchData = async () => {
@@ -353,25 +354,28 @@ export default function AksiyonTakipPage() {
   const showCellColumn = !filterCell;
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-4 py-4 text-zinc-950 md:px-8 flex flex-col gap-4">
-      <header className="flex flex-col gap-2 border-b border-zinc-200 pb-3 md:flex-row md:items-end md:justify-between w-full">
-        <div><h1 className="text-2xl font-semibold tracking-normal">Aksiyon Takip</h1></div>
+    <main className="min-h-screen bg-zinc-900 px-4 py-4 text-zinc-100 md:px-8 flex flex-col gap-4">
+      <header className="flex flex-col gap-2 border-b border-zinc-700 pb-4 md:flex-row md:items-end md:justify-between w-full">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">Repkon HF901</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Aksiyon Takip</h1>
+        </div>
         <div className="flex flex-wrap gap-2 items-center">
           <AssigneeAuthControl userEmail={userEmail} onSignedOut={() => setUserEmail(null)} />
           {isFullyAuthorized ? (
             <button onClick={isAdminEmail(userEmail) ? undefined : handleLock}
               disabled={isAdminEmail(userEmail)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 shadow-sm hover:bg-rose-100 transition disabled:cursor-default disabled:hover:bg-rose-50"
+              className="inline-flex items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 hover:bg-rose-500/15 transition disabled:cursor-default disabled:hover:bg-rose-500/10"
               title={isAdminEmail(userEmail) ? "Yönetici e-postası ile tam yetkili giriş" : "Düzenleme modunu kapat"}>
               <LockOpen className="size-4" /> Düzenleme Açık
             </button>
           ) : (
             <button onClick={() => ensureAuthorized(() => {})}
-              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-100 transition" title="Düzenleme yapmak için tıklayın">
+              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 hover:bg-zinc-700 hover:text-white transition" title="Düzenleme yapmak için tıklayın">
               <Lock className="size-4" /> Düzenleme Kilitli
             </button>
           )}
-          <Link className="inline-flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100" href="/">
+          <Link className="inline-flex items-center gap-2 rounded-md border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-200 hover:bg-zinc-700 hover:text-white transition" href="/">
             <ArrowLeft className="size-4" /> Forma dön
           </Link>
         </div>
@@ -382,80 +386,74 @@ export default function AksiyonTakipPage() {
           totalCount={itemsMatchingStatusAndPriority.filter((item) => !item.parent_id).length} onSelectCell={setFilterCell} />
 
         <div className="flex min-w-0 flex-col gap-4">
-          <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <section className="rounded-xl border border-zinc-700 bg-zinc-800/60 p-4 shadow-sm">
             <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-zinc-600">Ara</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Ara</label>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
                   <input type="text"
-                    className="h-9 w-full rounded-md border border-zinc-300 bg-white pl-8 pr-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
+                    className="h-9 w-full rounded-md border border-zinc-600 bg-zinc-700/60 pl-8 pr-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-3 focus:ring-emerald-500/15"
                     placeholder="Başlık veya açıklamada ara..."
                     value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-zinc-600">Durum</label>
-                <select className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
-                  value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                  <option value="">Tümü</option>
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Durum</label>
+                <Select
+                  value={filterStatus} onChange={setFilterStatus} placeholder="Tümü"
+                  options={[{ value: "", label: "Tümü" }, ...STATUSES.map((s) => ({ value: s, label: s }))]} />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-zinc-600">Öncelik</label>
-                <select className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
-                  value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
-                  <option value="">Tümü</option>
-                  {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Öncelik</label>
+                <Select
+                  value={filterPriority} onChange={setFilterPriority} placeholder="Tümü"
+                  options={[{ value: "", label: "Tümü" }, ...PRIORITIES.map((p) => ({ value: p, label: p }))]} />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-zinc-600">Sorumlu</label>
-                <select className="h-9 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-600/20"
-                  value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
-                  <option value="">Tümü</option>
-                  {assigneeOptions.map((a) => <option key={a} value={a}>{a}</option>)}
-                </select>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Sorumlu</label>
+                <Select
+                  value={filterAssignee} onChange={setFilterAssignee} placeholder="Tümü"
+                  options={[{ value: "", label: "Tümü" }, ...assigneeOptions.map((a) => ({ value: a, label: a }))]} />
               </div>
-              <button className="self-end rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+              <button className="self-end rounded-md border border-zinc-600 bg-zinc-700/60 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-zinc-700 hover:text-white transition"
                 onClick={() => { setFilterCell(""); setFilterStatus(""); setFilterPriority(""); setFilterAssignee(""); setSearchQuery(""); }}>
                 Temizle
               </button>
-              <button className="inline-flex items-center gap-1.5 self-end rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100"
+              <button className="inline-flex items-center gap-1.5 self-end rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition"
                 onClick={handleExportExcel} title="Excel olarak dışa aktar">
                 <Download className="size-4" /> Dışa Aktar
               </button>
             </div>
           </section>
 
-          <section className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-240px)] rounded-lg border border-zinc-200 bg-white shadow-sm">
+          <section className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-240px)] rounded-xl border border-zinc-700 bg-zinc-800/60 shadow-sm [scrollbar-color:theme(colors.zinc.600)_theme(colors.zinc.900)] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-zinc-900 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-600 [&::-webkit-scrollbar-thumb:hover]:bg-zinc-500">
             {loading ? (
-              <div className="p-8 text-center text-sm text-zinc-500">Yükleniyor...</div>
+              <div className="p-8 text-center text-sm font-medium text-zinc-400">Yükleniyor...</div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-zinc-50">
-                  <tr className="bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wider text-zinc-700 select-none">
-                    <th className="w-8 px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]"></th>
+                <thead className="sticky top-0 z-10 bg-zinc-800">
+                  <tr className="border-b border-zinc-700 bg-zinc-800 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400 select-none">
+                    <th className="w-8 px-3 py-3"></th>
                     <th
-                      className="relative px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] group/resize select-none"
+                      className="relative px-3 py-3 group/resize select-none"
                       style={{ width: titleWidth, minWidth: titleWidth, maxWidth: titleWidth }}
                     >
                       <span>Başlık</span>
                       <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-zinc-300 hover:bg-emerald-600 hover:w-1.5 active:bg-emerald-800 active:w-1.5 transition-all"
+                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-emerald-500 active:bg-emerald-600 transition-colors"
                         onMouseDown={handleResizeMouseDown}
                         title="Sütun genişliğini ayarlamak için sürükleyin"
                       />
                     </th>
-                    {showCellColumn ? <th className="px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]">Hücre</th> : null}
-                    <th className="group cursor-pointer px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                    {showCellColumn ? <th className="px-3 py-3">Hücre</th> : null}
+                    <th className="group cursor-pointer px-3 py-3 hover:text-zinc-100 transition-colors"
                       onClick={() => handleSort("assignee")}>
                       <div className="flex items-center gap-1"><span>Sorumlu</span>{getSortIcon("assignee")}</div>
                     </th>
-                    <th className="px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]">Başlangıç</th>
+                    <th className="px-3 py-3">Başlangıç</th>
                     {(["due_date", "priority", "status"] as const).map((field) => (
-                      <th key={field} className="group cursor-pointer px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8] hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+                      <th key={field} className="group cursor-pointer px-3 py-3 hover:text-zinc-100 transition-colors"
                         onClick={() => handleSort(field)}>
                         <div className="flex items-center gap-1">
                           <span>{field === "due_date" ? "Termin" : field === "priority" ? "Öncelik" : "Durum"}</span>
@@ -463,10 +461,10 @@ export default function AksiyonTakipPage() {
                         </div>
                       </th>
                     ))}
-                    <th className="w-24 px-3 py-3 shadow-[inset_0_-2px_0_0_#d4d4d8]"></th>
+                    <th className="w-24 px-3 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100">
+                <tbody className="divide-y divide-zinc-700">
                   {tree.map((item) => (
                     <ActionRow key={item.id} item={item} depth={0}
                       titleWidth={titleWidth}
