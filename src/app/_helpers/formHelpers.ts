@@ -23,6 +23,8 @@ export function buildEmptyRows(
   }
   const defaultTarget = isWeekend
     ? null
+    : bolum === "ROB108 Hücresi"
+    ? 18
     : isTargetDefault20
     ? 20
     : isTargetDefault15
