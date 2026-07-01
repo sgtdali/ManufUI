@@ -173,7 +173,8 @@ export function getZamanDilimleriForCellAndDate(bolum: string | null | undefined
     bolum === "Flowform Hücresi" ||
     bolum === "ROB104 Hücresi" ||
     bolum === "ROB108 Hücresi" ||
-    bolum === "ROB109 Hücresi"
+    bolum === "ROB109 Hücresi" ||
+    bolum === "ROB110-111 Hücresi"
   ) {
     if (tarih && /^\d{4}-\d{2}-\d{2}$/.test(tarih)) {
       const day = new Date(`${tarih}T00:00:00`).getDay();
