@@ -126,13 +126,17 @@ export default function CalibrationTable({ actuals, selectedSlots, onToggleSlot,
             </tr>
             <tr className="bg-zinc-900 border-b border-zinc-700">
               <td className="sticky left-0 z-10 bg-zinc-900 px-3 py-1.5 text-zinc-500 italic text-[10px]">
-                Günlük projeksiyon (×9sa)
+                Günlük projeksiyon
               </td>
-              {FORECAST_CELLS.map((cell) => (
-                <td key={cell} className="px-2 py-1.5 text-center text-zinc-400 text-[11px]">
-                  {Math.round((cellAverages[cell] ?? 0) * 9)}
-                </td>
-              ))}
+              {FORECAST_CELLS.map((cell) => {
+                const stdHours = cell === "Flowform Hücresi" ? 13 : 9;
+                return (
+                  <td key={cell} className="px-2 py-1.5 text-center text-zinc-400 text-[11px]">
+                    <span className="font-medium">{Math.round((cellAverages[cell] ?? 0) * stdHours)}</span>
+                    <span className="text-zinc-500 text-[9px] block">({stdHours}sa)</span>
+                  </td>
+                );
+              })}
             </tr>
 
             {/* Per-day rows */}

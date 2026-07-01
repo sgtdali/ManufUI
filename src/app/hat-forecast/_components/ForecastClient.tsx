@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useTransition, useEffect, type ReactNode } from "react";
-import { Calculator, TrendingUp, Sliders, RotateCcw } from "lucide-react";
+import { Calculator, TrendingUp, Sliders, Calendar, RotateCcw } from "lucide-react";
 import { SlotActual } from "../_lib/constants";
 import {
   SlotKey, slotKey, InterventionMap, Intervention,
@@ -11,25 +11,26 @@ import { saveForecastConfig } from "../_actions/actions";
 import CalibrationTable from "./CalibrationTable";
 import ProjectionView from "./ProjectionView";
 import InterventionPanel from "./InterventionPanel";
+import CutoffPanel from "./CutoffPanel";
 
-type Tab = "kalibrasyon" | "projeksiyon" | "mudahale";
+type Tab = "kalibrasyon" | "projeksiyon" | "mudahale" | "kesis";
 
 type Props = {
   initialActuals: SlotActual[];
   today: string;
-  presEndDate: string;
   startDate: string;
   initialSelectedSlots: string[] | null;
   initialInterventions: InterventionMap | null;
+  initialCutoffDates: Record<string, string> | null;
 };
 
 export default function ForecastClient({
   initialActuals,
   today,
-  presEndDate,
   startDate,
   initialSelectedSlots,
   initialInterventions,
+  initialCutoffDates,
 }: Props) {
   const [actuals, setActuals] = useState<SlotActual[]>(initialActuals);
   const [tab, setTab] = useState<Tab>("kalibrasyon");
@@ -51,6 +52,9 @@ export default function ForecastClient({
   });
 
   const [interventions, setInterventions] = useState<InterventionMap>(initialInterventions ?? {});
+  const [cutoffDates, setCutoffDates] = useState<Record<string, string>>(() => {
+    return initialCutoffDates ?? { "Pres Hücresi": "2026-07-09" };
+  });
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Mark as loaded on client mount (prevents SSR/hydration warnings and allows saving)
@@ -58,16 +62,16 @@ export default function ForecastClient({
     setIsLoaded(true);
   }, []);
 
-  // Save selectedSlots and interventions to Supabase with debouncing to avoid API throttling
+  // Save selectedSlots, interventions and cutoffDates to Supabase with debouncing to avoid API throttling
   useEffect(() => {
     if (!isLoaded) return;
 
     const timer = setTimeout(async () => {
-      await saveForecastConfig(Array.from(selectedSlots), interventions);
+      await saveForecastConfig(Array.from(selectedSlots), interventions, cutoffDates);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [selectedSlots, interventions, isLoaded]);
+  }, [selectedSlots, interventions, cutoffDates, isLoaded]);
 
   const handleToggleSlot = useCallback((key: SlotKey) => {
     setSelectedSlots((prev) => {
@@ -96,12 +100,27 @@ export default function ForecastClient({
     });
   }, []);
 
+  // ── Cutoff dates state ────────────────────────────────────────────────
+  const handleSetCutoffDate = useCallback((bolum: string, dateStr: string | null) => {
+    setCutoffDates((prev) => {
+      const next = { ...prev };
+      if (dateStr === null) {
+        delete next[bolum];
+      } else {
+        next[bolum] = dateStr;
+      }
+      return next;
+    });
+  }, []);
+
   const handleResetAll = useCallback(() => {
-    if (window.confirm("Tüm kalibrasyon seçimlerini ve gelecek müdahalelerini sıfırlamak istediğinize emin misiniz?")) {
+    if (window.confirm("Tüm kalibrasyon seçimlerini, gelecek müdahalelerini ve kapanış tarihlerini sıfırlamak istediğinize emin misiniz?")) {
       setSelectedSlots(defaultSelected);
       setInterventions({});
+      const defaultCutoff = { "Pres Hücresi": "2026-07-09" };
+      setCutoffDates(defaultCutoff);
       startTransition(async () => {
-        await saveForecastConfig(null, null);
+        await saveForecastConfig(Array.from(defaultSelected), {}, defaultCutoff);
       });
     }
   }, [defaultSelected]);
@@ -115,23 +134,28 @@ export default function ForecastClient({
   const currentWip = useMemo(() => computeCurrentWip(actuals), [actuals]);
 
   const projection = useMemo(
-    () => computeProjection(today, presEndDate, cellAverages, currentWip, interventions),
-    [today, presEndDate, cellAverages, currentWip, interventions]
+    () => computeProjection(today, cutoffDates, cellAverages, currentWip, interventions),
+    [today, cutoffDates, cellAverages, currentWip, interventions]
   );
 
   const finishDates = useMemo(
-    () => computeFinishDates(projection, presEndDate),
-    [projection, presEndDate]
+    () => computeFinishDates(projection, cutoffDates),
+    [projection, cutoffDates]
   );
 
   let interventionCount = 0;
   for (const dateKey in interventions) { interventionCount += Object.keys(interventions[dateKey]).length; }
 
+  const cutoffCount = Object.keys(cutoffDates).filter(k => cutoffDates[k] !== "").length;
+
   const tabs: { id: Tab; label: string; icon: ReactNode; badge?: number }[] = [
     { id: "kalibrasyon", label: "Kalibrasyon", icon: <Calculator size={14} /> },
     { id: "projeksiyon", label: "Projeksiyon", icon: <TrendingUp size={14} /> },
     { id: "mudahale", label: "Müdahaleler", icon: <Sliders size={14} />, badge: interventionCount || undefined },
+    { id: "kesis", label: "Kapanış Tarihleri", icon: <Calendar size={14} />, badge: cutoffCount || undefined },
   ];
+
+  const currentPresEndDate = cutoffDates["Pres Hücresi"] || "2026-07-09";
 
   return (
     <div className="flex flex-col gap-4 min-h-0">
@@ -184,14 +208,22 @@ export default function ForecastClient({
           <ProjectionView
             projection={projection}
             finishDates={finishDates}
-            presEndDate={presEndDate}
+            presEndDate={currentPresEndDate}
             today={today}
+            actuals={actuals}
           />
         )}
         {tab === "mudahale" && (
           <InterventionPanel
             interventions={interventions}
             onSetIntervention={handleSetIntervention}
+            today={today}
+          />
+        )}
+        {tab === "kesis" && (
+          <CutoffPanel
+            cutoffDates={cutoffDates}
+            onSetCutoffDate={handleSetCutoffDate}
             today={today}
           />
         )}

@@ -6,7 +6,6 @@ import ForecastClient from "./_components/ForecastClient";
 export const dynamic = "force-dynamic";
 
 const START_DATE = "2026-06-13";
-const PRES_END_DATE = "2026-07-09";
 
 function getToday(): string {
   const d = new Date();
@@ -33,6 +32,13 @@ export default async function HatForecastPage() {
   const actuals = await loadForecastActuals(START_DATE, yesterday);
   const config = await loadForecastConfig();
 
+  const presCutoff = config.cutoffDates?.["Pres Hücresi"] || "2026-07-09";
+  const formattedPresCutoff = new Date(`${presCutoff}T00:00:00`).toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 px-4 py-6">
       <div className="max-w-[1600px] mx-auto flex flex-col gap-6">
@@ -45,7 +51,7 @@ export default async function HatForecastPage() {
             <div>
               <h1 className="text-xl font-bold text-zinc-100">Hat Kapanış Tahmini</h1>
               <p className="text-sm text-zinc-500">
-                Pres son üretim: <span className="text-blue-400 font-medium">9 Temmuz 2026</span>
+                Pres son üretim: <span className="text-blue-400 font-medium">{formattedPresCutoff}</span>
                 {" · "}
                 Aktüel başlangıç: <span className="text-zinc-400">{START_DATE}</span>
                 {" · "}
@@ -59,10 +65,10 @@ export default async function HatForecastPage() {
         <ForecastClient
           initialActuals={actuals}
           today={today}
-          presEndDate={PRES_END_DATE}
           startDate={START_DATE}
           initialSelectedSlots={config.selectedSlots}
           initialInterventions={config.interventions}
+          initialCutoffDates={config.cutoffDates}
         />
       </div>
     </div>

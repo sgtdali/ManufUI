@@ -5,6 +5,28 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-07-01] update | Hat Tahmini Toplam Üretim & Aksiyon Takip Claude Teması + Boyutlandırma
+
+**Kaynak:** Kullanıcı konuşması + `src/app/hat-forecast/*`, `src/app/aksiyon-takip/*`
+
+### 1. Hat Kapanış Tahmini Toplam Üretim Adetleri
+- **Amaç:** Kapanış tahmini ekranında süreç sonuna kadar her hücreden çıkacak toplam adetleri görebilmek.
+- **Uygulama:** Projeksiyon ekranındaki üst özet kartlarına ve günlük tablo kolon başlıklarına `Gerçekleşen Üretim + Tahmini Projeksiyon Üretimi` toplamları eklendi.
+- **Hesaplama:** `13.06.2026` başlangıç tarihinden bugüne kadar gelen gerçek veriler (`initialActuals` listesi üzerinden `uretimAdeti` alanları) filtrelenip toplandı ve simülasyon boyunca hesaplanan günlük üretim miktarları ile birleştirildi.
+
+### 2. Aksiyon Takip Claude Teması & İyileştirmeler
+- **Claude Renk Paleti:** Sayfa koyu temadan Claude (Anthropic) açık temasına geçirildi:
+  - Ana zemin: `#F8F8F6`
+  - Sidebar ve Filtre paneli: `#EFEEEB`
+  - Tablo satırları, modallar, arama girdileri, açılır pencereler: `#FFFFFF`
+  - Yazı rengi: `#191919` (Koyu füme/charcoal) ve `#6B6964` (Gri)
+- **Yazı Tipi (Font):** **`Anthropic Serif`** (Lora ve Newsreader web fontları Google Fonts üzerinden yüklenerek entegre edildi. Georgia ve Times New Roman sistem fontları fallback olarak tanımlandı).
+- **Yazı Boyutları (+2px Artış):** Metinlerin okunabilirliğini artırmak amacıyla tüm metin hiyerarşisi (başlıklar, girdiler, etiketler, listeler, modallar vb.) global düzeyde 2 piksel büyütüldü.
+- **Dropdown Seçim Renkleri:** `Select.tsx` ve `AssigneeAutocomplete.tsx` açılır pencerelerinde seçili elemanların yeşil vurguları, Claude temasına uygun sıcak toprak/terracotta tonuna (`rgba(217, 119, 83, 0.12)` arka plan ve `#C25E3B` yazı rengi) uyarlandı.
+- **Gereksiz İkonların Kaldırılması:** Metinlerin üzerine tıklayınca doğrudan düzenleme modu açıldığı için, satır sonlarında/altlarında beliren kalem (Pencil) düzenleme ikonu arayüzü kalabalıktan arındırmak amacıyla kaldırıldı.
+
+---
+
 ## [2026-06-30] feature | Hat Kapanış Tahmini Sayfası (`/hat-forecast`)
 
 **Kaynak:** Kullanıcı konuşması + `src/app/hat-forecast/`

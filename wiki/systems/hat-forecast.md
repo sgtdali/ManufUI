@@ -98,6 +98,17 @@ Intervention = { disabled?: boolean; extraHours?: number }
 
 Müdahale eklenince projeksiyon `useMemo` ile anında yeniden hesaplanır (saf fonksiyon, no side effects).
 
+## Toplam Üretim Hesabı (Gerçekleşen + Projeksiyon)
+
+Hattaki her hücrenin süreç bitene kadar üreteceği toplam parça adedi şu şekilde hesaplanır ve hem Hücre Bitiş Tarihleri kartlarında hem de Günlük Projeksiyon Detayı tablosunun kolon başlıklarında gösterilir:
+
+```
+Toplam Üretim = Σ(13.06.2026'dan düne kadar olan gerçekleşen uretimAdeti) + Σ(Simülasyon boyunca üretilen adetler)
+```
+
+- Gerçekleşenler `initialActuals` listesinden hücre bazında filtrelenip `uretimAdeti` alanlarının toplamı olarak hesaplanır.
+- Simülasyon adetleri ise `projection` dizisindeki her günün hücre üretimi toplanarak elde edilir.
+
 ## İlgili Sayfalar
 
 - [Hücreler](../entities/hucreler.md) — CELL_FLOWS ve akış sırası

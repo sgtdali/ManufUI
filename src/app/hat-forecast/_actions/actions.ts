@@ -69,37 +69,47 @@ export async function loadForecastActuals(
   return slots;
 }
 
-export async function loadForecastConfig(): Promise<{ selectedSlots: string[] | null; interventions: any | null }> {
+export async function loadForecastConfig(): Promise<{
+  selectedSlots: string[] | null;
+  interventions: any | null;
+  cutoffDates: Record<string, string> | null;
+}> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("manuf_forecast_config")
-    .select("selected_slots, interventions")
+    .select("selected_slots, interventions, cutoff_dates")
     .eq("id", "default")
     .single();
 
   if (error || !data) {
     console.error("Error loading forecast config:", error);
-    return { selectedSlots: null, interventions: null };
+    return { selectedSlots: null, interventions: null, cutoffDates: null };
   }
   return {
     selectedSlots: data.selected_slots as string[] | null,
     interventions: data.interventions,
+    cutoffDates: data.cutoff_dates as Record<string, string> | null,
   };
 }
 
 export async function saveForecastConfig(
   selectedSlots: string[] | null,
-  interventions: any | null
+  interventions: any | null,
+  cutoffDates?: Record<string, string> | null
 ) {
   const supabase = await createClient();
+  const payload: any = {
+    id: "default",
+    selected_slots: selectedSlots,
+    interventions: interventions,
+    updated_at: new Date().toISOString(),
+  };
+  if (cutoffDates !== undefined) {
+    payload.cutoff_dates = cutoffDates;
+  }
   const { error } = await supabase
     .from("manuf_forecast_config")
-    .upsert({
-      id: "default",
-      selected_slots: selectedSlots,
-      interventions: interventions,
-      updated_at: new Date().toISOString(),
-    });
+    .upsert(payload);
 
   if (error) {
     console.error("Error saving forecast config:", error);

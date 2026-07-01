@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { CheckCircle, Clock, AlertCircle } from "lucide-react";
-import { FORECAST_CELLS } from "../_lib/constants";
+import { Clock, AlertCircle } from "lucide-react";
+import { FORECAST_CELLS, SlotActual } from "../_lib/constants";
 import { ProjectionDay } from "./forecastUtils";
 
 type Props = {
@@ -10,6 +10,7 @@ type Props = {
   finishDates: Record<string, string | null>;
   presEndDate: string;
   today: string;
+  actuals: SlotActual[];
 };
 
 function fmtDate(d: string | null) {
@@ -26,11 +27,16 @@ function daysFrom(from: string, to: string | null): number | null {
 
 function fmtNum(n: number) { return Math.round(n).toLocaleString("tr-TR"); }
 
-export default function ProjectionView({ projection, finishDates, presEndDate, today }: Props) {
-  const totalBoya = useMemo(
-    () => projection.reduce((a, d) => a + (d.cells["Boya Hücresi"]?.uretim ?? 0), 0),
-    [projection]
-  );
+export default function ProjectionView({ projection, finishDates, presEndDate, today, actuals }: Props) {
+  const cellTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const cell of FORECAST_CELLS) {
+      const actSum = actuals.filter((a) => a.bolum === cell).reduce((sum, a) => sum + (a.uretimAdeti ?? 0), 0);
+      const projSum = projection.reduce((sum, day) => sum + (day.cells[cell]?.uretim ?? 0), 0);
+      totals[cell] = actSum + projSum;
+    }
+    return totals;
+  }, [actuals, projection]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,6 +69,9 @@ export default function ProjectionView({ projection, finishDates, presEndDate, t
                 <span className={`text-sm font-bold ${finish ? (isLate ? "text-amber-300" : "text-emerald-300") : "text-zinc-500"}`}>
                   {fmtDate(finish)}
                 </span>
+                <span className="text-[10px] text-zinc-400 mt-0.5">
+                  Toplam: <span className="font-semibold text-white">{fmtNum(cellTotals[cell] ?? 0)}</span>
+                </span>
                 {daysAway !== null && (
                   <span className={`text-[10px] ${daysAway > 0 ? "text-zinc-500" : "text-red-400"}`}>
                     {daysAway > 0 ? `+${daysAway} gün` : daysAway === 0 ? "Bugün" : `${Math.abs(daysAway)} gün önce`}
@@ -71,10 +80,6 @@ export default function ProjectionView({ projection, finishDates, presEndDate, t
               </div>
             );
           })}
-        </div>
-        <div className="mt-3 px-3 py-2 rounded-lg bg-zinc-800/50 border border-zinc-700 text-sm text-zinc-300 flex items-center gap-2">
-          <CheckCircle size={16} className="text-emerald-400 shrink-0" />
-          Toplam tahmini bitirilen parça (Boya çıkışı): <span className="font-bold text-white ml-1">{fmtNum(totalBoya)}</span>
         </div>
       </div>
 
@@ -86,21 +91,29 @@ export default function ProjectionView({ projection, finishDates, presEndDate, t
             <thead>
               <tr className="bg-zinc-800 border-b border-zinc-700">
                 <th className="sticky left-0 z-10 bg-zinc-800 px-3 py-2 text-left text-zinc-400 min-w-[120px]">Tarih</th>
-                {FORECAST_CELLS.map((cell) => (
-                  <th key={cell} className="px-2 py-2 text-center text-zinc-400 min-w-[80px]">
-                    {cell.replace(" Hücresi", "")}
-                  </th>
-                ))}
+                {FORECAST_CELLS.map((cell) => {
+                  const total = cellTotals[cell] ?? 0;
+                  return (
+                    <th key={cell} className="px-2 py-2 text-center text-zinc-400 min-w-[100px]">
+                      <div className="font-semibold">{cell.replace(" Hücresi", "")}</div>
+                      <div className="text-[10px] text-zinc-500 font-normal">({fmtNum(total)})</div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {projection.map((day, i) => {
-                const isFuture = day.tarih > today;
+              {projection.map((day) => {
+                const isFuture = day.tarih >= today;
                 const isPresEnd = day.tarih === presEndDate;
-                const bg = !day.isWorkday ? "bg-zinc-800/20" : i % 2 === 0 ? "bg-zinc-900" : "bg-zinc-900/50";
+                const bg = isFuture
+                  ? day.isWorkday
+                    ? "bg-zinc-900"
+                    : "bg-zinc-950/40 text-zinc-500"
+                  : "bg-zinc-950/60 text-zinc-500";
 
                 return (
-                  <tr key={day.tarih} className={`border-t border-zinc-800 ${bg} ${isPresEnd ? "border-t-2 border-t-blue-600" : ""}`}>
+                  <tr key={day.tarih} className={`border-b border-zinc-800 last:border-0 hover:bg-zinc-800/40 transition-colors ${bg}`}>
                     <td className={`sticky left-0 z-10 px-3 py-1.5 font-medium ${isFuture ? "text-zinc-300" : "text-zinc-500"} ${bg}`}>
                       <div className="flex items-center gap-1">
                         <span>

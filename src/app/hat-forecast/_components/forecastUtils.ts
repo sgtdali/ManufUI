@@ -99,12 +99,14 @@ function getDailyCapacity(
   if (!working) return 0;
 
   const extraHours = iv?.extraHours ?? 0;
-  return hourlyAvg * (STANDARD_HOURS + extraHours);
+  const isWeekend = !isWorkday(dateStr);
+  const baseHours = isWeekend ? 0 : (bolum === "Flowform Hücresi" ? 13 : STANDARD_HOURS);
+  return hourlyAvg * (baseHours + extraHours);
 }
 
 export function computeProjection(
   startDate: string,
-  presEndDate: string,
+  cutoffDates: Record<string, string>,
   cellAvgs: Record<string, number>,
   initialWip: Record<string, number>,
   interventions: InterventionMap,
@@ -114,9 +116,7 @@ export function computeProjection(
   const days: ProjectionDay[] = [];
 
   // Track if upstream chain is exhausted (no more parts will ever arrive)
-  // presExhausted = true after presEndDate and wip["Pres→ETM"] = 0
   let presExhausted = false;
-  const junctionExhausted: Record<string, boolean> = {};
 
   for (let i = 0; i < maxDays; i++) {
     const dateStr = addDays(startDate, i);
@@ -127,7 +127,8 @@ export function computeProjection(
     const dayResult: ProjectionDay = { tarih: dateStr, isWorkday: isWorkday(dateStr), cells: {} };
 
     // ─── Pres ────────────────────────────────────────────────────
-    const presAfterEnd = dateStr > presEndDate;
+    const presCutoff = cutoffDates["Pres Hücresi"] || "2026-07-09";
+    const presAfterEnd = dateStr > presCutoff;
     const presCap = presAfterEnd ? 0 : getDailyCapacity("Pres Hücresi", dateStr, cellAvgs["Pres Hücresi"] ?? 0, interventions);
     const presUretim = presCap;
     wip["Pres→ETM"] += presUretim;
@@ -137,7 +138,9 @@ export function computeProjection(
 
     // ─── ETM ─────────────────────────────────────────────────────
     const etmWipStart = wip["Pres→ETM"];
-    const etmCap = getDailyCapacity("ETM Hücresi", dateStr, cellAvgs["ETM Hücresi"] ?? 0, interventions);
+    const etmCutoff = cutoffDates["ETM Hücresi"];
+    const etmAfterEnd = etmCutoff ? dateStr > etmCutoff : false;
+    const etmCap = etmAfterEnd ? 0 : getDailyCapacity("ETM Hücresi", dateStr, cellAvgs["ETM Hücresi"] ?? 0, interventions);
     const etmUretim = Math.min(etmCap, wip["Pres→ETM"]);
     wip["Pres→ETM"] -= etmUretim;
     wip["ETM→ROB108"] += etmUretim;
@@ -145,7 +148,9 @@ export function computeProjection(
 
     // ─── ROB108 ──────────────────────────────────────────────────
     const rob108WipStart = wip["ETM→ROB108"];
-    const rob108Cap = getDailyCapacity("ROB108 Hücresi", dateStr, cellAvgs["ROB108 Hücresi"] ?? 0, interventions);
+    const rob108Cutoff = cutoffDates["ROB108 Hücresi"];
+    const rob108AfterEnd = rob108Cutoff ? dateStr > rob108Cutoff : false;
+    const rob108Cap = rob108AfterEnd ? 0 : getDailyCapacity("ROB108 Hücresi", dateStr, cellAvgs["ROB108 Hücresi"] ?? 0, interventions);
     const rob108Uretim = Math.min(rob108Cap, wip["ETM→ROB108"]);
     wip["ETM→ROB108"] -= rob108Uretim;
     wip["ROB108→Flowform"] += rob108Uretim;
@@ -153,7 +158,9 @@ export function computeProjection(
 
     // ─── Flowform ─────────────────────────────────────────────────
     const ffWipStart = wip["ROB108→Flowform"];
-    const ffCap = getDailyCapacity("Flowform Hücresi", dateStr, cellAvgs["Flowform Hücresi"] ?? 0, interventions);
+    const ffCutoff = cutoffDates["Flowform Hücresi"];
+    const ffAfterEnd = ffCutoff ? dateStr > ffCutoff : false;
+    const ffCap = ffAfterEnd ? 0 : getDailyCapacity("Flowform Hücresi", dateStr, cellAvgs["Flowform Hücresi"] ?? 0, interventions);
     const ffUretim = Math.min(ffCap, wip["ROB108→Flowform"]);
     wip["ROB108→Flowform"] -= ffUretim;
     wip["Flowform→ROB104"] += ffUretim;
@@ -161,7 +168,9 @@ export function computeProjection(
 
     // ─── ROB104 ───────────────────────────────────────────────────
     const rob104WipStart = wip["Flowform→ROB104"];
-    const rob104Cap = getDailyCapacity("ROB104 Hücresi", dateStr, cellAvgs["ROB104 Hücresi"] ?? 0, interventions);
+    const rob104Cutoff = cutoffDates["ROB104 Hücresi"];
+    const rob104AfterEnd = rob104Cutoff ? dateStr > rob104Cutoff : false;
+    const rob104Cap = rob104AfterEnd ? 0 : getDailyCapacity("ROB104 Hücresi", dateStr, cellAvgs["ROB104 Hücresi"] ?? 0, interventions);
     const rob104Uretim = Math.min(rob104Cap, wip["Flowform→ROB104"]);
     wip["Flowform→ROB104"] -= rob104Uretim;
     wip["ROB104→N"] += rob104Uretim;
@@ -169,8 +178,14 @@ export function computeProjection(
 
     // ─── N602 + N603 (parallel, combined pool) ───────────────────
     const nWipStart = wip["ROB104→N"];
-    const n602Cap = getDailyCapacity("N602 Hücresi", dateStr, cellAvgs["N602 Hücresi"] ?? 0, interventions);
-    const n603Cap = getDailyCapacity("N603 Hücresi", dateStr, cellAvgs["N603 Hücresi"] ?? 0, interventions);
+    const n602Cutoff = cutoffDates["N602 Hücresi"];
+    const n602AfterEnd = n602Cutoff ? dateStr > n602Cutoff : false;
+    const n602Cap = n602AfterEnd ? 0 : getDailyCapacity("N602 Hücresi", dateStr, cellAvgs["N602 Hücresi"] ?? 0, interventions);
+
+    const n603Cutoff = cutoffDates["N603 Hücresi"];
+    const n603AfterEnd = n603Cutoff ? dateStr > n603Cutoff : false;
+    const n603Cap = n603AfterEnd ? 0 : getDailyCapacity("N603 Hücresi", dateStr, cellAvgs["N603 Hücresi"] ?? 0, interventions);
+
     const nCombinedCap = n602Cap + n603Cap;
     const nCombinedUretim = Math.min(nCombinedCap, wip["ROB104→N"]);
     const n602Uretim = nCombinedCap > 0 ? Math.round(nCombinedUretim * (n602Cap / nCombinedCap)) : 0;
@@ -182,7 +197,9 @@ export function computeProjection(
 
     // ─── ROB109 ───────────────────────────────────────────────────
     const rob109WipStart = wip["N→ROB109"];
-    const rob109Cap = getDailyCapacity("ROB109 Hücresi", dateStr, cellAvgs["ROB109 Hücresi"] ?? 0, interventions);
+    const rob109Cutoff = cutoffDates["ROB109 Hücresi"];
+    const rob109AfterEnd = rob109Cutoff ? dateStr > rob109Cutoff : false;
+    const rob109Cap = rob109AfterEnd ? 0 : getDailyCapacity("ROB109 Hücresi", dateStr, cellAvgs["ROB109 Hücresi"] ?? 0, interventions);
     const rob109Uretim = Math.min(rob109Cap, wip["N→ROB109"]);
     wip["N→ROB109"] -= rob109Uretim;
     wip["ROB109→Quench"] += rob109Uretim;
@@ -190,7 +207,9 @@ export function computeProjection(
 
     // ─── Quench ───────────────────────────────────────────────────
     const quenchWipStart = wip["ROB109→Quench"];
-    const quenchCap = getDailyCapacity("Quench Hücresi", dateStr, cellAvgs["Quench Hücresi"] ?? 0, interventions);
+    const quenchCutoff = cutoffDates["Quench Hücresi"];
+    const quenchAfterEnd = quenchCutoff ? dateStr > quenchCutoff : false;
+    const quenchCap = quenchAfterEnd ? 0 : getDailyCapacity("Quench Hücresi", dateStr, cellAvgs["Quench Hücresi"] ?? 0, interventions);
     const quenchUretim = Math.min(quenchCap, wip["ROB109→Quench"]);
     wip["ROB109→Quench"] -= quenchUretim;
     wip["Quench→ROB110"] += quenchUretim;
@@ -198,7 +217,9 @@ export function computeProjection(
 
     // ─── ROB110-111 ───────────────────────────────────────────────
     const rob110WipStart = wip["Quench→ROB110"];
-    const rob110Cap = getDailyCapacity("ROB110-111 Hücresi", dateStr, cellAvgs["ROB110-111 Hücresi"] ?? 0, interventions);
+    const rob110Cutoff = cutoffDates["ROB110-111 Hücresi"];
+    const rob110AfterEnd = rob110Cutoff ? dateStr > rob110Cutoff : false;
+    const rob110Cap = rob110AfterEnd ? 0 : getDailyCapacity("ROB110-111 Hücresi", dateStr, cellAvgs["ROB110-111 Hücresi"] ?? 0, interventions);
     const rob110Uretim = Math.min(rob110Cap, wip["Quench→ROB110"]);
     wip["Quench→ROB110"] -= rob110Uretim;
     wip["ROB110→Fosfat"] += rob110Uretim;
@@ -206,7 +227,9 @@ export function computeProjection(
 
     // ─── Fosfat ───────────────────────────────────────────────────
     const fosfatWipStart = wip["ROB110→Fosfat"];
-    const fosfatCap = getDailyCapacity("Fosfat Hücresi", dateStr, cellAvgs["Fosfat Hücresi"] ?? 0, interventions);
+    const fosfatCutoff = cutoffDates["Fosfat Hücresi"];
+    const fosfatAfterEnd = fosfatCutoff ? dateStr > fosfatCutoff : false;
+    const fosfatCap = fosfatAfterEnd ? 0 : getDailyCapacity("Fosfat Hücresi", dateStr, cellAvgs["Fosfat Hücresi"] ?? 0, interventions);
     const fosfatUretim = Math.min(fosfatCap, wip["ROB110→Fosfat"]);
     wip["ROB110→Fosfat"] -= fosfatUretim;
     wip["Fosfat→Boya"] += fosfatUretim;
@@ -214,7 +237,9 @@ export function computeProjection(
 
     // ─── Boya ─────────────────────────────────────────────────────
     const boyaWipStart = wip["Fosfat→Boya"];
-    const boyaCap = getDailyCapacity("Boya Hücresi", dateStr, cellAvgs["Boya Hücresi"] ?? 0, interventions);
+    const boyaCutoff = cutoffDates["Boya Hücresi"];
+    const boyaAfterEnd = boyaCutoff ? dateStr > boyaCutoff : false;
+    const boyaCap = boyaAfterEnd ? 0 : getDailyCapacity("Boya Hücresi", dateStr, cellAvgs["Boya Hücresi"] ?? 0, interventions);
     const boyaUretim = Math.min(boyaCap, wip["Fosfat→Boya"]);
     wip["Fosfat→Boya"] -= boyaUretim;
     dayResult.cells["Boya Hücresi"] = { uretim: boyaUretim, wipGiren: boyaWipStart, wipCikan: wip["Fosfat→Boya"], bitti: false };
@@ -227,12 +252,12 @@ export function computeProjection(
 
 export function computeFinishDates(
   projection: ProjectionDay[],
-  presEndDate: string
+  cutoffDates: Record<string, string>
 ): Record<string, string | null> {
   const finishDates: Record<string, string | null> = {};
 
-  // Pres finish date is fixed
-  finishDates["Pres Hücresi"] = presEndDate;
+  // Pres finish date is fixed dynamically
+  finishDates["Pres Hücresi"] = cutoffDates["Pres Hücresi"] || "2026-07-09";
 
   // For other cells: last day they produced > 0
   for (const cell of FORECAST_CELLS) {

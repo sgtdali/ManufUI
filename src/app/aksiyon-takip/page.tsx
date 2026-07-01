@@ -354,7 +354,230 @@ export default function AksiyonTakipPage() {
   const showCellColumn = !filterCell;
 
   return (
-    <main className="min-h-screen bg-zinc-900 px-4 py-4 text-zinc-100 md:px-8 flex flex-col gap-4">
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Lora:ital,wght@0,400..700;1,400..700&display=swap');
+        
+        .claude-theme {
+          background-color: #F8F8F6 !important;
+          color: #191919 !important;
+          font-family: "Anthropic Serif", "Newsreader", "Lora", Georgia, serif !important;
+        }
+        
+        /* Font size overrides (+2px) */
+        .claude-theme .text-3xl {
+          font-size: 32px !important;
+        }
+        .claude-theme .text-2xl {
+          font-size: 26px !important;
+        }
+        .claude-theme .text-xl {
+          font-size: 22px !important;
+        }
+        .claude-theme .text-lg {
+          font-size: 20px !important;
+        }
+        .claude-theme .text-base {
+          font-size: 18px !important;
+        }
+        .claude-theme .text-sm {
+          font-size: 16px !important;
+        }
+        .claude-theme .text-xs {
+          font-size: 14px !important;
+        }
+        .claude-theme [class*="text-[11px]"] {
+          font-size: 13px !important;
+        }
+        .claude-theme [class*="text-[10px]"] {
+          font-size: 12px !important;
+        }
+        .claude-theme [class*="text-[9px]"] {
+          font-size: 11px !important;
+        }
+        
+        .claude-theme,
+        .claude-theme main,
+        .claude-theme .bg-zinc-900 {
+          background-color: #F8F8F6 !important;
+        }
+        
+        .claude-theme .bg-zinc-800\\/60,
+        .claude-theme .bg-zinc-800\\/50,
+        .claude-theme aside > div,
+        .claude-theme section.bg-zinc-800\\/60,
+        .claude-theme select,
+        .claude-theme .bg-zinc-700\\/60,
+        .claude-theme .bg-zinc-700 {
+          background-color: #EFEEEB !important;
+        }
+        
+        .claude-theme table,
+        .claude-theme tbody,
+        .claude-theme tr,
+        .claude-theme td,
+        .claude-theme .bg-zinc-800,
+        .claude-theme .bg-zinc-800\\/30,
+        .claude-theme .bg-zinc-900\\/50,
+        .claude-theme .bg-zinc-900\\/40,
+        .claude-theme .bg-zinc-900\\/20,
+        .claude-theme input,
+        .claude-theme textarea {
+          background-color: #FFFFFF !important;
+        }
+        
+        .claude-theme thead,
+        .claude-theme thead tr,
+        .claude-theme thead th,
+        .claude-theme th.bg-zinc-800 {
+          background-color: #EFEEEB !important;
+          color: #191919 !important;
+        }
+        
+        .claude-theme * {
+          border-color: #E2E1DC !important;
+        }
+        
+        .claude-theme .divide-zinc-700 > :not([hidden]) ~ :not([hidden]) {
+          border-color: #E2E1DC !important;
+        }
+        
+        .claude-theme .text-zinc-100,
+        .claude-theme .text-zinc-200,
+        .claude-theme .text-zinc-300,
+        .claude-theme .text-white,
+        .claude-theme h1,
+        .claude-theme h2,
+        .claude-theme h3,
+        .claude-theme h4,
+        .claude-theme h5 {
+          color: #191919 !important;
+        }
+        
+        .claude-theme .text-zinc-400,
+        .claude-theme .text-zinc-500,
+        .claude-theme .text-zinc-600,
+        .claude-theme p.text-zinc-400,
+        .claude-theme span.text-zinc-500 {
+          color: #6B6964 !important;
+        }
+        
+        .claude-theme input,
+        .claude-theme select,
+        .claude-theme textarea {
+          background-color: #FFFFFF !important;
+          color: #191919 !important;
+          border: 1px solid #D1D0C9 !important;
+        }
+        
+        .claude-theme input::placeholder {
+          color: #9C9A94 !important;
+        }
+        
+        .claude-theme input:focus,
+        .claude-theme select:focus,
+        .claude-theme textarea:focus {
+          border-color: #D97753 !important;
+          outline: none !important;
+          box-shadow: 0 0 0 2px rgba(217, 119, 83, 0.2) !important;
+        }
+        
+        .claude-theme .bg-emerald-600 {
+          background-color: #D97753 !important;
+          color: #FFFFFF !important;
+        }
+        .claude-theme .bg-emerald-600:hover {
+          background-color: #C06543 !important;
+        }
+        
+        .claude-theme .text-emerald-400,
+        .claude-theme .text-emerald-300 {
+          color: #C25E3B !important;
+        }
+        .claude-theme .bg-emerald-500\\/10 {
+          background-color: rgba(217, 119, 83, 0.12) !important;
+        }
+        .claude-theme .ring-emerald-500\\/20 {
+          --tw-ring-color: rgba(217, 119, 83, 0.25) !important;
+        }
+        
+        .claude-theme .text-blue-400 {
+          color: #1d4ed8 !important;
+        }
+        .claude-theme .bg-blue-500\\/10 {
+          background-color: #dbeafe !important;
+        }
+        .claude-theme .ring-blue-500\\/20 {
+          --tw-ring-color: #bfdbfe !important;
+        }
+        
+        .claude-theme .bg-zinc-650 {
+          background-color: #EFEEEB !important;
+        }
+        .claude-theme .text-zinc-200,
+        .claude-theme .text-zinc-300 {
+          color: #191919 !important;
+        }
+        .claude-theme .bg-zinc-600\\/40 {
+          background-color: #f1f0ea !important;
+        }
+        .claude-theme .ring-zinc-500\\/40 {
+          --tw-ring-color: #e5e5e0 !important;
+        }
+        
+        .claude-theme .text-rose-400 {
+          color: #b91c1c !important;
+        }
+        .claude-theme .text-amber-400 {
+          color: #b45309 !important;
+        }
+        
+        .claude-theme .border-rose-500\\/40 {
+          border-color: #FCA5A5 !important;
+        }
+        .claude-theme .bg-rose-500\\/10 {
+          background-color: #FEF2F2 !important;
+        }
+        .claude-theme .text-rose-400 {
+          color: #DC2626 !important;
+        }
+        
+        .claude-theme .bg-rose-500\\/15:hover {
+          background-color: #FEE2E2 !important;
+        }
+        
+        .claude-theme .bg-zinc-800 {
+          background-color: #FFFFFF !important;
+          border-color: #E2E1DC !important;
+        }
+        
+        .claude-theme .bg-zinc-800\\/50 {
+          background-color: #EFEEEB !important;
+        }
+        
+        .claude-theme tr:hover,
+        .claude-theme .hover\\:bg-zinc-700\\/40:hover,
+        .claude-theme .hover\\:bg-zinc-700:hover {
+          background-color: rgba(239, 238, 235, 0.7) !important;
+          color: #191919 !important;
+        }
+        
+        .claude-theme *::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        .claude-theme *::-webkit-scrollbar-track {
+          background: #F8F8F6;
+        }
+        .claude-theme *::-webkit-scrollbar-thumb {
+          background-color: #D0CFC9;
+          border-radius: 4px;
+        }
+        .claude-theme *::-webkit-scrollbar-thumb:hover {
+          background-color: #B2B1AA;
+        }
+      ` }} />
+      <main className="min-h-screen bg-zinc-900 px-4 py-4 text-zinc-100 md:px-8 flex flex-col gap-4 claude-theme">
       <header className="flex flex-col gap-2 border-b border-zinc-700 pb-4 md:flex-row md:items-end md:justify-between w-full">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">Repkon HF901</p>
@@ -513,5 +736,6 @@ export default function AksiyonTakipPage() {
         />
       ) : null}
     </main>
+    </>
   );
 }

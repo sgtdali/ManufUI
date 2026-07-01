@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, ChevronDown, ChevronRight, CloudOff, RefreshCw, Pencil, MessageSquare } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, CloudOff, RefreshCw, MessageSquare } from "lucide-react";
 import type { ActionItem, Assignee } from "../actions";
 import { PRIORITIES, STATUSES, statusColor } from "./helpers";
 import { AssigneeAutocomplete } from "./AssigneeAutocomplete";
@@ -168,12 +168,6 @@ export function ActionRow({
                   {item.title}
                 </span>
                 <PlannerSyncBadge item={item} />
-                <button
-                  className="text-zinc-500 hover:text-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-zinc-700 shrink-0 inline-flex items-center justify-center"
-                  title="Başlığı Düzenle"
-                >
-                  <Pencil className="size-3.5" />
-                </button>
               </div>
             )}
           </div>

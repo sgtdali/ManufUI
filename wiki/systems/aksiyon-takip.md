@@ -5,7 +5,7 @@ sources: [src/app/aksiyon-takip/page.tsx, src/app/aksiyon-takip/actions.ts, src/
 
 # Aksiyon Takip Sistemi
 
-`/aksiyon-takip` rotasında çalışan, hücre bazlı iş/aksiyon maddeleri takip sayfası. Sınırsız derinlikte alt madde, açıklama/yorum akışı, e-posta ile sorumlu girişi ve Excel dışa aktarım destekler. Arayüz koyu (dark/Linear-Notion tarzı) temadadır — sitedeki tek koyu temalı sayfa budur, diğer tüm sayfalar açık temada kalır.
+`/aksiyon-takip` rotasında çalışan, hücre bazlı iş/aksiyon maddeleri takip sayfası. Sınırsız derinlikte alt madde, açıklama/yorum akışı, e-posta ile sorumlu girişi ve Excel dışa aktarım destekler. Arayüzü Claude (Anthropic) tarzı açık renkli, sade ve premium bir temaya uyarlandırılmıştır.
 
 ## Veri Yapısı
 
@@ -110,15 +110,23 @@ Kolonlar: Başlık, Hücre (sadece `Tüm hücreler` görünümünde), Sorumlu, *
 - Bunun yerine `_components/Select.tsx` adında, `value`/`onChange`/`options` API'sine sahip, tamamen div/button tabanlı özel bir dropdown bileşeni yazıldı (tıklama dışına basınca kapanma, seçili satıda `Check` ikonu, emerald vurgulu seçili stil, koyu temalı scrollbar).
 - Şu an kullanıldığı yerler: üstteki Durum/Öncelik/Sorumlu filtreleri (`page.tsx`) ve her satırdaki Öncelik/Durum düzenleme alanları (`ActionRow.tsx`). `triggerClassName` prop'u ile çağıran taraf, native select'teki gibi farklı görsel stiller (renkli badge, sınırlı genişlik vb.) uygulayabilir.
 
-## Koyu Tema (Dark Mode)
+## Claude Tarzı Açık Tema (Claude Theme)
 
-Bu sayfa, kullanıcı talebiyle Linear/Notion tarzı koyu bir SaaS paneline çevrildi. **Sadece bu sayfa** koyu temadadır, projenin geri kalanı (form, dashboard, duruşlar vb.) açık temada kalmaya devam eder.
+Bu sayfa, kullanıcı talebiyle Claude (Anthropic) tarzı açık renkli, sade ve premium bir tasarıma uyarlandı.
 
-- **Palet:** Sayfa zemini `zinc-900`, panel/kart yüzeyleri `zinc-800/60`, kenarlıklar `zinc-700`, birincil metin `zinc-100`, ikincil/etiket metni `zinc-400` (okunabilirlik için `font-medium`), vurgu rengi `emerald-500/600` (markanın yeşili korunmuştur).
-- **Rozetler (durum/öncelik):** Yarı saydam renkli zemin + `ring-1 ring-inset` kombinasyonu (`bg-emerald-500/10 text-emerald-400 ring-emerald-500/20` gibi) — düz dolgu renk yerine "soft badge" stili.
-- **Özel scrollbar:** Tablo, sol sidebar, detay modalı ve sorumlu dropdown'ındaki kaydırma çubukları Tailwind arbitrary-variant (`[&::-webkit-scrollbar]:...`) ile koyu temaya uyarlandı (zinc-600 thumb / zinc-900 track) — tarayıcı varsayılan (açık renk) scrollbar yerine.
-- **Native select sorunu:** Yukarıda açıklandığı gibi `Select.tsx` ile çözüldü.
-- Tüm renk geçişleri tek seferde, dosyalar arasında tutarlı bir "bir kademe açık/koyu" mantığıyla (zinc-950→900→800→700→600→500→400→300→200→100 kaydırması) uygulandı; ilk taslak "çok koyu" bulunduğu için bir kademe açık tona çekildi.
+- **Palet:** Sayfa zemin rengi `#F8F8F6` (kırık krem/bej), yan menü (sidebar) ve filtre panelleri `#EFEEEB` (sıcak bej), tablo satırları, modallar, arama girdileri ve açılır pencereler `#FFFFFF` (saf beyaz) olarak tanımlanmıştır. Birincil metinler `#191919` (koyu füme/charcoal) ve ikincil metinler `#6B6964` (gri) tonlarındadır.
+- **Yazı Tipi (Font):** **`Anthropic Serif`** (Lora ve Newsreader web fontları Google Fonts üzerinden yüklenerek entegre edilmiştir. Georgia ve Times New Roman sistem fontları fallback olarak tanımlıdır).
+- **Yazı Boyutları (+2px Artış):** Sayfanın genel okunabilirliğini artırmak amacıyla tüm metin hiyerarşisi 2 piksel büyütülmüştür:
+  - Ana başlıklar: 24px ➔ **26px** (`text-2xl`)
+  - Aksiyon başlıkları, arama ve yorum alanları: 14px ➔ **16px** (`text-sm`)
+  - Filtre etiketleri, tablo başlıkları, dropdown girdileri, sorumlu ve tarih alanları: 12px ➔ **14px** (`text-xs`)
+  - Detay modal başlığı: 16px ➔ **18px** (`text-base`)
+  - Zaman damgaları ve küçük meta bilgileri: 9px/10px/11px ➔ **11px/12px/13px**
+- **Rozetler ve Durum Renkleri:** Durum butonları (`Açık`, `Devam Ediyor`, `Tamamlandı`) ve öncelik etiketleri açık renk paleti üzerinde net okunabilmeleri için koyu yeşil, koyu mavi, koyu amber tonlarına dönüştürülmüştür.
+- **Özel Dropdown Seçim Rengi:** Açılır listelerdeki (`Select.tsx` ve `AssigneeAutocomplete.tsx`) seçili satırın yeşil arka planı ve yeşil yazı rengi, yeni Claude renk paletiyle uyumlu olacak şekilde sıcak toprak/terracotta tonuna (`rgba(217, 119, 83, 0.12)` arka plan ve `#C25E3B` yazı rengi) uyarlandı.
+- **Özel scrollbar:** Tablo, sol sidebar, detay modalı ve sorumlu dropdown'ındaki kaydırma çubukları açık renk paletine uyarlandı (D0CFC9 thumb / F8F8F6 track).
+- **Kalem İkonu Kaldırıldı:** Metinlere tıklayınca düzenleme modu doğrudan açıldığı için başlıkların yanındaki/altındaki kalem (Pencil) ikonu arayüzü kalabalıktan arındırmak amacıyla kaldırılmıştır.
+- **Aşamalı Güncelleme:** `page.tsx` içerisine enjekte edilen CSS `<style>` bloğu üzerinden tüm alt bileşenlerin (Sidebar, ActionRow, vb.) Tailwind renk sınıfları cascading yöntemiyle ezilmiştir; bu sayede alt bileşen kodlarında mantıksal bir kırılma yaratılmadan görsel tema tam uyumlu hale getirilmiştir.
 
 ## Server Actions (`actions.ts`)
 

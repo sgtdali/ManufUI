@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, X, Pencil } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, X, Pencil, Check } from "lucide-react";
 import { FORECAST_CELLS } from "../_lib/constants";
 import { InterventionMap, Intervention } from "./forecastUtils";
 
@@ -20,6 +20,11 @@ export default function InterventionPanel({ interventions, onSetIntervention, to
   const [addType, setAddType] = useState<"disabled" | "extra">("extra");
   const [addHours, setAddHours] = useState<number>(2);
 
+  // Edit states
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editType, setEditType] = useState<"disabled" | "extra">("extra");
+  const [editHours, setEditHours] = useState<number>(2);
+
   function handleAdd() {
     if (!addDate) return;
     const iv: Intervention = addType === "disabled" ? { disabled: true } : { extraHours: addHours };
@@ -27,14 +32,43 @@ export default function InterventionPanel({ interventions, onSetIntervention, to
     setAddDate("");
   }
 
-  // Flatten all interventions to display list
-  const entries: { tarih: string; bolum: string; iv: Intervention }[] = [];
-  for (const [tarih, cells] of Object.entries(interventions)) {
-    for (const [bolum, iv] of Object.entries(cells)) {
-      entries.push({ tarih, bolum, iv });
-    }
+  function startEdit(tarih: string, bolum: string, iv: Intervention) {
+    setEditingKey(`${tarih}-${bolum}`);
+    setEditType(iv.disabled ? "disabled" : "extra");
+    setEditHours(iv.extraHours ?? 2);
   }
-  entries.sort((a, b) => a.tarih.localeCompare(b.tarih) || a.bolum.localeCompare(b.bolum));
+
+  function saveEdit(tarih: string, bolum: string) {
+    const iv: Intervention = editType === "disabled" ? { disabled: true } : { extraHours: editHours };
+    onSetIntervention(tarih, bolum, iv);
+    setEditingKey(null);
+  }
+
+  // Flatten all interventions
+  const entries = useMemo(() => {
+    const list: { tarih: string; bolum: string; iv: Intervention }[] = [];
+    for (const [tarih, cells] of Object.entries(interventions)) {
+      for (const [bolum, iv] of Object.entries(cells)) {
+        list.push({ tarih, bolum, iv });
+      }
+    }
+    list.sort((a, b) => a.tarih.localeCompare(b.tarih) || a.bolum.localeCompare(b.bolum));
+    return list;
+  }, [interventions]);
+
+  // Group entries by bolum
+  const groupedEntries = useMemo(() => {
+    const groups: Record<string, typeof entries> = {};
+    for (const entry of entries) {
+      if (!groups[entry.bolum]) groups[entry.bolum] = [];
+      groups[entry.bolum].push(entry);
+    }
+    return groups;
+  }, [entries]);
+
+  const activeCells = useMemo(() => {
+    return FORECAST_CELLS.filter(cell => groupedEntries[cell] && groupedEntries[cell].length > 0);
+  }, [groupedEntries]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -102,35 +136,109 @@ export default function InterventionPanel({ interventions, onSetIntervention, to
         </div>
       </div>
 
-      {/* List */}
-      {entries.length === 0 ? (
+      {/* Grouped List */}
+      {activeCells.length === 0 ? (
         <p className="text-zinc-600 text-sm italic">Henüz müdahale yok. Eklemek için yukarıdaki formu kullan.</p>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          {entries.map(({ tarih, bolum, iv }) => (
-            <div
-              key={`${tarih}-${bolum}`}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm ${
-                iv.disabled
-                  ? "border-red-800/50 bg-red-950/20 text-red-300"
-                  : "border-emerald-800/50 bg-emerald-950/20 text-emerald-300"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="font-semibold text-zinc-300">
-                  {new Date(`${tarih}T00:00:00`).toLocaleDateString("tr-TR", { day: "2-digit", month: "short" })}
-                </span>
-                <span className="text-zinc-400">{CELL_LABELS[bolum] ?? bolum}</span>
-                <span className={iv.disabled ? "text-red-400" : "text-emerald-400"}>
-                  {iv.disabled ? "✕ Çalışmıyor" : `+${iv.extraHours}sa mesai`}
-                </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {activeCells.map((cell) => (
+            <div key={cell} className="bg-zinc-850/40 border border-zinc-800 rounded-lg p-3.5 flex flex-col gap-2.5">
+              <h5 className="text-xs font-semibold text-emerald-400 border-b border-zinc-800 pb-1.5 tracking-wider uppercase">
+                {CELL_LABELS[cell]}
+              </h5>
+              <div className="flex flex-col gap-2">
+                {groupedEntries[cell].map(({ tarih, bolum, iv }) => {
+                  const key = `${tarih}-${bolum}`;
+                  const isEditing = editingKey === key;
+
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={key}
+                        className="flex flex-col gap-2 p-2.5 rounded-lg border border-zinc-700 bg-zinc-800 text-xs"
+                      >
+                        <div className="flex items-center justify-between text-zinc-400 font-medium">
+                          <span>
+                            {new Date(`${tarih}T00:00:00`).toLocaleDateString("tr-TR", { day: "2-digit", month: "short" })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={editType}
+                            onChange={(e) => setEditType(e.target.value as "disabled" | "extra")}
+                            className="bg-zinc-900 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-200 focus:outline-none focus:border-emerald-600 flex-1"
+                          >
+                            <option value="extra">Mesai (+saat)</option>
+                            <option value="disabled">Çalışmıyor</option>
+                          </select>
+                          {editType === "extra" && (
+                            <input
+                              type="number"
+                              min={0.5}
+                              max={16}
+                              step={0.5}
+                              value={editHours}
+                              onChange={(e) => setEditHours(parseFloat(e.target.value))}
+                              className="bg-zinc-900 border border-zinc-700 rounded px-1.5 py-1 text-xs text-zinc-200 w-16 focus:outline-none focus:border-emerald-600 text-center font-semibold"
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center justify-end gap-1.5 mt-1 border-t border-zinc-700/50 pt-2">
+                          <button
+                            onClick={() => setEditingKey(null)}
+                            className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-650 text-zinc-300 transition-colors font-medium"
+                          >
+                            Vazgeç
+                          </button>
+                          <button
+                            onClick={() => saveEdit(tarih, bolum)}
+                            className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white transition-colors font-medium flex items-center gap-1"
+                          >
+                            <Check size={12} />
+                            Kaydet
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={key}
+                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs ${
+                        iv.disabled
+                          ? "border-red-900/40 bg-red-950/15 text-red-300"
+                          : "border-emerald-900/40 bg-emerald-950/15 text-emerald-300"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium text-zinc-300">
+                          {new Date(`${tarih}T00:00:00`).toLocaleDateString("tr-TR", { day: "2-digit", month: "short" })}
+                        </span>
+                        <span className={`text-[10px] ${iv.disabled ? "text-red-400" : "text-emerald-400"}`}>
+                          {iv.disabled ? "✕ Çalışmıyor" : `+${iv.extraHours}sa mesai`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => startEdit(tarih, bolum, iv)}
+                          className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 rounded hover:bg-zinc-800/50"
+                          title="Düzenle"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          onClick={() => onSetIntervention(tarih, bolum, null)}
+                          className="text-zinc-500 hover:text-red-400 transition-colors p-1 rounded hover:bg-zinc-800/50"
+                          title="Sil"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <button
-                onClick={() => onSetIntervention(tarih, bolum, null)}
-                className="text-zinc-600 hover:text-red-400 transition-colors"
-              >
-                <X size={14} />
-              </button>
             </div>
           ))}
         </div>
