@@ -21,7 +21,12 @@ import { InlineActionCreateRow } from "./_components/InlineActionCreateRow";
 import { PasswordDialog } from "./_components/PasswordDialog";
 import { ActionDetailModal } from "./_components/ActionDetailModal";
 
-const ACTION_CELLS = [...BOLUMLER];
+const ACTION_CELLS = BOLUMLER.filter(c => c !== "N602 Hücresi" && c !== "N603 Hücresi").reduce<string[]>((acc, c) => {
+  if (c === "Flowform Hücresi") {
+    return [...acc, c, "N602-N603 Hücresi"];
+  }
+  return [...acc, c];
+}, []);
 
 const ADMIN_EMAILS = ["tayfun.vural@repkon.com.tr", "baris.sahinoglu@repkon.com.tr", "ahmet.akin@repkon.com.tr"];
 const isAdminEmail = (email: string | null) => !!email && ADMIN_EMAILS.includes(email.toLowerCase());

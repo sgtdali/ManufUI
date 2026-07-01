@@ -175,8 +175,8 @@ export default function ProductionFormPage() {
     const defaultLimit = MAKINE_SAYISI_DEFAULTS[bolum];
     const isRob108 = bolum === "ROB108 Hücresi";
     if (isRob108 && val != null) {
-      const ROB108_TARGETS: Record<number, number> = { 5: 18, 4: 13, 3: 10, 2: 6, 1: 3, 0: 0 };
-      setValue(`rows.${rowIndex}.hedef_uretim_adeti`, ROB108_TARGETS[val] !== undefined ? ROB108_TARGETS[val] : 18);
+      const ROB108_TARGETS: Record<number, number> = { 5: 15, 4: 11, 3: 7, 2: 5, 1: 3, 0: 0 };
+      setValue(`rows.${rowIndex}.hedef_uretim_adeti`, ROB108_TARGETS[val] !== undefined ? ROB108_TARGETS[val] : 15);
     }
     const isExplanationRequired = isRob108 ? val != null && val !== 5 : defaultLimit !== undefined && val != null && val < defaultLimit;
     if (isExplanationRequired) {

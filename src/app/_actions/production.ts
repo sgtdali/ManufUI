@@ -9,7 +9,7 @@ import {
 
 const TARGET_20_CELLS = ["Pres Hücresi", "ETM Hücresi", "ROB104 Hücresi", "ROB108 Hücresi", "ROB109 Hücresi"];
 const TARGET_15_CELLS = ["N602 Hücresi", "ROB110-111 Hücresi"];
-const ROB108_TARGETS: Record<number, number> = { 5: 18, 4: 13, 3: 10, 2: 6, 1: 3, 0: 0 };
+const ROB108_TARGETS: Record<number, number> = { 5: 15, 4: 11, 3: 7, 2: 5, 1: 3, 0: 0 };
 
 function enforceServerTargets(data: ProductionFormData): ProductionFormData {
   const bolum = data.bolum || "";
@@ -29,7 +29,7 @@ function enforceServerTargets(data: ProductionFormData): ProductionFormData {
       let hedef = is15 ? 15 : 20;
       if (bolum === "ROB108 Hücresi") {
         const m = row.calisan_makine_sayisi ?? defaultM;
-        hedef = (m != null && ROB108_TARGETS[m] !== undefined) ? ROB108_TARGETS[m] : 18;
+        hedef = (m != null && ROB108_TARGETS[m] !== undefined) ? ROB108_TARGETS[m] : 15;
       }
       return { ...row, hedef_uretim_adeti: hedef };
     }),

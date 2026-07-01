@@ -1,7 +1,7 @@
 import type { ActionItem } from "../actions";
 
 export const PRIORITIES = ["Yüksek", "Orta", "Düşük"] as const;
-export const STATUSES = ["Açık", "Devam Ediyor", "Tamamlandı"] as const;
+export const STATUSES = ["Açık", "Tamamlandı"] as const;
 
 export function priorityColor(p: string) {
   if (p === "Yüksek") return "bg-rose-500/10 text-rose-400 ring-1 ring-inset ring-rose-500/20";
@@ -199,7 +199,7 @@ export function sortTree(
       valA = priorityOrder[valA || ""] || 0;
       valB = priorityOrder[valB || ""] || 0;
     } else if (sortField === "status") {
-      const statusOrder: Record<string, number> = { "Açık": 1, "Devam Ediyor": 2, "Tamamlandı": 3 };
+      const statusOrder: Record<string, number> = { "Açık": 1, "Tamamlandı": 2 };
       valA = statusOrder[valA || ""] || 0;
       valB = statusOrder[valB || ""] || 0;
     }

@@ -14,7 +14,7 @@ export type ActionItem = {
   start_date: string | null;
   due_date: string | null;
   priority: string | null;
-  status: "Açık" | "Devam Ediyor" | "Tamamlandı";
+  status: "Açık" | "Tamamlandı";
   created_at: string;
   updated_at: string;
   children?: ActionItem[];
@@ -55,7 +55,13 @@ export async function loadActionItems() {
     .order("created_at", { ascending: false });
 
   if (error) return { success: false as const, error: error.message };
-  return { success: true as const, data: data as ActionItem[] };
+  const mapped = (data as ActionItem[]).map(item => {
+    if (item.cell === "N602 Hücresi" || item.cell === "N603 Hücresi") {
+      return { ...item, cell: "N602-N603 Hücresi" };
+    }
+    return item;
+  });
+  return { success: true as const, data: mapped };
 }
 
 export async function createActionItem(item: {

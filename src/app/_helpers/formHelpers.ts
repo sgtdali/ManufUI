@@ -24,7 +24,7 @@ export function buildEmptyRows(
   const defaultTarget = isWeekend
     ? null
     : bolum === "ROB108 Hücresi"
-    ? 18
+    ? 15
     : isTargetDefault20
     ? 20
     : isTargetDefault15
@@ -94,8 +94,8 @@ export function applyRecordToForm(
     let targetVal = row.hedef_uretim_adeti as number | null;
     if (isTargetReadOnly) {
       if (bolum === "ROB108 Hücresi") {
-        const ROB108_TARGETS: Record<number, number> = { 5: 18, 4: 13, 3: 10, 2: 6, 1: 3, 0: 0 };
-        targetVal = mSayisi != null && ROB108_TARGETS[mSayisi] !== undefined ? ROB108_TARGETS[mSayisi] : 18;
+        const ROB108_TARGETS: Record<number, number> = { 5: 15, 4: 11, 3: 7, 2: 5, 1: 3, 0: 0 };
+        targetVal = mSayisi != null && ROB108_TARGETS[mSayisi] !== undefined ? ROB108_TARGETS[mSayisi] : 15;
       } else if (bolum === "N602 Hücresi" || bolum === "ROB110-111 Hücresi") {
         targetVal = 15;
       } else if (bolum === "Flowform Hücresi") {
