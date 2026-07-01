@@ -92,8 +92,8 @@ export function applyRecordToForm(
     let targetVal = row.hedef_uretim_adeti as number | null;
     if (isTargetReadOnly) {
       if (bolum === "ROB108 Hücresi") {
-        const ROB108_TARGETS: Record<number, number> = { 5: 20, 4: 13, 3: 10, 2: 6, 1: 3, 0: 0 };
-        targetVal = mSayisi != null && ROB108_TARGETS[mSayisi] !== undefined ? ROB108_TARGETS[mSayisi] : 20;
+        const ROB108_TARGETS: Record<number, number> = { 5: 18, 4: 13, 3: 10, 2: 6, 1: 3, 0: 0 };
+        targetVal = mSayisi != null && ROB108_TARGETS[mSayisi] !== undefined ? ROB108_TARGETS[mSayisi] : 18;
       } else if (bolum === "N602 Hücresi" || bolum === "ROB110-111 Hücresi") {
         targetVal = 15;
       } else if (bolum === "Flowform Hücresi") {

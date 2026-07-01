@@ -1,18 +1,37 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { loadForecastActuals } from "./_actions/actions";
+import { loadForecastActuals, loadForecastConfig } from "./_actions/actions";
 import ForecastClient from "./_components/ForecastClient";
+
+export const dynamic = "force-dynamic";
 
 const START_DATE = "2026-06-13";
 const PRES_END_DATE = "2026-07-09";
 
 function getToday(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const options = { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" } as const;
+  const parts = new Intl.DateTimeFormat("en-US", options).formatToParts(d);
+  const year = parts.find(p => p.type === "year")?.value;
+  const month = parts.find(p => p.type === "month")?.value;
+  const day = parts.find(p => p.type === "day")?.value;
+  return `${year}-${month}-${day}`;
+}
+
+function getYesterday(todayStr: string): string {
+  const d = new Date(`${todayStr}T00:00:00`);
+  d.setDate(d.getDate() - 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export default async function HatForecastPage() {
   const today = getToday();
-  const actuals = await loadForecastActuals(START_DATE, today);
+  const yesterday = getYesterday(today);
+  const actuals = await loadForecastActuals(START_DATE, yesterday);
+  const config = await loadForecastConfig();
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 px-4 py-6">
@@ -42,6 +61,8 @@ export default async function HatForecastPage() {
           today={today}
           presEndDate={PRES_END_DATE}
           startDate={START_DATE}
+          initialSelectedSlots={config.selectedSlots}
+          initialInterventions={config.interventions}
         />
       </div>
     </div>

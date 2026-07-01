@@ -68,3 +68,43 @@ export async function loadForecastActuals(
 
   return slots;
 }
+
+export async function loadForecastConfig(): Promise<{ selectedSlots: string[] | null; interventions: any | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("manuf_forecast_config")
+    .select("selected_slots, interventions")
+    .eq("id", "default")
+    .single();
+
+  if (error || !data) {
+    console.error("Error loading forecast config:", error);
+    return { selectedSlots: null, interventions: null };
+  }
+  return {
+    selectedSlots: data.selected_slots as string[] | null,
+    interventions: data.interventions,
+  };
+}
+
+export async function saveForecastConfig(
+  selectedSlots: string[] | null,
+  interventions: any | null
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("manuf_forecast_config")
+    .upsert({
+      id: "default",
+      selected_slots: selectedSlots,
+      interventions: interventions,
+      updated_at: new Date().toISOString(),
+    });
+
+  if (error) {
+    console.error("Error saving forecast config:", error);
+    return { success: false, error: error.message };
+  }
+  return { success: true };
+}
+

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState, useCallback, useTransition, type ReactNode } from "react";
-import { Calculator, TrendingUp, Sliders } from "lucide-react";
+import { useMemo, useState, useCallback, useTransition, useEffect, type ReactNode } from "react";
+import { Calculator, TrendingUp, Sliders, RotateCcw } from "lucide-react";
 import { SlotActual } from "../_lib/constants";
 import {
   SlotKey, slotKey, InterventionMap, Intervention,
   computeCellAverages, computeCurrentWip, computeProjection, computeFinishDates,
 } from "./forecastUtils";
+import { saveForecastConfig } from "../_actions/actions";
 import CalibrationTable from "./CalibrationTable";
 import ProjectionView from "./ProjectionView";
 import InterventionPanel from "./InterventionPanel";
@@ -18,9 +19,18 @@ type Props = {
   today: string;
   presEndDate: string;
   startDate: string;
+  initialSelectedSlots: string[] | null;
+  initialInterventions: InterventionMap | null;
 };
 
-export default function ForecastClient({ initialActuals, today, presEndDate, startDate }: Props) {
+export default function ForecastClient({
+  initialActuals,
+  today,
+  presEndDate,
+  startDate,
+  initialSelectedSlots,
+  initialInterventions,
+}: Props) {
   const [actuals, setActuals] = useState<SlotActual[]>(initialActuals);
   const [tab, setTab] = useState<Tab>("kalibrasyon");
   const [isPending, startTransition] = useTransition();
@@ -33,7 +43,31 @@ export default function ForecastClient({ initialActuals, today, presEndDate, sta
     return s;
   }, [initialActuals]);
 
-  const [selectedSlots, setSelectedSlots] = useState<Set<SlotKey>>(defaultSelected);
+  const [selectedSlots, setSelectedSlots] = useState<Set<SlotKey>>(() => {
+    if (initialSelectedSlots) {
+      return new Set(initialSelectedSlots as SlotKey[]);
+    }
+    return defaultSelected;
+  });
+
+  const [interventions, setInterventions] = useState<InterventionMap>(initialInterventions ?? {});
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Mark as loaded on client mount (prevents SSR/hydration warnings and allows saving)
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
+
+  // Save selectedSlots and interventions to Supabase with debouncing to avoid API throttling
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const timer = setTimeout(async () => {
+      await saveForecastConfig(Array.from(selectedSlots), interventions);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [selectedSlots, interventions, isLoaded]);
 
   const handleToggleSlot = useCallback((key: SlotKey) => {
     setSelectedSlots((prev) => {
@@ -45,8 +79,6 @@ export default function ForecastClient({ initialActuals, today, presEndDate, sta
   }, []);
 
   // ── Intervention state ───────────────────────────────────────────────
-  const [interventions, setInterventions] = useState<InterventionMap>({});
-
   const handleSetIntervention = useCallback((tarih: string, bolum: string, iv: Intervention | null) => {
     setInterventions((prev) => {
       const next = { ...prev };
@@ -63,6 +95,16 @@ export default function ForecastClient({ initialActuals, today, presEndDate, sta
       return next;
     });
   }, []);
+
+  const handleResetAll = useCallback(() => {
+    if (window.confirm("Tüm kalibrasyon seçimlerini ve gelecek müdahalelerini sıfırlamak istediğinize emin misiniz?")) {
+      setSelectedSlots(defaultSelected);
+      setInterventions({});
+      startTransition(async () => {
+        await saveForecastConfig(null, null);
+      });
+    }
+  }, [defaultSelected]);
 
   // ── Derived: averages + projection ──────────────────────────────────
   const cellAverages = useMemo(
@@ -93,27 +135,39 @@ export default function ForecastClient({ initialActuals, today, presEndDate, sta
 
   return (
     <div className="flex flex-col gap-4 min-h-0">
-      {/* Tab bar */}
-      <div className="flex gap-1 bg-zinc-800/50 rounded-lg p-1 w-fit">
-        {tabs.map((t) => (
+      {/* Tab bar and Reset button */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex gap-1 bg-zinc-800/50 rounded-lg p-1 w-fit">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative ${
+                tab === t.id
+                  ? "bg-zinc-700 text-zinc-100"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              {t.icon}
+              {t.label}
+              {t.badge !== undefined && (
+                <span className="ml-1 text-[10px] bg-emerald-600 text-white rounded-full px-1.5 py-0.5 font-bold">
+                  {t.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {isLoaded && (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors relative ${
-              tab === t.id
-                ? "bg-zinc-700 text-zinc-100"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
+            onClick={handleResetAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 transition-colors border border-zinc-700/50"
           >
-            {t.icon}
-            {t.label}
-            {t.badge !== undefined && (
-              <span className="ml-1 text-[10px] bg-emerald-600 text-white rounded-full px-1.5 py-0.5 font-bold">
-                {t.badge}
-              </span>
-            )}
+            <RotateCcw size={14} />
+            Sıfırla
           </button>
-        ))}
+        )}
       </div>
 
       {/* Tab content */}
