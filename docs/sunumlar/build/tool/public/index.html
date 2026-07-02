@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<title>Sunum Veri Seçimi — HF901</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Üst Yönetim Sunumu — Veri Seçimi</h1>
+    <p class="hint">Sadece localde çalışır. Buradaki seçimler yayınlanan ManufUI uygulamasını etkilemez, sadece <code>.pptx</code> dosyasının Genel Bakış tablolarını (Sayfa 3-4) besler.</p>
+  </header>
+
+  <nav class="period-tabs">
+    <button class="tab-btn active" data-period="nm">Nisan – Mayıs</button>
+    <button class="tab-btn" data-period="ht">Haziran – Temmuz</button>
+  </nav>
+
+  <section class="range-bar">
+    <label>Başlangıç <input type="date" id="rangeStart" /></label>
+    <label>Bitiş <input type="date" id="rangeEnd" /></label>
+    <button id="applyRange">Aralığı Uygula</button>
+    <span class="spacer"></span>
+    <label>Metrik görünümü
+      <select id="metricView">
+        <option value="prod">Üretim adedi</option>
+        <option value="wait">Önceki istasyon bekleme (dk)</option>
+      </select>
+    </label>
+    <button id="selectAll">Tümünü Seç</button>
+    <button id="selectNone">Tümünü Kaldır</button>
+  </section>
+
+  <section id="summaryBar" class="summary-bar"></section>
+
+  <main id="grid" class="grid"></main>
+
+  <footer class="actionbar">
+    <div id="status" class="status"></div>
+    <button id="generateBtn" class="primary">Sunumu Oluştur</button>
+  </footer>
+
+  <div id="resultPanel" class="result-panel hidden">
+    <h2>Son Üretilen Değerler</h2>
+    <table id="resultTable"></table>
+    <pre id="buildLog"></pre>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

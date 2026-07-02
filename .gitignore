@@ -2,6 +2,10 @@
 
 # dependencies
 /node_modules
+docs/sunumlar/**/node_modules
+
+# local pptx config tool (yerel seçim verisi, repoya girmesin)
+docs/sunumlar/build/tool/data/
 /.pnp
 .pnp.*
 .yarn/*

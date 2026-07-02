@@ -5,6 +5,28 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-07-02] feature | Üst Yönetim Sunumu: N602-N603 Birleştirme + Duruş Analizi Bölümü (7 Yeni Slayt)
+
+**Kaynak:** Kullanıcı konuşması + `docs/sunumlar/build/build.js`, `docs/sunumlar/build/tool/dataService.js`
+
+### 1. N602/N603 Hücrelerinin Genel Bakış Tablosunda Birleştirilmesi
+- **Karar:** Wait-time birleştirme yöntemi "Toplama" (ham slot verisi gün-birleşimi üzerinden toplanıp aynı per-day-average formülü uygulanır), kapsam "Sadece son tabloda" (sadece build.js çıktı aşamasında, seçim aracının grid'i etkilenmez).
+- **Uygulama:** `dataService.js`'e `computeMergedCellAverage(rawByDateA, cellA, rawByDateB, cellB, exclusions)` eklendi; `computeOverviewData()` N602 Hücresi + N603 Hücresi'ni tek "N602-N603 Hücresi" satırına indirgeyecek şekilde güncellendi (12 → 11 satır). `CELLS` dizisi ve ham veri çekme mantığı değişmedi — lokal seçim aracı hâlâ 12 hücreyi ayrı gösteriyor (küratörlük esnekliği için kasıtlı).
+- **build.js:** Fallback statik `overviewData` dizisi de birleştirildi; slayt başlıkları "12 Hücre" → "11 Hücre" güncellendi.
+- **Hata/çözüm:** Node'un `require()` cache'i düzenlemeden sonra da eski `dataService.js` mantığını sunmaya devam ediyordu (hot-reload yok) — eski process `Stop-Process` ile öldürülüp `npm run tool` yeniden başlatılarak çözüldü. Ardından iki kez `EADDRINUSE :::4590` hatası alındı (bir kez kendi restart denemem, bir kez kullanıcının kendi terminalinde ayrı `npm run tool` çalıştırması yüzünden) — `Get-NetTCPConnection`/`Get-CimInstance Win32_Process` ile gerçek sahibi PID bulunup temizlendi.
+
+### 2. Duruş Analizi Bölümü — 7 Yeni Slayt (Slayt 8-14)
+- **Talep:** Kullanıcı `/goal` ile "duruş analizi bölümü ekle, mevcut sadece istasyon bekleme + birkaç spesifik arıza var, mevcut verilerden ne çıkarılabilir bul, bol bol yap" dedi.
+- **Veri kaynağı:** `manuf_production_rows`'daki tüm duruş kolonları (arıza, planlı duruş, setup, takım/kalıp değişimi, önceki istasyon bekleme, mola, müşteri/kalite kaynaklı) canlı Supabase sorgularıyla — fabrikasyon veri yok.
+- **7 slayt:** (1) Genel Bakış KPI kartları (9.610 dk toplam, -%52 değişim, en sık neden, %7 kayıt takip oranı), (2) Kategori Dağılımı stacked bar (9 hücre × 7 kategori), (3) Üretime Oranlı Yoğunluk tablosu ("arıza dk / 100 adet" normalize KPI), (4) Neden Pareto'su bar chart (Mekanik/Belirsiz/Elektrik/Akışkan en büyük paylar), (5) Hücre Bazlı Baskın Neden tablosu, (6) Tekrarlayan Somut Sorunlar tablosu (aynı açıklamayla ≥3 kez), (7) Kayıt Takip Disiplini doughnut (295 işaretlenmemiş / 23 giderildi).
+- **Kritik tasarım kararı — normalize KPI:** Ham "arıza dk/gün" yerine üretim adedine oranlı "arıza dk/100 adet" kullanıldı çünkü ham dakikalar üretim hacmiyle doğal artıyor. Normalize edilince hikaye değişti: çoğu hücre aslında iyileşmiş; gerçek regresyon sadece **ROB104 (+444%)**, **ROB110-111 (+204%)** ve **Quench** (yeni ortaya çıkan sorun, 0→86.3).
+- **Bilinen sınırlama:** Bu 7 slayt "Öne Çıkan Sorunlar" slaytları gibi build.js içine sabit sayı olarak yazıldı — `dataService.js`'in canlı hesaplamasına bağlı değil, Supabase verisi değişirse elle güncellenmesi gerekir.
+- **QA:** LibreOffice/`extract-text` bu ortamda kurulu olmadığı için görsel QA yapılamadı; içerik doğrulaması `python-pptx` ile programatik metin/tablo/grafik çıkarımı yapılarak gerçekleştirildi. Bu sırada Slayt 10'da tablo (+444%) ile alt yazı (+442%) arasında bir tutarsızlık bulunup düzeltildi.
+- **Sonuç:** Sunum 17 → 24 sayfaya çıktı.
+- **Wiki:** `wiki/systems/ust-yonetim-sunumu.md` yeni oluşturuldu (bu sistem daha önce belgelenmemişti), `wiki/index.md` güncellendi.
+
+---
+
 ## [2026-07-01] update | Hat Tahmini Toplam Üretim & Aksiyon Takip Claude Teması + Boyutlandırma
 
 **Kaynak:** Kullanıcı konuşması + `src/app/hat-forecast/*`, `src/app/aksiyon-takip/*`

@@ -227,7 +227,6 @@ export default function ForecastClient({
     setIsDownloading(true);
     try {
       const averages = FORECAST_CELLS
-        .filter((c) => c !== "Pres Hücresi")
         .map((c) => {
           const avg = cellAverages[c] ?? 0;
           const baseH = BASE_HOURS[c] ?? 9;
@@ -258,7 +257,6 @@ export default function ForecastClient({
         actualsByCell[a.bolum] = (actualsByCell[a.bolum] ?? 0) + a.uretimAdeti;
       }
       const toplamRows = FORECAST_CELLS
-        .filter((c) => c !== "Pres Hücresi")
         .map((c) => {
           const actual = actualsByCell[c] ?? 0;
           const proj = projection.reduce((sum, d) => sum + (d.cells[c]?.uretim ?? 0), 0);

@@ -1,0 +1,5 @@
+
+> build@1.0.0 tool
+> node tool/server.js
+
+Sunum yapılandırma arayüzü: http://localhost:4590

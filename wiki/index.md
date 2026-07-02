@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-01
+updated: 2026-07-02
 
 sources: []
 ---
@@ -24,6 +24,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [Global Şifre Koruması](systems/sifre-korumasi.md) | Tüm sitenin genel şifre yetkilendirmesi (`rmk_hf901`), middleware kontrolü, şifresiz salt okunur performans paneli erişimi ve `/aksiyon-takip` istisnası |
 | [Otomasyon & Entegrasyon Paneli](systems/teams-entegrasyonu.md) | Günlük e-posta raporu, Teams bildirimleri, cron joblar ve webhook adreslerini yöneten şifre korumalı panel |
 | [Hat Kapanış Tahmini](systems/hat-forecast.md) | `/hat-forecast` sayfası: Pres'in 9 Temmuz'da kapanması sonrası hattaki tüm hücrelerin ne zaman biteceğini hesaplayan rundown simülasyonu |
+| [Üst Yönetim Sunumu](systems/ust-yonetim-sunumu.md) | `docs/sunumlar/`: ManufUI dışı bağımsız PPTX üretim aracı (pptxgenjs + Supabase) — lokal hücre-seçim UI'ı (port 4590) + `build.js` slayt üretimi, N602-N603 birleştirme mantığı, Duruş Analizi bölümü |
 
 ## Entities — Varlıklar ve Veri Yapıları
 
