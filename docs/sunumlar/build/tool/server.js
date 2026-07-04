@@ -2,12 +2,18 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
-const { CELLS, DEFAULT_PERIODS, fetchRawSlots, computeOverviewData } = require("./dataService");
+const {
+  CELLS, DEFAULT_PERIODS, fetchRawSlots, computeOverviewData, computeOeeMtbfMttrData,
+  DOWNTIME_FIELDS, DOWNTIME_FIELD_LABELS, DOWNTIME_FIELD_DETAIL_KEYS, CELL_OEE_RULES, fetchCellDetailSlots,
+} = require("./dataService");
 
 const PORT = 4590;
 const DATA_DIR = path.join(__dirname, "data");
 const SELECTION_PATH = path.join(DATA_DIR, "selection.json");
 const OVERVIEW_PATH = path.join(DATA_DIR, "overview-data.json");
+const OEE_MTBF_MTTR_PATH = path.join(DATA_DIR, "oee-mtbf-mttr-data.json");
+const OEE_SLOT_EXCLUSIONS_PATH = path.join(DATA_DIR, "oee-slot-exclusions.json");
+const OEE_DATE_RANGE_PATH = path.join(DATA_DIR, "oee-date-range.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const BUILD_DIR = path.join(__dirname, "..");
 
@@ -28,6 +34,38 @@ function loadSelection() {
 function saveSelection(sel) {
   ensureDataDir();
   fs.writeFileSync(SELECTION_PATH, JSON.stringify(sel, null, 2), "utf8");
+}
+
+function loadPlannedTimeExclusions() {
+  ensureDataDir();
+  if (!fs.existsSync(OEE_SLOT_EXCLUSIONS_PATH)) return [];
+  return JSON.parse(fs.readFileSync(OEE_SLOT_EXCLUSIONS_PATH, "utf8"));
+}
+
+function savePlannedTimeExclusions(list) {
+  ensureDataDir();
+  fs.writeFileSync(OEE_SLOT_EXCLUSIONS_PATH, JSON.stringify(list, null, 2), "utf8");
+}
+
+// nm+ht dönemlerinin birleşik (en erken başlangıç → en geç bitiş) tarih aralığı —
+// "OEE — Planlı Süre" bölümünün varsayılan (kısıtlamasız) tarih filtresi.
+function defaultCombinedRange(sel) {
+  const periods = sel.periods && sel.periods.nm ? sel.periods : DEFAULT_PERIODS;
+  return {
+    start: periods.nm.start < periods.ht.start ? periods.nm.start : periods.ht.start,
+    end: periods.nm.end > periods.ht.end ? periods.nm.end : periods.ht.end,
+  };
+}
+
+function loadOeeDateRange() {
+  ensureDataDir();
+  if (!fs.existsSync(OEE_DATE_RANGE_PATH)) return defaultCombinedRange(loadSelection());
+  return JSON.parse(fs.readFileSync(OEE_DATE_RANGE_PATH, "utf8"));
+}
+
+function saveOeeDateRange(range) {
+  ensureDataDir();
+  fs.writeFileSync(OEE_DATE_RANGE_PATH, JSON.stringify(range, null, 2), "utf8");
 }
 
 function sendJson(res, status, obj) {
@@ -98,15 +136,67 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
+    if (req.method === "GET" && url.pathname === "/api/oee-cell-meta") {
+      return sendJson(res, 200, {
+        cells: CELLS,
+        downtimeFields: DOWNTIME_FIELDS.map((key) => ({
+          key, label: DOWNTIME_FIELD_LABELS[key], ...DOWNTIME_FIELD_DETAIL_KEYS[key],
+        })),
+        cellOeeRules: CELL_OEE_RULES,
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/cell-detail") {
+      const cell = url.searchParams.get("cell");
+      if (!CELLS.includes(cell)) return sendJson(res, 400, { error: "Geçersiz hücre" });
+      const savedRange = loadOeeDateRange();
+      const start = url.searchParams.get("start") || savedRange.start;
+      const end = url.searchParams.get("end") || savedRange.end;
+      if (!start || !end || start > end) return sendJson(res, 400, { error: "Gecersiz tarih araligi" });
+      const byDate = await fetchCellDetailSlots(cell, start, end);
+      return sendJson(res, 200, { byDate, range: { start, end } });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/oee-slot-exclusions") {
+      return sendJson(res, 200, { exclusions: loadPlannedTimeExclusions() });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/oee-slot-exclusions") {
+      const body = await readBody(req);
+      savePlannedTimeExclusions(body.exclusions || []);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/oee-date-range") {
+      return sendJson(res, 200, loadOeeDateRange());
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/oee-date-range") {
+      const body = await readBody(req);
+      if (!body.start || !body.end) return sendJson(res, 400, { error: "start ve end gerekli" });
+      saveOeeDateRange({ start: body.start, end: body.end });
+      return sendJson(res, 200, { ok: true });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/generate") {
       const sel = loadSelection();
+      const plannedTimeExclusions = loadPlannedTimeExclusions();
+      const oeeDateRange = loadOeeDateRange();
       const overviewData = await computeOverviewData({
         periods: sel.periods,
         exclusionsNm: sel.exclusionsNm || [],
         exclusionsHt: sel.exclusionsHt || [],
       });
+      const oeeMtbfMttrData = await computeOeeMtbfMttrData({
+        periods: sel.periods,
+        exclusionsNm: sel.exclusionsNm || [],
+        exclusionsHt: sel.exclusionsHt || [],
+        plannedTimeExclusions,
+        dateRange: oeeDateRange,
+      });
       ensureDataDir();
       fs.writeFileSync(OVERVIEW_PATH, JSON.stringify(overviewData, null, 2), "utf8");
+      fs.writeFileSync(OEE_MTBF_MTTR_PATH, JSON.stringify(oeeMtbfMttrData, null, 2), "utf8");
 
       const child = spawn(process.execPath, ["build.js"], { cwd: BUILD_DIR });
       let out = "";
@@ -115,7 +205,7 @@ const server = http.createServer(async (req, res) => {
       child.stderr.on("data", (d) => (err += d));
       child.on("close", (code) => {
         if (code === 0) {
-          sendJson(res, 200, { ok: true, log: out, overviewData });
+          sendJson(res, 200, { ok: true, log: out, overviewData, oeeMtbfMttrData });
         } else {
           sendJson(res, 500, { ok: false, log: out, error: err });
         }

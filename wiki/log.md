@@ -5,6 +5,19 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-07-04] update | Üst Yönetim Sunumu: Hücre OEE Planlı Süre Kural Tablosu
+
+**Kaynak:** Kullanıcı konuşması + `docs/sunumlar/build/tool/dataService.js`, `docs/sunumlar/build/tool/public/app.js`, `docs/sunumlar/build/tool/server.js`
+
+**Yapılanlar:**
+- `OEE - Planlı Süre` arayüzünde hücre, tarih aralığı ve saat bazlı checkbox seçimleriyle canlı `Availability | Performance | OEE` metrikleri gösterildi.
+- Hücre OEE için merkezi kural tablosu kuruldu: `mola` planlı süreden çıkarılır; `onceki_istasyon_bekleme` availability kaybı sayılmaz ama hedefi süre oranında düşürür; `Kasa Alma - Bırakma` ROB108, ROB104, Flowform, N602 ve N603 için doğal akış işi kabul edilip availability kaybı sayılmaz ve hedefi süre oranında düşürür.
+- Arayüz ve sunum hesaplaması aynı kuralları kullanacak şekilde `/api/oee-cell-meta` üzerinden bağlandı. Tarih aralığı ve planlı süre hariç tutmaları lokal JSON dosyalarında saklanır.
+- ROB108 örneğinde 60 dk önceki istasyon bekleme olan `0 / 20` satırının hücre OEE'sinde hücreyi cezalandırmaması gerektiği netleştirildi: satır dahilse availability düşmez, performance hedefi 0'a ölçeklenir.
+- Doğrulama: `node --check`, `rg "Ã|Ä|Å|â"` ve `npm run build` temiz geçti.
+
+---
+
 ## [2026-07-02] feature | Üst Yönetim Sunumu: N602-N603 Birleştirme + Duruş Analizi Bölümü (7 Yeni Slayt)
 
 **Kaynak:** Kullanıcı konuşması + `docs/sunumlar/build/build.js`, `docs/sunumlar/build/tool/dataService.js`

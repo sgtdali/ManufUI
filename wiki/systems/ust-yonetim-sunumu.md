@@ -1,6 +1,6 @@
 ---
-updated: 2026-07-02
-sources: [docs/sunumlar/build/build.js, docs/sunumlar/build/tool/dataService.js, docs/sunumlar/build/tool/server.js, docs/sunumlar/2026-07-ust-yonetim-sunum-plani.md]
+updated: 2026-07-04
+sources: [docs/sunumlar/build/build.js, docs/sunumlar/build/tool/dataService.js, docs/sunumlar/build/tool/server.js, docs/sunumlar/build/tool/public/app.js, docs/sunumlar/build/tool/public/index.html, docs/sunumlar/build/tool/public/style.css, docs/sunumlar/2026-07-ust-yonetim-sunum-plani.md]
 ---
 
 # Üst Yönetim Sunumu (PPTX Üretim Sistemi)
@@ -72,6 +72,25 @@ Bu bölüm 2026-07-02'de eklendi; önceki halde sunumda sadece istasyon-bekleme 
 
 **QA notu:** Bu ortamda pptx skill'inin standart görsel QA araçları (LibreOffice `soffice`, `extract-text` CLI) kurulu değil. İçerik doğrulaması `python-pptx` ile programatik metin/tablo/grafik çıkarımı yapılarak gerçekleştirildi; görsel (ekran görüntüsü tabanlı) QA yapılamadı.
 
+## Hücre OEE ve Planlı Süre Kural Tablosu (2026-07-04)
+
+Sunum aracına `OEE - Planlı Süre` bölümü eklendi. Bu bölüm lokal seçim aracında ayrı bir sekme olarak çalışır; kullanıcı hücre, başlangıç ve bitiş tarihi seçer, saatlik kayıtları görür ve her saat için checkbox ile o saatin hücre OEE hesabına dahil edilip edilmeyeceğini belirler. Checkbox işaretli ise saat hesaba dahildir; boş ise saat tamamen planlı süre dışına alınır. Tarih aralığı `tool/data/oee-date-range.json`, saat bazlı hariç tutmalar `tool/data/oee-slot-exclusions.json` dosyasında saklanır.
+
+Üstteki canlı metrik satırı `Availability | Performance | OEE` seçili hücre, tarih aralığı ve checkbox seçimlerine göre anlık hesaplanır. Aynı kural tablosu hem arayüzdeki canlı metrikte (`tool/public/app.js`) hem de sunuma yazılan OEE/MTBF/MTTR verisinde (`tool/dataService.js`) kullanılır; server bu kuralları `/api/oee-cell-meta` üzerinden arayüze gönderir. Eski `npm run tool` process'i açık kalırsa hot reload olmadığı için yeni kurallar görünmez; araç yeniden başlatılmalıdır.
+
+**Hücre OEE yaklaşımı:** Bu hesap, hücrenin kendi kontrol edebildiği performansı ölçer. Hat/akış OEE'si ayrı bir kavramdır; önceki istasyon kaynaklı beklemeler hat/akış analizinde görünmeye devam edebilir, ancak hücre OEE'sinde hücreyi cezalandırmaz.
+
+| Duruş / durum | Availability etkisi | Performance etkisi | Not |
+|---|---:|---:|---|
+| `mola` | Planlı süreden çıkarılır | Hedef süre oranında düşer | Planlı zaman dışı kabul edilir. |
+| `onceki_istasyon_bekleme` | Availability kaybı sayılmaz | Hedef süre oranında düşer | Parça yoksa hücre üretim yapamaz; hücre OEE'sinde cezalandırılmaz. |
+| `planli_durus_turu = Kasa Alma - Bırakma` | Seçili hücrelerde Availability kaybı sayılmaz | Hedef süre oranında düşer | Doğal üretim akışı işi olarak ele alındı. |
+| Diğer planlı duruş alt türleri | Şimdilik Availability kaybı | Hedef değişmez | Alt tür bazlı karar tablosu daha sonra genişletilebilir. |
+| `ariza`, `setup_ve_ayar`, `takim_degisimi`, `kalip_montaj`, `kalip_demontaj`, `musteri_kaynakli_durus`, `kalite_kaynakli_durus` | Availability kaybı | Hedef değişmez | Mevcut varsayılan davranış. |
+
+`Kasa Alma - Bırakma` muafiyeti verilen hücreler: ROB108, ROB104, Flowform, N602, N603. Bu isimler kaynakta Unicode escape ile tutulur; böylece Türkçe karakter encoding riski azaltılırken runtime'da veritabanındaki gerçek değerlerle eşleşir.
+
+Performance formülü hedef girilmiş satırlar üzerinden hesaplanır. Hedefi etkileyen kural varsa satır hedefi `hedef_uretim_adeti * ((60 - hedeften düşülecek dakika) / 60)` olarak ölçeklenir. Örneğin 60 dakika `Önceki İstasyon Bekleme` olan `0 / 20` satırı hücre OEE'ye dahil edilirse availability düşmez, o satırın performance hedefi de 0'a iner; hücre parça beklediği için cezalandırılmaz.
 ## İlgili Sayfalar
 - [Duruşlar](duruslar.md) — `ariza_turu` kod tablosu ve tüm duruş kolonlarının kaynağı
 - [Aksiyon Takip](aksiyon-takip.md) — `manuf_action_items` tablosunun canlı ManufUI arayüzü (sunumdaki Aksiyon Takibi slaytlarının aynı verisi)

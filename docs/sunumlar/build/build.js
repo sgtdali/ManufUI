@@ -308,6 +308,25 @@ function fmtPct(from, to, decimals = 0) {
         { cell: "Boya Hücresi",     nm: 24.8, ht: null,  nmB: 40.0,  htB: null,  note: "veri yok" },
       ];
 
+  // tool/data/oee-mtbf-mttr-data.json varsa (dataService.js'in canlı Supabase
+  // hesabından üretilmiştir) onu kullan; yoksa son bilinen sabit veriye geri dön.
+  const oeeDataPath = path.join(__dirname, "tool", "data", "oee-mtbf-mttr-data.json");
+  const oeeData = fs.existsSync(oeeDataPath)
+    ? JSON.parse(fs.readFileSync(oeeDataPath, "utf8"))
+    : [
+        { cell: "Pres Hücresi",       availabilityNm: 27.3, availabilityHt: 63.0, performanceNm: null, performanceHt: 65.7, oeeNm: null, oeeHt: 41.4, mtbfNm: 315.8,  mtbfHt: 148.1, mttrNm: 54.3, mttrHt: 27.6, arizaEventsNm: 53,  arizaEventsHt: 56 },
+        { cell: "ETM Hücresi",        availabilityNm: 8.9,  availabilityHt: 65.2, performanceNm: null, performanceHt: 54.3, oeeNm: null, oeeHt: 35.4, mtbfNm: 1198.1, mtbfHt: 446.8, mttrNm: 24.8, mttrHt: 38.2, arizaEventsNm: 21,  arizaEventsHt: 24 },
+        { cell: "ROB108 Hücresi",     availabilityNm: 41.5, availabilityHt: 61.8, performanceNm: null, performanceHt: 45.7, oeeNm: null, oeeHt: 28.2, mtbfNm: 1162.8, mtbfHt: 336.3, mttrNm: 37.2, mttrHt: 29.3, arizaEventsNm: 16,  arizaEventsHt: 32 },
+        { cell: "Flowform Hücresi",   availabilityNm: 41.7, availabilityHt: 62.7, performanceNm: null, performanceHt: 53.5, oeeNm: null, oeeHt: 33.6, mtbfNm: 210.3,  mtbfHt: 284.6, mttrNm: 47.4, mttrHt: 20.4, arizaEventsNm: 85,  arizaEventsHt: 48 },
+        { cell: "ROB104 Hücresi",     availabilityNm: 37.7, availabilityHt: 57.5, performanceNm: null, performanceHt: 41.5, oeeNm: null, oeeHt: 23.8, mtbfNm: 6195.0, mtbfHt: 344.0, mttrNm: 45.0, mttrHt: 30.0, arizaEventsNm: 3,   arizaEventsHt: 30 },
+        { cell: "N602-N603 Hücresi",  availabilityNm: 24.7, availabilityHt: 69.1, performanceNm: null, performanceHt: 57.3, oeeNm: null, oeeHt: 39.6, mtbfNm: 156.4,  mtbfHt: 187.7, mttrNm: 54.8, mttrHt: 24.8, arizaEventsNm: 179, arizaEventsHt: 61 },
+        { cell: "ROB109 Hücresi",     availabilityNm: 39.0, availabilityHt: 64.1, performanceNm: null, performanceHt: 35.7, oeeNm: null, oeeHt: 22.9, mtbfNm: 552.9,  mtbfHt: 296.6, mttrNm: 41.1, mttrHt: 20.1, arizaEventsNm: 30,  arizaEventsHt: 36 },
+        { cell: "Quench Hücresi",     availabilityNm: 89.9, availabilityHt: 48.0, performanceNm: null, performanceHt: null, oeeNm: null, oeeHt: null, mtbfNm: null,   mtbfHt: 480.0, mttrNm: null, mttrHt: 270.0, arizaEventsNm: 0,   arizaEventsHt: 4 },
+        { cell: "ROB110-111 Hücresi", availabilityNm: 55.2, availabilityHt: 56.0, performanceNm: null, performanceHt: 49.6, oeeNm: null, oeeHt: 27.8, mtbfNm: 1234.4, mtbfHt: 106.9, mttrNm: 36.9, mttrHt: 31.7, arizaEventsNm: 16,  arizaEventsHt: 42 },
+        { cell: "Fosfat Hücresi",     availabilityNm: 89.6, availabilityHt: null, performanceNm: null, performanceHt: null, oeeNm: null, oeeHt: null, mtbfNm: 7170.0, mtbfHt: null,  mttrNm: 60.0, mttrHt: null, arizaEventsNm: 2,   arizaEventsHt: 0 },
+        { cell: "Boya Hücresi",       availabilityNm: 86.9, availabilityHt: null, performanceNm: null, performanceHt: null, oeeNm: null, oeeHt: null, mtbfNm: null,   mtbfHt: null,  mttrNm: null, mttrHt: null, arizaEventsNm: 0,   arizaEventsHt: 0 },
+      ];
+
   // ==================================================================
   // SLIDE 3 — GENEL BAKIŞ: ÜRETİM TABLOSU
   // ==================================================================
@@ -386,7 +405,170 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 5 — DARBOĞAZ: AKIŞ ŞEMASI
+  // OEE / MTBF / MTTR — yardımcılar
+  // ==================================================================
+  function shortCell(name) {
+    return name.replace(" Hücresi", "");
+  }
+  function pctCell(v, opts = {}) {
+    if (v === null || v === undefined) return { text: "veri yok", color: COLORS.red, bold: true };
+    return { text: `${v.toFixed(1)}%`, ...opts };
+  }
+  function dkCell(v) {
+    if (v === null || v === undefined) return { text: "veri yok", color: COLORS.red, bold: true };
+    return v.toFixed(1);
+  }
+  function changeCell(from, to, higherIsBetter) {
+    if (from === null || to === null || from === undefined || to === undefined) {
+      return { text: "—", color: COLORS.slateLight };
+    }
+    const pct = fmtPct(from, to);
+    const improved = higherIsBetter ? to > from : to < from;
+    return { text: pct, color: improved ? COLORS.green : COLORS.red, bold: true };
+  }
+
+  // ==================================================================
+  // SLIDE 5 — OEE: EKİPMAN ETKİNLİĞİ
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.chartBar, eyebrow: "OEE, MTBF & MTTR", title: "OEE — Ekipman Etkinliği (Haziran–Temmuz)" });
+    slide.addText("OEE = Availability × Performance. Kalite bileşeni dahil edilmedi — 12 üretim hücresinin hiçbirinde satır bazlı ret/fire verisi tutulmuyor (sadece FF Preform ve Final Ölçüm istasyonlarında var, bu 12 hücreden bağımsız ölçüm noktaları). Nisan-Mayıs karşılaştırması yok çünkü Hedef Üretim Adeti hücre bazında Haziran ortasına kadar kademeli devreye alındı.", {
+      x: 0.6, y: 1.45, w: 11.8, h: 0.65, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.slateLight, lineSpacing: 13,
+    });
+
+    // oeeData hat akış sırasındadır (Pres → ... → Boya, dataService.js CELLS ile aynı) —
+    // tablo bu sırayla gösterilir (OEE'ye göre sıralanmaz).
+    const header = ["Hücre", "Availability", "Performance", "OEE"];
+    const rows = oeeData.map((d) => [
+      shortCell(d.cell),
+      pctCell(d.availabilityHt),
+      pctCell(d.performanceHt),
+      pctCell(d.oeeHt, { bold: true, color: COLORS.navy }),
+    ]);
+    styledTable(slide, header, rows, { x: 0.6, y: 2.25, w: 7.3, colW: [2.7, 1.6, 1.6, 1.4], rowH: 0.32 });
+
+    const oeeVals = oeeData.filter((d) => d.oeeHt !== null);
+    const avgOee = oeeVals.reduce((s, d) => s + d.oeeHt, 0) / oeeVals.length;
+    const best = oeeVals.reduce((a, b) => (b.oeeHt > a.oeeHt ? b : a));
+    const worst = oeeVals.reduce((a, b) => (b.oeeHt < a.oeeHt ? b : a));
+    const stats = [
+      { big: `${avgOee.toFixed(1)}%`, small: `Hat ortalaması OEE\n(Haz-Tem, ${oeeVals.length} hücre)` },
+      { big: `${best.oeeHt.toFixed(1)}%`, small: `En yüksek OEE\n${shortCell(best.cell)}` },
+      { big: `${worst.oeeHt.toFixed(1)}%`, small: `En düşük OEE\n${shortCell(worst.cell)}` },
+    ];
+    stats.forEach((s, i) => {
+      const y = 2.25 + i * 1.5;
+      slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+        x: 8.2, y, w: 4.2, h: 1.25, rectRadius: 0.08,
+        fill: { color: COLORS.navy }, line: { type: "none" },
+      });
+      slide.addText(s.big, {
+        x: 8.45, y: y + 0.1, w: 3.7, h: 0.6, margin: 0,
+        fontFace: FONT_HEAD, fontSize: 26, bold: true, color: COLORS.white,
+      });
+      slide.addText(s.small, {
+        x: 8.45, y: y + 0.68, w: 3.7, h: 0.5, margin: 0,
+        fontFace: FONT_BODY, fontSize: 10, color: COLORS.ice, lineSpacing: 12,
+      });
+    });
+
+    slide.addText("Quench, Fosfat ve Boya'da Haziran-Temmuz'da hedefli üretim verisi yetersiz olduğundan Performance/OEE hesaplanamadı (Fosfat/Boya'da Availability da veri yok — bu dönemde kayıt girilmemiş).", {
+      x: 0.6, y: 6.55, w: 11.8, h: 0.4, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, italic: true, color: COLORS.slateLight,
+    });
+    addFooter(slide, "OEE, MTBF & MTTR");
+  }
+
+  // ==================================================================
+  // SLIDE 6 — MTBF ve MTTR
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.hourglass, eyebrow: "OEE, MTBF & MTTR", title: "MTBF ve MTTR — Arıza Bazlı Güvenilirlik" });
+    slide.addText("MTBF = (Planlı Süre − Arıza Dakikası) / Arıza Kaydı Sayısı  ·  MTTR = Arıza Dakikası / Arıza Kaydı Sayısı. Sadece \"Arıza\" (breakdown) kolonuna dayanır; planlı duruş, setup, mola vb. diğer duruş türleri dahil değildir.", {
+      x: 0.6, y: 1.45, w: 11.8, h: 0.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight, lineSpacing: 13,
+    });
+
+    slide.addText("MTBF (dk) — Arızalar Arası Çalışma Süresi", {
+      x: 0.5, y: 2.05, w: 5.85, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 12, bold: true, color: COLORS.navy,
+    });
+    const mtbfHeader = ["Hücre", "N-M (dk)", "H-T (dk)", "Değişim"];
+    const mtbfRows = oeeData.map((d) => [
+      shortCell(d.cell), dkCell(d.mtbfNm), dkCell(d.mtbfHt), changeCell(d.mtbfNm, d.mtbfHt, true),
+    ]);
+    styledTable(slide, mtbfHeader, mtbfRows, { x: 0.5, y: 2.4, w: 5.85, colW: [1.85, 1.3, 1.3, 1.4], rowH: 0.3 });
+
+    slide.addText("MTTR (dk) — Arıza Başına Giderilme Süresi", {
+      x: 6.75, y: 2.05, w: 5.85, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 12, bold: true, color: COLORS.navy,
+    });
+    const mttrHeader = ["Hücre", "N-M (dk)", "H-T (dk)", "Değişim"];
+    const mttrRows = oeeData.map((d) => [
+      shortCell(d.cell), dkCell(d.mttrNm), dkCell(d.mttrHt), changeCell(d.mttrNm, d.mttrHt, false),
+    ]);
+    styledTable(slide, mttrHeader, mttrRows, { x: 6.75, y: 2.4, w: 5.85, colW: [1.85, 1.3, 1.3, 1.4], rowH: 0.3 });
+
+    slide.addText("* Örnek sayısı azdır (<5 arıza kaydı) — ROB104 (Nisan-Mayıs: 3 kayıt), Fosfat (Nisan-Mayıs: 2 kayıt) ve Quench (Haziran-Temmuz: 4 kayıt) için MTBF/MTTR yorumlanırken dikkatli olunmalı. Boya'da ve Fosfat'ın Haziran-Temmuz döneminde hiç arıza kaydı yok.", {
+      x: 0.5, y: 6.15, w: 12.1, h: 0.55, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, italic: true, color: COLORS.slateLight, lineSpacing: 12,
+    });
+    addFooter(slide, "OEE, MTBF & MTTR");
+  }
+
+  // ==================================================================
+  // SLIDE 7 — GÜVENİLİRLİK ÖZETİ
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.chartLine, eyebrow: "OEE, MTBF & MTTR", title: "Güvenilirlik Özeti — Hücre Kıyaslaması (Haz-Tem)" });
+
+    const chartCells = oeeData.filter((d) => d.oeeHt !== null).sort((a, b) => b.oeeHt - a.oeeHt);
+    slide.addChart(
+      pres.charts.BAR,
+      [{ name: "OEE %", labels: chartCells.map((d) => shortCell(d.cell)), values: chartCells.map((d) => d.oeeHt) }],
+      {
+        x: 0.5, y: 1.6, w: 7.2, h: 4.9, barDir: "bar", barGapWidthPct: 30,
+        chartColors: [COLORS.navy],
+        chartArea: { fill: { color: COLORS.white }, roundedCorners: true },
+        catAxisLabelColor: COLORS.slate, catAxisLabelFontSize: 11,
+        valAxisLabelColor: COLORS.slateLight, valAxisLabelFontSize: 10,
+        valAxisTitle: "OEE %", showValAxisTitle: true, valAxisTitleFontSize: 10, valAxisTitleColor: COLORS.slateLight,
+        valGridLine: { color: COLORS.border, size: 0.5 },
+        catGridLine: { style: "none" },
+        showValue: true, dataLabelPosition: "outEnd", dataLabelFontSize: 10, dataLabelColor: COLORS.slate, dataLabelFormatCode: "0.0",
+        showLegend: false, showTitle: false,
+      }
+    );
+
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 7.95, y: 1.6, w: 4.4, h: 4.9, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { type: "outer", color: "1E2761", blur: 8, offset: 3, angle: 90, opacity: 0.1 },
+    });
+    slide.addText("GÖZLEM", {
+      x: 8.3, y: 1.85, w: 3.7, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slateLight, bold: true, charSpacing: 2,
+    });
+    slide.addText([
+      { text: "ROB110-111: ", options: { bold: true, color: COLORS.navy } },
+      { text: "En düşük MTBF (106,9 dk) — sık arıza pattern'i sürüyor (bkz. Duruş Analizi, arıza yoğunluğu +204%).\n\n", options: { color: COLORS.slate } },
+      { text: "N602-N603: ", options: { bold: true, color: COLORS.navy } },
+      { text: "En çok arıza kaydı (61 olay) ama MTTR düşük (24,8 dk) — hızlı müdahale ediliyor.\n\n", options: { color: COLORS.slate } },
+      { text: "ETM: ", options: { bold: true, color: COLORS.navy } },
+      { text: "En yüksek MTTR (38,2 dk, Quench'in az örnekli 270 dk'sı hariç) — giderilme süresi kök neden incelemesi için fırsat.\n\n", options: { color: COLORS.slate } },
+      { text: "ROB109 ve ROB104: ", options: { bold: true, color: COLORS.navy } },
+      { text: "Hattın en düşük OEE'si (%22,9 / %23,8) — hem availability hem performance tarafında iyileştirme alanı var.", options: { color: COLORS.slate } },
+    ], { x: 8.3, y: 2.2, w: 3.7, h: 4.15, margin: 0, fontFace: FONT_BODY, fontSize: 10.5, lineSpacing: 14 });
+
+    addFooter(slide, "OEE, MTBF & MTTR");
+  }
+
+  // ==================================================================
+  // SLIDE 8 — DARBOĞAZ: AKIŞ ŞEMASI
   // ==================================================================
   {
     const slide = newContentSlide();
@@ -455,7 +637,7 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 6 — DARBOĞAZ: BEKLEME TREND GRAFİĞİ
+  // SLIDE 9 — DARBOĞAZ: BEKLEME TREND GRAFİĞİ
   // ==================================================================
   {
     const slide = newContentSlide();
@@ -489,7 +671,7 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 7 — KÖK NEDEN ÖZETİ
+  // SLIDE 10 — KÖK NEDEN ÖZETİ
   // ==================================================================
   {
     const slide = newContentSlide();
@@ -547,7 +729,7 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 8 — DURUŞ ANALİZİ: GENEL BAKIŞ
+  // SLIDE 11 — DURUŞ ANALİZİ: GENEL BAKIŞ
   // ==================================================================
   {
     const slide = newContentSlide();
@@ -588,7 +770,7 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 9 — DURUŞ ANALİZİ: KATEGORİ DAĞILIMI
+  // SLIDE 12 — DURUŞ ANALİZİ: KATEGORİ DAĞILIMI
   // ==================================================================
   {
     const slide = newContentSlide();
@@ -627,7 +809,7 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 10 — DURUŞ ANALİZİ: ÜRETİME ORANLI YOĞUNLUK
+  // SLIDE 13 — DURUŞ ANALİZİ: ÜRETİME ORANLI YOĞUNLUK
   // ==================================================================
   {
     const slide = newContentSlide();
@@ -677,7 +859,7 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 11 — DURUŞ ANALİZİ: NEDEN PARETO
+  // SLIDE 14 — DURUŞ ANALİZİ: NEDEN PARETO
   // ==================================================================
   {
     const slide = newContentSlide();
@@ -711,7 +893,7 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 12 — DURUŞ ANALİZİ: HÜCRE BAZLI BASKIN NEDEN
+  // SLIDE 15 — DURUŞ ANALİZİ: HÜCRE BAZLI BASKIN NEDEN
   // ==================================================================
   {
     const slide = newContentSlide();
@@ -740,7 +922,7 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 13 — DURUŞ ANALİZİ: TEKRARLAYAN SOMUT SORUNLAR
+  // SLIDE 16 — DURUŞ ANALİZİ: TEKRARLAYAN SOMUT SORUNLAR
   // ==================================================================
   {
     const slide = newContentSlide();
@@ -769,7 +951,7 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 14 — DURUŞ ANALİZİ: KAYIT TAKİP DİSİPLİNİ
+  // SLIDE 17 — DURUŞ ANALİZİ: KAYIT TAKİP DİSİPLİNİ
   // ==================================================================
   {
     const slide = newContentSlide();

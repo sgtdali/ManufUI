@@ -8,32 +8,56 @@
 <body>
   <header class="topbar">
     <h1>Üst Yönetim Sunumu — Veri Seçimi</h1>
-    <p class="hint">Sadece localde çalışır. Buradaki seçimler yayınlanan ManufUI uygulamasını etkilemez, sadece <code>.pptx</code> dosyasının Genel Bakış tablolarını (Sayfa 3-4) besler.</p>
+    <p class="hint">Sadece localde çalışır. Buradaki seçimler yayınlanan ManufUI uygulamasını etkilemez, sadece <code>.pptx</code> dosyasının Genel Bakış / OEE tablolarını besler.</p>
   </header>
 
-  <nav class="period-tabs">
-    <button class="tab-btn active" data-period="nm">Nisan – Mayıs</button>
-    <button class="tab-btn" data-period="ht">Haziran – Temmuz</button>
+  <nav class="mode-tabs">
+    <button class="mode-btn active" data-mode="data">Üretim Verisi Seçimi</button>
+    <button class="mode-btn" data-mode="oee">OEE — Planlı Süre</button>
   </nav>
 
-  <section class="range-bar">
-    <label>Başlangıç <input type="date" id="rangeStart" /></label>
-    <label>Bitiş <input type="date" id="rangeEnd" /></label>
-    <button id="applyRange">Aralığı Uygula</button>
-    <span class="spacer"></span>
-    <label>Metrik görünümü
-      <select id="metricView">
-        <option value="prod">Üretim adedi</option>
-        <option value="wait">Önceki istasyon bekleme (dk)</option>
-      </select>
-    </label>
-    <button id="selectAll">Tümünü Seç</button>
-    <button id="selectNone">Tümünü Kaldır</button>
-  </section>
+  <div id="dataView">
+    <nav class="period-tabs">
+      <button class="tab-btn active" data-period="nm">Nisan – Mayıs</button>
+      <button class="tab-btn" data-period="ht">Haziran – Temmuz</button>
+    </nav>
 
-  <section id="summaryBar" class="summary-bar"></section>
+    <section class="range-bar">
+      <label>Başlangıç <input type="date" id="rangeStart" /></label>
+      <label>Bitiş <input type="date" id="rangeEnd" /></label>
+      <button id="applyRange">Aralığı Uygula</button>
+      <span class="spacer"></span>
+      <label>Metrik görünümü
+        <select id="metricView">
+          <option value="prod">Üretim adedi</option>
+          <option value="wait">Önceki istasyon bekleme (dk)</option>
+        </select>
+      </label>
+      <button id="selectAll">Tümünü Seç</button>
+      <button id="selectNone">Tümünü Kaldır</button>
+    </section>
 
-  <main id="grid" class="grid"></main>
+    <section id="summaryBar" class="summary-bar"></section>
+
+    <main id="grid" class="grid"></main>
+  </div>
+
+  <div id="oeeView" class="hidden">
+    <section class="range-bar">
+      <label>Hücre
+        <select id="oeeCellSelect"></select>
+      </label>
+      <label>Başlangıç <input type="date" id="oeeRangeStart" /></label>
+      <label>Bitiş <input type="date" id="oeeRangeEnd" /></label>
+      <span id="oeeLiveMetric" class="oee-live-metric">Availability - | Performance - | OEE -</span>
+      <span class="spacer"></span>
+      <span id="oeeExclCount" class="hint-text"></span>
+    </section>
+    <section class="range-bar oee-hint-bar">
+      <p class="hint-text">Her satır bir saatlik zaman dilimidir. O saatte oluşan duruşları (tür + açıklama) görüp, o saatin <strong>Planlı Süre'ye dahil olup olmayacağına</strong> karar ver. Dahil olmayan (işareti kaldırılmış) saatler Availability/OEE/MTBF/MTTR hesabında hiç sayılmaz — sanki hiç raporlanmamış gibi. Tarih aralığının <strong>dışındaki günler</strong> de aynı şekilde ne bu listede görünür ne de hesaplamaya dahil olur. Gün satırına tıklayınca o günün saatleri açılır/kapanır.</p>
+    </section>
+    <main id="oeeGrid" class="grid"></main>
+  </div>
 
   <footer class="actionbar">
     <div id="status" class="status"></div>

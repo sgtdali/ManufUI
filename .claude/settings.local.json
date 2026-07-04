@@ -69,7 +69,27 @@
       "Bash(find \"/c/Users/tvural.REPKON/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin\" -iname \"*extract-text*\" 2>/dev/null)",
       "Read(//c/Users/tvural.REPKON/AppData/Roaming/Claude/**)",
       "Bash(where extract-text *)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(ls node_modules/@supabase)",
+      "Bash(node -e \"console.log\\('node ok'\\)\")",
+      "Bash(python -c \"import pptx\")",
+      "Bash(rm -f /tmp/pptx_check.txt)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\({k: v['excludedFromPlannedTime'] for k,v in d.items\\(\\)}\\)\")",
+      "Bash(node --check tool/server.js)",
+      "Bash(node --check tool/dataService.js)",
+      "Bash(node --check tool/public/app.js)",
+      "Bash(node -e \"require\\('acorn'\\)\")",
+      "Bash(powershell -Command \"Stop-Process -Id 23020 -Force\")",
+      "Bash(taskkill //F //PID 23020)",
+      "Bash(curl -s \"http://localhost:4590/api/cell-detail?cell=Pres%20H%C3%BCcresi\")",
+      "Bash(curl -s http://localhost:4590/api/oee-slot-exclusions)",
+      "Bash(curl -s -X POST http://localhost:4590/api/oee-slot-exclusions -H \"Content-Type: application/json\" -d '{\"exclusions\":[\"Pres Hücresi||2026-04-02||07:45 - 08:45\"]}')",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(powershell -Command \"Stop-Process -Id 9684 -Force\")",
+      "Bash(node -e \"fetch\\('http://localhost:4590/api/oee-date-range', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify\\({start:'2026-06-01', end:'2026-06-15'}\\)}\\).then\\(r=>r.json\\(\\)\\).then\\(d=>console.log\\('post:', JSON.stringify\\(d\\)\\)\\)\")",
+      "Bash(node -e \"fetch\\('http://localhost:4590/api/oee-date-range'\\).then\\(r=>r.json\\(\\)\\).then\\(d=>console.log\\('get after post:', JSON.stringify\\(d\\)\\)\\)\")",
+      "Bash(node -e \"fetch\\('http://localhost:4590/api/cell-detail?cell=Pres%20H%C3%BCcresi'\\).then\\(r=>r.json\\(\\)\\).then\\(d=>console.log\\('cell-detail dates count:', Object.keys\\(d.byDate\\).length\\)\\)\")",
+      "Bash(powershell -Command \"Stop-Process -Id 23744 -Force\")"
     ]
   }
 }

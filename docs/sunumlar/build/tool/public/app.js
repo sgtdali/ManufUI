@@ -1,5 +1,30 @@
 (function () {
+  const DEFAULT_CELL_OEE_RULES = {
+    plannedTimeOut: [{ field: "mola" }],
+    availabilityExclude: [{ field: "onceki_istasyon_bekleme" }],
+    targetScale: [{ field: "mola" }, { field: "onceki_istasyon_bekleme" }],
+    cells: Object.fromEntries(
+      [
+        "ROB108 H\u00fccresi",
+        "ROB104 H\u00fccresi",
+        "Flowform H\u00fccresi",
+        "N602 H\u00fccresi",
+        "N603 H\u00fccresi",
+      ].map((cell) => [
+        cell,
+        {
+          availabilityExclude: [
+            { field: "planli_durus", typeField: "planli_durus_turu", type: "Kasa Alma - B\u0131rakma" },
+          ],
+          targetScale: [
+            { field: "planli_durus", typeField: "planli_durus_turu", type: "Kasa Alma - B\u0131rakma" },
+          ],
+        },
+      ])
+    ),
+  };
   const state = {
+    mode: "data",
     period: "nm",
     cells: [],
     periods: {},
@@ -8,9 +33,22 @@
     rawCache: {}, // { nm: {raw, range}, ht: {...} }
     metricView: "prod",
     saveTimer: null,
+    oee: {
+      cell: null,
+      downtimeFields: [], // [{key, label, turKey?, aciklamaKey?}]
+      detailByDate: {}, // { [tarih]: [row, ...] } — seçili hücre için
+      rules: DEFAULT_CELL_OEE_RULES,
+      exclusions: new Set(), // Set<slotKey> — Planlı Süre'den hariç tutulan saatler (global, dönem ayrımı yok)
+      dateRange: null, // { start, end } — bu aralık dışındaki günler ne listede görünür ne hesaba dahil olur
+      saveTimer: null,
+      rangeSaveTimer: null,
+    },
   };
 
   const el = {
+    modeTabs: document.querySelectorAll(".mode-btn"),
+    dataView: document.getElementById("dataView"),
+    oeeView: document.getElementById("oeeView"),
     tabs: document.querySelectorAll(".tab-btn"),
     rangeStart: document.getElementById("rangeStart"),
     rangeEnd: document.getElementById("rangeEnd"),
@@ -19,6 +57,12 @@
     selectAll: document.getElementById("selectAll"),
     selectNone: document.getElementById("selectNone"),
     grid: document.getElementById("grid"),
+    oeeGrid: document.getElementById("oeeGrid"),
+    oeeCellSelect: document.getElementById("oeeCellSelect"),
+    oeeRangeStart: document.getElementById("oeeRangeStart"),
+    oeeRangeEnd: document.getElementById("oeeRangeEnd"),
+    oeeExclCount: document.getElementById("oeeExclCount"),
+    oeeLiveMetric: document.getElementById("oeeLiveMetric"),
     summaryBar: document.getElementById("summaryBar"),
     status: document.getElementById("status"),
     generateBtn: document.getElementById("generateBtn"),
@@ -51,7 +95,305 @@
 
     await loadPeriod("nm");
     render();
+
+    const metaRes = await fetch("/api/oee-cell-meta").then((r) => r.json());
+    state.oee.downtimeFields = metaRes.downtimeFields;
+    state.oee.rules = metaRes.cellOeeRules || DEFAULT_CELL_OEE_RULES;
+    const exclRes = await fetch("/api/oee-slot-exclusions").then((r) => r.json());
+    state.oee.exclusions = new Set(exclRes.exclusions || []);
+    const rangeRes = await fetch("/api/oee-date-range").then((r) => r.json());
+    state.oee.dateRange = rangeRes;
+    el.oeeRangeStart.value = rangeRes.start;
+    el.oeeRangeEnd.value = rangeRes.end;
+    populateOeeCellSelect();
   }
+
+  function scheduleOeeRangeSave() {
+    clearTimeout(state.oee.rangeSaveTimer);
+    state.oee.rangeSaveTimer = setTimeout(async () => {
+      await fetch("/api/oee-date-range", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(state.oee.dateRange),
+      });
+    }, 500);
+  }
+
+  async function handleOeeRangeChange() {
+    const start = el.oeeRangeStart.value;
+    const end = el.oeeRangeEnd.value;
+    if (!start || !end || start > end) return;
+    state.oee.dateRange = { start, end };
+    scheduleOeeRangeSave();
+    if (state.oee.cell) await loadOeeCellDetail(state.oee.cell);
+    else renderOeeDetail();
+  }
+
+  el.oeeRangeStart.addEventListener("change", handleOeeRangeChange);
+  el.oeeRangeEnd.addEventListener("change", handleOeeRangeChange);
+
+  function populateOeeCellSelect() {
+    el.oeeCellSelect.innerHTML = state.cells
+      .map((c) => `<option value="${c}">${c.replace(" Hücresi", "")}</option>`)
+      .join("");
+    el.oeeCellSelect.value = state.cells[0];
+    loadOeeCellDetail(state.cells[0]);
+  }
+
+  async function loadOeeCellDetail(cell) {
+    state.oee.cell = cell;
+    el.oeeGrid.innerHTML = `<p class="hint-text">Yükleniyor…</p>`;
+    const params = new URLSearchParams({ cell });
+    if (state.oee.dateRange) {
+      params.set("start", state.oee.dateRange.start);
+      params.set("end", state.oee.dateRange.end);
+    }
+    const httpRes = await fetch(`/api/cell-detail?${params.toString()}`);
+    const res = await httpRes.json();
+    if (!httpRes.ok) throw new Error(res.error || `Sunucu hatasi (${httpRes.status})`);
+    state.oee.detailByDate = res.byDate;
+    renderOeeDetail();
+  }
+
+  el.oeeCellSelect.addEventListener("change", () => {
+    loadOeeCellDetail(el.oeeCellSelect.value);
+  });
+
+  function scheduleOeeExclSave() {
+    clearTimeout(state.oee.saveTimer);
+    state.oee.saveTimer = setTimeout(async () => {
+      await fetch("/api/oee-slot-exclusions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ exclusions: Array.from(state.oee.exclusions) }),
+      });
+    }, 500);
+  }
+
+  function toggleOeeSlotExclusion(key) {
+    if (state.oee.exclusions.has(key)) state.oee.exclusions.delete(key);
+    else state.oee.exclusions.add(key);
+    scheduleOeeExclSave();
+  }
+
+  function rowMatchesRule(row, rule) {
+    return !rule.typeField || row[rule.typeField] === rule.type;
+  }
+
+  function rulesForCell(cell, key) {
+    const rules = state.oee.rules || {};
+    return [...(rules[key] || []), ...(((rules.cells || {})[cell] || {})[key] || [])];
+  }
+
+  function sumRuleMinutes(cell, row, key) {
+    return rulesForCell(cell, key).reduce((sum, rule) => {
+      return sum + (rowMatchesRule(row, rule) ? (row[rule.field] || 0) : 0);
+    }, 0);
+  }
+
+  function fieldMatchesAnyRule(cell, row, field, keys) {
+    return keys.some((key) => rulesForCell(cell, key).some((rule) => rule.field === field && rowMatchesRule(row, rule)));
+  }
+
+  function computeLiveOee() {
+    const cell = state.oee.cell;
+    const byDate = state.oee.detailByDate || {};
+    const range = state.oee.dateRange;
+    if (!cell) return null;
+    let slotCount = 0;
+    let plannedMinutes = 0;
+    let downtimeMinutes = 0;
+    let targetProd = 0;
+    let actualProd = 0;
+    let targetedPlannedMinutes = 0;
+
+    Object.entries(byDate).forEach(([date, rows]) => {
+      if (range && (date < range.start || date > range.end)) return;
+      rows.forEach((row) => {
+        const key = slotKey(cell, date, row.zaman_dilimi);
+        if (state.oee.exclusions.has(key)) return;
+
+        slotCount += 1;
+        const plannedOutMinutes = Math.min(60, sumRuleMinutes(cell, row, "plannedTimeOut"));
+        const effectivePlannedMinutes = 60 - plannedOutMinutes;
+        plannedMinutes += effectivePlannedMinutes;
+
+        downtimeMinutes += state.oee.downtimeFields.reduce((sum, field) => {
+          return sum + (fieldMatchesAnyRule(cell, row, field.key, ["plannedTimeOut", "availabilityExclude"])
+            ? 0
+            : (row[field.key] || 0));
+        }, 0);
+
+        if ((row.hedef_uretim_adeti || 0) > 0) {
+          targetedPlannedMinutes += effectivePlannedMinutes;
+          actualProd += row.uretim_adeti || 0;
+          const targetScaleMinutes = Math.min(60, sumRuleMinutes(cell, row, "targetScale"));
+          const targetScale = (60 - targetScaleMinutes) / 60;
+          targetProd += (row.hedef_uretim_adeti || 0) * targetScale;
+        }
+      });
+    });
+
+    if (plannedMinutes === 0) return { status: "empty" };
+    const availability = (plannedMinutes - downtimeMinutes) / plannedMinutes;
+    const targetCoverage = targetedPlannedMinutes / plannedMinutes;
+    if (targetProd <= 0 || targetCoverage < 0.3) {
+      return { status: "insufficient", availability, targetCoverage, slotCount };
+    }
+    const performance = actualProd / targetProd;
+    return { status: "ok", availability, performance, oee: availability * performance, slotCount };
+  }
+  function updateOeeLiveMetric() {
+    const result = computeLiveOee();
+    if (!result || result.status === "empty") {
+      el.oeeLiveMetric.textContent = "Availability - | Performance - | OEE -";
+      el.oeeLiveMetric.title = "Secili aralikta planli saat yok.";
+      return;
+    }
+    if (result.status === "insufficient") {
+      el.oeeLiveMetric.textContent = `Availability ${(result.availability * 100).toFixed(1)}% | Performance - | OEE -`;
+      el.oeeLiveMetric.title = `Availability ${(result.availability * 100).toFixed(1)}%, hedef kapsami ${(result.targetCoverage * 100).toFixed(1)}%`;
+      return;
+    }
+    el.oeeLiveMetric.textContent = `Availability ${(result.availability * 100).toFixed(1)}% | Performance ${(result.performance * 100).toFixed(1)}% | OEE ${(result.oee * 100).toFixed(1)}%`;
+    el.oeeLiveMetric.title = `Availability ${(result.availability * 100).toFixed(1)}%, Performance ${(result.performance * 100).toFixed(1)}%, ${result.slotCount} saat`;
+  }
+  function updateOeeExclCount() {
+    const cell = state.oee.cell;
+    if (!cell) { el.oeeExclCount.textContent = ""; return; }
+    const prefix = cell + "||";
+    let count = 0;
+    state.oee.exclusions.forEach((key) => { if (key.startsWith(prefix)) count += 1; });
+    el.oeeExclCount.textContent = count
+      ? `${count} saat bu hücrede Planlı Süre dışı`
+      : "Bu hücrede tüm saatler Planlı Süre'ye dahil";
+    updateOeeLiveMetric();
+  }
+
+  // Bir saatlik satırda oluşan duruşları okunabilir tek satırlık özet haline getirir:
+  // "Arıza 30dk (M — Calor konveyör kaynaklı duruş); Mola 10dk" gibi.
+  function buildDurusSummary(row) {
+    const parts = [];
+    state.oee.downtimeFields.forEach(({ key, label, turKey, aciklamaKey }) => {
+      const minutes = row[key];
+      if (!minutes) return;
+      const extra = [];
+      if (turKey && row[turKey]) extra.push(row[turKey]);
+      if (aciklamaKey && row[aciklamaKey]) extra.push(row[aciklamaKey]);
+      parts.push(`${label} ${minutes}dk` + (extra.length ? ` (${extra.join(" — ")})` : ""));
+    });
+    return parts.length ? parts.join("; ") : "—";
+  }
+
+  function dayDowntimeTotal(rows) {
+    return rows.reduce(
+      (sum, r) => sum + state.oee.downtimeFields.reduce((s, f) => s + (r[f.key] || 0), 0),
+      0
+    );
+  }
+
+  function updateOeeDayHeader(header, rows, date, cell) {
+    const total = dayDowntimeTotal(rows);
+    const excludedCount = rows.filter((r) => state.oee.exclusions.has(slotKey(cell, date, r.zaman_dilimi))).length;
+    header.querySelector(".oee-day-badge").textContent =
+      `${total} dk duruş` + (excludedCount ? ` · ${excludedCount} saat dahil değil` : "");
+  }
+
+  function renderOeeDetail() {
+    const cell = state.oee.cell;
+    const byDate = state.oee.detailByDate;
+    const range = state.oee.dateRange;
+    const dates = Object.keys(byDate)
+      .filter((d) => !range || (d >= range.start && d <= range.end))
+      .sort();
+
+    if (dates.length === 0) {
+      el.oeeGrid.innerHTML = `<p class="hint-text">Seçili tarih aralığında bu hücre için kayıt bulunamadı.</p>`;
+      updateOeeExclCount();
+      return;
+    }
+
+    const container = document.createElement("div");
+    container.className = "oee-detail";
+
+    dates.forEach((date) => {
+      const rows = byDate[date];
+
+      const dayDiv = document.createElement("div");
+      dayDiv.className = "oee-day";
+
+      const header = document.createElement("div");
+      header.className = "oee-day-header";
+      header.innerHTML =
+        `<span class="oee-day-chevron">▶</span> <strong>${date}</strong> ` +
+        `<span class="oee-day-badge"></span>`;
+      updateOeeDayHeader(header, rows, date, cell);
+      dayDiv.appendChild(header);
+
+      const table = document.createElement("table");
+      table.className = "oee-detail-table hidden";
+      table.innerHTML = `<thead><tr><th>Saat</th><th>Üretim / Hedef</th><th>Duruş Özeti</th><th>Planlı Süre</th></tr></thead>`;
+      const tbody = document.createElement("tbody");
+
+      rows.forEach((row) => {
+        const key = slotKey(cell, date, row.zaman_dilimi);
+        const tr = document.createElement("tr");
+
+        const saatTd = document.createElement("td");
+        saatTd.textContent = row.zaman_dilimi;
+        tr.appendChild(saatTd);
+
+        const uretimTd = document.createElement("td");
+        uretimTd.textContent = `${row.uretim_adeti || 0} / ${row.hedef_uretim_adeti || "—"}`;
+        tr.appendChild(uretimTd);
+
+        const summaryTd = document.createElement("td");
+        summaryTd.className = "oee-summary-cell";
+        summaryTd.textContent = buildDurusSummary(row);
+        tr.appendChild(summaryTd);
+
+        const checkTd = document.createElement("td");
+        checkTd.className = "oee-check-cell";
+        const isExcluded = state.oee.exclusions.has(key);
+        checkTd.innerHTML = `<input type="checkbox" ${isExcluded ? "" : "checked"} />`;
+        tr.classList.toggle("excluded", isExcluded);
+        checkTd.addEventListener("click", () => {
+          toggleOeeSlotExclusion(key);
+          const nowExcluded = state.oee.exclusions.has(key);
+          tr.classList.toggle("excluded", nowExcluded);
+          checkTd.querySelector("input").checked = !nowExcluded;
+          updateOeeDayHeader(header, rows, date, cell);
+          updateOeeExclCount();
+        });
+        tr.appendChild(checkTd);
+
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      dayDiv.appendChild(table);
+
+      header.addEventListener("click", () => {
+        table.classList.toggle("hidden");
+        header.querySelector(".oee-day-chevron").textContent = table.classList.contains("hidden") ? "▶" : "▼";
+      });
+
+      container.appendChild(dayDiv);
+    });
+
+    el.oeeGrid.innerHTML = "";
+    el.oeeGrid.appendChild(container);
+    updateOeeExclCount();
+  }
+
+  el.modeTabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      el.modeTabs.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.mode = btn.dataset.mode;
+      el.dataView.classList.toggle("hidden", state.mode !== "data");
+      el.oeeView.classList.toggle("hidden", state.mode !== "oee");
+    });
+  });
 
   async function loadPeriod(period) {
     setStatus("Veri yükleniyor…");
