@@ -333,19 +333,125 @@ function fmtPct(from, to, decimals = 0) {
   {
     const slide = newContentSlide();
     addHeader(slide, { icon: icons.chartBar, eyebrow: "Genel Bakış", title: "11 Hücre — Günlük Ortalama Üretim Adedi" });
-    slide.addText("Karşılaştırma günlük ortalama bazındadır (dönemlerdeki kayıtlı gün sayısı farklı olduğundan toplamlar yerine ortalama kullanılmıştır).", {
-      x: 0.6, y: 1.5, w: 11.8, h: 0.35, margin: 0,
-      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight,
+
+
+    // Legend Container
+    slide.addShape(pres.shapes.OVAL, {
+      x: 4.8, y: 1.42, w: 0.12, h: 0.12,
+      fill: { color: COLORS.ice }, line: { type: "none" }
+    });
+    slide.addText("Nisan–Mayıs", {
+      x: 5.0, y: 1.36, w: 1.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate
+    });
+    
+    slide.addShape(pres.shapes.OVAL, {
+      x: 6.8, y: 1.42, w: 0.12, h: 0.12,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("Haziran–Temmuz", {
+      x: 7.0, y: 1.36, w: 1.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate
     });
 
-    const header = ["Hücre", "Nisan–Mayıs (adet/gün)", "Haziran–Temmuz (adet/gün)", "Değişim"];
-    const rows = overviewData.map((d) => [
-      d.cell,
-      d.nm.toFixed(1),
-      d.ht === null ? { text: "veri yok", color: COLORS.red, bold: true } : d.ht.toFixed(1),
-      d.ht === null ? { text: "—", color: COLORS.red } : { text: fmtPct(d.nm, d.ht), color: COLORS.green, bold: true },
-    ]);
-    styledTable(slide, header, rows, { x: 0.6, y: 2.0, w: 11.8, colW: [4.1, 2.9, 2.9, 1.9], rowH: 0.335 });
+    const chartLeft = 3.0;
+    const chartWidth = 7.5;
+    const maxValue = 150;
+    const scaleX = (val) => chartLeft + (val / maxValue) * chartWidth;
+
+    // Draw Vertical Gridlines (0, 50, 100, 150)
+    const gridValues = [0, 50, 100, 150];
+    const gridTop = 1.8;
+    const gridBottom = 6.1;
+    const gridHeight = gridBottom - gridTop;
+
+    gridValues.forEach((val) => {
+      const valX = scaleX(val);
+      // Vertical gridline
+      slide.addShape(pres.shapes.LINE, {
+        x: valX, y: gridTop, w: 0, h: gridHeight,
+        line: { color: COLORS.border, width: 1, type: "solid" }
+      });
+      // X-axis label
+      const labelText = val === 150 ? "150 adet/gün" : String(val);
+      slide.addText(labelText, {
+        x: valX - (val === 150 ? 0.8 : 0.4), y: gridBottom + 0.05, w: (val === 150 ? 1.6 : 0.8), h: 0.3,
+        fontFace: FONT_BODY, fontSize: 10, color: COLORS.slate, align: val === 150 ? "left" : "center", margin: 0
+      });
+    });
+
+    const startY = 2.0;
+    const rowSpacing = 0.38;
+
+    function chartCellName(name) {
+      let s = name.replace(" Hücresi", "");
+      if (s === "N602-N603") return "N602-603";
+      return s;
+    }
+
+    overviewData.forEach((d, i) => {
+      const cellY = startY + i * rowSpacing;
+
+      // Cell Label on the left
+      slide.addText(chartCellName(d.cell), {
+        x: 0.6, y: cellY - 0.12, w: 2.2, h: 0.3, margin: 0,
+        fontFace: FONT_HEAD, fontSize: 12, bold: true, color: COLORS.navyDeep, align: "left"
+      });
+
+      if (d.ht === null) {
+        // "veri yok" case
+        const x1 = scaleX(d.nm);
+        // Gray dot at Nisan-Mayıs value
+        slide.addShape(pres.shapes.OVAL, {
+          x: x1 - 0.07, y: cellY - 0.07, w: 0.14, h: 0.14,
+          fill: { color: "94A3B8" }, line: { type: "none" }
+        });
+        // Dashed gray line
+        const lineW = 0.8;
+        slide.addShape(pres.shapes.LINE, {
+          x: x1, y: cellY, w: lineW, h: 0,
+          line: { color: "94A3B8", width: 1.5, dashType: "dash" }
+        });
+        // "veri yok" text
+        slide.addText("veri yok", {
+          x: x1 + lineW + 0.1, y: cellY - 0.12, w: 1.5, h: 0.3, margin: 0,
+          fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.red, bold: true
+        });
+      } else {
+        // Normal case
+        const x1 = scaleX(d.nm);
+        const x2 = scaleX(d.ht);
+        const isIncrease = d.ht > d.nm;
+
+        // Connecting Line
+        slide.addShape(pres.shapes.LINE, {
+          x: Math.min(x1, x2), y: cellY, w: Math.abs(x2 - x1), h: 0,
+          line: { color: COLORS.navy, width: 2.0 }
+        });
+
+        // Nisan-Mayıs Dot (Light Blue)
+        slide.addShape(pres.shapes.OVAL, {
+          x: x1 - 0.07, y: cellY - 0.07, w: 0.14, h: 0.14,
+          fill: { color: COLORS.ice }, line: { type: "none" }
+        });
+
+        // Haziran-Temmuz Dot (Dark Blue)
+        slide.addShape(pres.shapes.OVAL, {
+          x: x2 - 0.07, y: cellY - 0.07, w: 0.14, h: 0.14,
+          fill: { color: COLORS.navy }, line: { type: "none" }
+        });
+
+        // Percentage text
+        const pct = fmtPct(d.nm, d.ht);
+        // Position it on the right of the larger value
+        const textX = Math.max(x1, x2) + 0.15;
+        slide.addText(pct, {
+          x: textX, y: cellY - 0.12, w: 1.2, h: 0.3, margin: 0,
+          fontFace: FONT_BODY, fontSize: 11, bold: true, color: isIncrease ? COLORS.green : COLORS.slate, align: "left"
+        });
+      }
+    });
+
     addFooter(slide, "Genel Bakış");
   }
 
