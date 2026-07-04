@@ -199,6 +199,17 @@ function computeMergedCellAverage(rawByDateA, cellA, rawByDateB, cellB, exclusio
 // Cell OEE excludes onceki_istasyon_bekleme from Availability loss; flow/wait
 // analysis still keeps that field separately.
 const SLOT_MINUTES = 60;
+
+function getSlotMinutes(cell, tarih) {
+  if (cell === "Quench Hücresi") {
+    if (tarih) {
+      const day = new Date(`${tarih}T00:00:00`).getDay();
+      return (day === 5 || day === 6) ? 480 : 540;
+    }
+    return 540;
+  }
+  return 60;
+}
 const DOWNTIME_FIELDS = [
   "mola", "ariza", "planli_durus", "setup_ve_ayar", "takim_degisimi",
   "kalip_demontaj", "kalip_montaj", "onceki_istasyon_bekleme",
@@ -324,8 +335,9 @@ function newReliabilityAccumulator() {
 
 function addRowToAccumulator(acc, row, cell, tarih, targetOverrides) {
   acc.slotCount += 1;
-  const plannedOutMinutes = Math.min(SLOT_MINUTES, sumRuleMinutes(cell, row, "plannedTimeOut"));
-  const effectivePlannedMinutes = SLOT_MINUTES - plannedOutMinutes;
+  const slotMinutes = getSlotMinutes(cell, tarih);
+  const plannedOutMinutes = Math.min(slotMinutes, sumRuleMinutes(cell, row, "plannedTimeOut"));
+  const effectivePlannedMinutes = slotMinutes - plannedOutMinutes;
   acc.plannedMinutes += effectivePlannedMinutes;
   for (const field of DOWNTIME_FIELDS) {
     acc.downtimeMinutes += availabilityLossMinutes(cell, row, field);
@@ -334,8 +346,8 @@ function addRowToAccumulator(acc, row, cell, tarih, targetOverrides) {
   if (hedefUretimAdeti > 0) {
     acc.targetedPlannedMinutes += effectivePlannedMinutes;
     acc.targetedActualProd += row.uretim_adeti || 0;
-    const targetScaleMinutes = Math.min(SLOT_MINUTES, targetScaleMinutesForRow(cell, row));
-    const targetScale = (SLOT_MINUTES - targetScaleMinutes) / SLOT_MINUTES;
+    const targetScaleMinutes = Math.min(slotMinutes, targetScaleMinutesForRow(cell, row));
+    const targetScale = (slotMinutes - targetScaleMinutes) / slotMinutes;
     acc.targetProd += hedefUretimAdeti * targetScale;
   }
   acc.arizaMinutes += row.ariza || 0;

@@ -329,6 +329,17 @@
       }));
   }
 
+  function getSlotMinutes(cell, date) {
+    if (cell === "Quench Hücresi") {
+      if (date) {
+        const day = new Date(`${date}T00:00:00`).getDay();
+        return (day === 5 || day === 6) ? 480 : 540;
+      }
+      return 540;
+    }
+    return 60;
+  }
+
   function computeOeeBreakdown() {
     const cell = state.oee.cell;
     const byDate = state.oee.detailByDate || {};
@@ -370,11 +381,12 @@
           return;
         }
 
+        const slotMinutes = getSlotMinutes(cell, date);
         breakdown.slotCount += 1;
-        breakdown.plannedMinutesGross += 60;
+        breakdown.plannedMinutesGross += slotMinutes;
 
-        const plannedOutMinutes = Math.min(60, sumRuleMinutes(cell, row, "plannedTimeOut"));
-        const effectivePlannedMinutes = 60 - plannedOutMinutes;
+        const plannedOutMinutes = Math.min(slotMinutes, sumRuleMinutes(cell, row, "plannedTimeOut"));
+        const effectivePlannedMinutes = slotMinutes - plannedOutMinutes;
         breakdown.plannedOutMinutes += plannedOutMinutes;
         breakdown.plannedMinutes += effectivePlannedMinutes;
 
@@ -406,8 +418,8 @@
         if (grossTarget > 0) {
           const scaleDetails = targetScaleDetailsForRow(cell, row);
           const rawScaleMinutes = scaleDetails.reduce((sum, item) => sum + item.minutes, 0);
-          const targetScaleMinutes = Math.min(60, rawScaleMinutes);
-          const targetScale = (60 - targetScaleMinutes) / 60;
+          const targetScaleMinutes = Math.min(slotMinutes, rawScaleMinutes);
+          const targetScale = (slotMinutes - targetScaleMinutes) / slotMinutes;
           const adjustedTarget = grossTarget * targetScale;
           const reduction = grossTarget - adjustedTarget;
           const reasons = scaleDetails.map((item) => ruleLabel(item.rule));
@@ -489,9 +501,11 @@
 
   function updateOeeLiveMetric() {
     const result = computeLiveOee();
+    const cell = state.oee.cell;
+    const isQuench = cell === "Quench Hücresi";
     if (!result || result.status === "empty") {
       el.oeeLiveMetric.innerHTML = `${renderMetricButton("availability", "Availability", null, false)}<span class="oee-metric-sep">|</span>${renderMetricButton("performance", "Performance", null, false)}<span class="oee-metric-sep">|</span><span class="oee-metric-part">OEE -</span>`;
-      el.oeeLiveMetric.title = "Secili aralikta planli saat yok.";
+      el.oeeLiveMetric.title = `Secili aralikta planli ${isQuench ? "gün" : "saat"} yok.`;
       return;
     }
     if (result.status === "insufficient") {
@@ -500,7 +514,7 @@
       return;
     }
     el.oeeLiveMetric.innerHTML = `${renderMetricButton("availability", "Availability", result.availability, true)}<span class="oee-metric-sep">|</span>${renderMetricButton("performance", "Performance", result.performance, true)}<span class="oee-metric-sep">|</span><span class="oee-metric-part">OEE ${pctText(result.oee)}</span>`;
-    el.oeeLiveMetric.title = `Availability ${pctText(result.availability)}, Performance ${pctText(result.performance)}, ${result.slotCount} saat`;
+    el.oeeLiveMetric.title = `Availability ${pctText(result.availability)}, Performance ${pctText(result.performance)}, ${result.slotCount} ${isQuench ? "gün" : "saat"}`;
   }
 
   function escapeHtml(value) {
@@ -513,23 +527,27 @@
   }
 
   function availabilityRowsHtml(rows, emptyText, denominatorLabel) {
+    const isQuench = state.oee.cell === "Quench Hücresi";
     if (!rows.length) return `<p class="availability-empty">${emptyText}</p>`;
-    return `<table class="availability-breakdown-table"><thead><tr><th>Kaynak</th><th>Dakika</th><th>Saat adedi</th><th>${denominatorLabel}</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${minutesText(row.minutes)}</td><td>${row.slots}</td><td>${pctText(row.share)}</td></tr>`).join("")}</tbody></table>`;
+    return `<table class="availability-breakdown-table"><thead><tr><th>Kaynak</th><th>Dakika</th><th>${isQuench ? "Gün" : "Saat"} adedi</th><th>${denominatorLabel}</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${minutesText(row.minutes)}</td><td>${row.slots}</td><td>${pctText(row.share)}</td></tr>`).join("")}</tbody></table>`;
   }
 
   function performanceRowsHtml(rows) {
+    const isQuench = state.oee.cell === "Quench Hücresi";
     if (!rows.length) return `<p class="availability-empty">Hedef dusuren kural yok.</p>`;
-    return `<table class="availability-breakdown-table"><thead><tr><th>Kaynak</th><th>Hedef dususu</th><th>Saat adedi</th><th>Ham hedef payi</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${unitsText(row.units)}</td><td>${row.slots}</td><td>${pctText(row.share)}</td></tr>`).join("")}</tbody></table>`;
+    return `<table class="availability-breakdown-table"><thead><tr><th>Kaynak</th><th>Hedef dususu</th><th>${isQuench ? "Gün" : "Saat"} adedi</th><th>Ham hedef payi</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${unitsText(row.units)}</td><td>${row.slots}</td><td>${pctText(row.share)}</td></tr>`).join("")}</tbody></table>`;
   }
 
   function performanceDetailRowsHtml(rows) {
-    if (!rows.length) return `<p class="availability-empty">Hedef girilmis saat yok.</p>`;
-    return `<table class="availability-breakdown-table"><thead><tr><th>Tarih</th><th>Saat</th><th>Gercek</th><th>Ham hedef</th><th>Duzeltilmis hedef</th><th>Dusulen hedef</th><th>Sebep</th></tr></thead><tbody>${rows.slice(0, 120).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.time)}</td><td>${unitsText(row.actual)}</td><td>${unitsText(row.targetGross)}</td><td>${unitsText(row.targetAdjusted)}</td><td>${unitsText(row.targetReduction)}</td><td>${escapeHtml(row.reasons)}</td></tr>`).join("")}</tbody></table>`;
+    const isQuench = state.oee.cell === "Quench Hücresi";
+    if (!rows.length) return `<p class="availability-empty">Hedef girilmis ${isQuench ? "gün" : "saat"} yok.</p>`;
+    return `<table class="availability-breakdown-table"><thead><tr><th>Tarih</th><th>${isQuench ? "Zaman Dilimi" : "Saat"}</th><th>Gercek</th><th>Ham hedef</th><th>Duzeltilmis hedef</th><th>Dusulen hedef</th><th>Sebep</th></tr></thead><tbody>${rows.slice(0, 120).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.time)}</td><td>${unitsText(row.actual)}</td><td>${unitsText(row.targetGross)}</td><td>${unitsText(row.targetAdjusted)}</td><td>${unitsText(row.targetReduction)}</td><td>${escapeHtml(row.reasons)}</td></tr>`).join("")}</tbody></table>`;
   }
 
   function availabilityLossRowsHtml(rows) {
-    if (!rows.length) return `<p class="availability-empty">Availability kayb\u0131 yazan saat yok.</p>`;
-    return `<table class="availability-breakdown-table"><thead><tr><th>Tarih</th><th>Saat</th><th>Kaynak</th><th>Dakika</th><th>\u00d6zet</th></tr></thead><tbody>${rows.slice(0, 80).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.time)}</td><td>${escapeHtml(row.field)}</td><td>${minutesText(row.minutes)}</td><td>${escapeHtml(row.summary)}</td></tr>`).join("")}</tbody></table>`;
+    const isQuench = state.oee.cell === "Quench Hücresi";
+    if (!rows.length) return `<p class="availability-empty">Availability kayb\u0131 yazan ${isQuench ? "gün" : "saat"} yok.</p>`;
+    return `<table class="availability-breakdown-table"><thead><tr><th>Tarih</th><th>${isQuench ? "Zaman Dilimi" : "Saat"}</th><th>Kaynak</th><th>Dakika</th><th>\u00d6zet</th></tr></thead><tbody>${rows.slice(0, 80).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.time)}</td><td>${escapeHtml(row.field)}</td><td>${minutesText(row.minutes)}</td><td>${escapeHtml(row.summary)}</td></tr>`).join("")}</tbody></table>`;
   }
 
   function closeMetricDialog() {
@@ -558,12 +576,12 @@
           <span>${minutesText(data.workingMinutes)} / ${minutesText(data.plannedMinutes)} = ${pctText(data.availability)}</span>
         </div>
         <div class="availability-cards">
-          <div><span>Ham s\u00fcre</span><strong>${minutesText(data.plannedMinutesGross)}</strong><small>${data.slotCount} dahil saat x 60 dk</small></div>
+          <div><span>Ham s\u00fcre</span><strong>${minutesText(data.plannedMinutesGross)}</strong><small>${data.slotCount} dahil ${data.cell === "Quench Hücresi" ? "gün" : "saat x 60 dk"}</small></div>
           <div><span>Planl\u0131 s\u00fcre d\u0131\u015f\u0131</span><strong>${minutesText(data.plannedOutMinutes)}</strong><small>Mola gibi paydadan \u00e7\u0131kan s\u00fcre</small></div>
           <div><span>Planl\u0131 s\u00fcre</span><strong>${minutesText(data.plannedMinutes)}</strong><small>Availability paydas\u0131</small></div>
           <div><span>Availability kayb\u0131</span><strong>${minutesText(data.downtimeMinutes)}</strong><small>H\u00fccrenin kayb\u0131 say\u0131lan duru\u015flar</small></div>
           <div><span>\u00c7al\u0131\u015fma s\u00fcresi</span><strong>${minutesText(data.workingMinutes)}</strong><small>Planl\u0131 s\u00fcre - kay\u0131p</small></div>
-          <div><span>Tamamen hari\u00e7</span><strong>${data.excludedSlotCount} saat</strong><small>Checkbox kald\u0131r\u0131lan saatler</small></div>
+          <div><span>Tamamen hari\u00e7</span><strong>${data.excludedSlotCount} ${data.cell === "Quench Hücresi" ? "gün" : "saat"}</strong><small>Checkbox kald\u0131r\u0131lan ${data.cell === "Quench Hücresi" ? "günler" : "saatler"}</small></div>
         </div>
         <div class="availability-sections">
           <section>
@@ -579,7 +597,7 @@
             ${availabilityRowsHtml(data.plannedOutRows, "Planl\u0131 s\u00fcre d\u0131\u015f\u0131na \u00e7\u0131kan s\u00fcre yok.", "Ham s\u00fcre pay\u0131")}
           </section>
           <section>
-            <h3>Kay\u0131p yazan saat detaylar\u0131</h3>
+            <h3>Kay\u0131p yazan ${data.cell === "Quench Hücresi" ? "gün" : "saat"} detaylar\u0131</h3>
             ${availabilityLossRowsHtml(data.lossRows)}
           </section>
         </div>
@@ -612,11 +630,11 @@
           <span>${unitsText(data.actualProd)} / ${unitsText(data.targetProd)} = ${pctText(data.performance)}</span>
         </div>
         <div class="availability-cards">
-          <div><span>Ger\u00e7ekle\u015fen</span><strong>${unitsText(data.actualProd)}</strong><small>Hedefli saatlerdeki \u00fcretim</small></div>
+          <div><span>Ger\u00e7ekle\u015fen</span><strong>${unitsText(data.actualProd)}</strong><small>Hedefli ${data.cell === "Quench Hücresi" ? "günlerdeki" : "saatlerdeki"} \u00fcretim</small></div>
           <div><span>Ham hedef</span><strong>${unitsText(data.targetGrossProd)}</strong><small>Sat\u0131rlardaki hedef toplam\u0131</small></div>
           <div><span>D\u00fc\u015f\u00fclen hedef</span><strong>${unitsText(data.targetReductionProd)}</strong><small>Bekleme / planl\u0131 d\u0131\u015f\u0131 kurallar</small></div>
           <div><span>D\u00fczeltilmi\u015f hedef</span><strong>${unitsText(data.targetProd)}</strong><small>Performance paydas\u0131</small></div>
-          <div><span>Hedefli saat</span><strong>${data.targetedSlotCount} saat</strong><small>Hedef girilmi\u015f sat\u0131rlar</small></div>
+          <div><span>Hedefli ${data.cell === "Quench Hücresi" ? "gün" : "saat"}</span><strong>${data.targetedSlotCount} ${data.cell === "Quench Hücresi" ? "gün" : "saat"}</strong><small>Hedef girilmi\u015f sat\u0131rlar</small></div>
           <div><span>Hedef kapsami</span><strong>${pctText(data.targetCoverage)}</strong><small>Planl\u0131 s\u00fcre i\u00e7indeki oran</small></div>
         </div>
         <div class="availability-sections">
@@ -629,7 +647,7 @@
             <p class="availability-empty">${data.status === "ok" ? "Bu aral\u0131kta hedef kapsami yeterli; Performance OEE hesab\u0131na dahil." : "Hedef kapsam\u0131 d\u00fc\u015f\u00fck oldu\u011fu i\u00e7in OEE taraf\u0131nda Performance yetersiz veri olarak i\u015faretlenir."}</p>
           </section>
           <section>
-            <h3>Saat bazl\u0131 hedef detay\u0131</h3>
+            <h3>${data.cell === "Quench Hücresi" ? "Gün" : "Saat"} bazl\u0131 hedef detay\u0131</h3>
             ${performanceDetailRowsHtml(data.performanceRows)}
           </section>
         </div>
@@ -651,9 +669,10 @@
     const prefix = cell + "||";
     let count = 0;
     state.oee.exclusions.forEach((key) => { if (key.startsWith(prefix)) count += 1; });
+    const unit = cell === "Quench Hücresi" ? "gün" : "saat";
     el.oeeExclCount.textContent = count
-      ? `${count} saat bu hücrede Planlı Süre dışı`
-      : "Bu hücrede tüm saatler Planlı Süre'ye dahil";
+      ? `${count} ${unit} bu hücrede Planlı Süre dışı`
+      : `Bu hücrede tüm ${unit === "gün" ? "günler" : "saatler"} Planlı Süre'ye dahil`;
     updateOeeLiveMetric();
   }
 
@@ -682,8 +701,9 @@
   function updateOeeDayHeader(header, rows, date, cell) {
     const total = dayDowntimeTotal(rows);
     const excludedCount = rows.filter((r) => state.oee.exclusions.has(slotKey(cell, date, r.zaman_dilimi))).length;
+    const unit = cell === "Quench Hücresi" ? "gün" : "saat";
     header.querySelector(".oee-day-badge").textContent =
-      `${total} dk duruş` + (excludedCount ? ` · ${excludedCount} saat dahil değil` : "");
+      `${total} dk duruş` + (excludedCount ? ` · ${excludedCount} ${unit} dahil değil` : "");
   }
 
   function renderOeeDetail() {
@@ -719,7 +739,8 @@
 
       const table = document.createElement("table");
       table.className = "oee-detail-table hidden";
-      table.innerHTML = `<thead><tr><th>Saat</th><th>Üretim / Hedef</th><th>Duruş Özeti</th><th>Planlı Süre</th></tr></thead>`;
+      const isQuench = cell === "Quench Hücresi";
+      table.innerHTML = `<thead><tr><th>${isQuench ? "Zaman Dilimi" : "Saat"}</th><th>Üretim / Hedef</th><th>Duruş Özeti</th><th>Planlı Süre</th></tr></thead>`;
       const tbody = document.createElement("tbody");
 
       rows.forEach((row) => {
