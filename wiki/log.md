@@ -5,6 +5,20 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+
+## [2026-07-04] update | Üst Yönetim Sunumu: OEE Hesaplama Yöntemi Dokümantasyonu
+
+**Kaynak:** Kullanıcı konuşması + `wiki/systems/ust-yonetim-sunumu.md`, `docs/sunumlar/build/tool/dataService.js`, `docs/sunumlar/build/tool/public/app.js`, `docs/sunumlar/build/tool/server.js`
+
+**Yapılanlar:**
+- `wiki/systems/ust-yonetim-sunumu.md` içindeki `Hücre OEE ve Planlı Süre Kural Tablosu` bölümü güncellendi.
+- Availability, Performance, OEE ve MTBF/MTTR formülleri açıklandı.
+- Mola, önceki istasyon bekleme, Kasa Alma - Bırakma, takım değişimi standart süreleri, Pres `IHU Rejim Bekleme`, arıza/setup/kalıp/müşteri/kalite duruşlarının Availability ve Performance etkileri karar tablosuna işlendi.
+- Saat bazlı manuel hedef override mantığı belgelendi: değerler `tool/data/oee-target-overrides.json` içinde lokal saklanır, canlı metrik ve PPTX OEE hesabına girer, Supabase hedefleri değişmez.
+- Availability ve Performance detay dialoglarının hangi hesap kırılımlarını gösterdiği dokümante edildi.
+
+---
+
 ## [2026-07-04] update | Üst Yönetim Sunumu: Hücre OEE Planlı Süre Kural Tablosu
 
 **Kaynak:** Kullanıcı konuşması + `docs/sunumlar/build/tool/dataService.js`, `docs/sunumlar/build/tool/public/app.js`, `docs/sunumlar/build/tool/server.js`

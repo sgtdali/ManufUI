@@ -1,26 +1,52 @@
 (function () {
+  const DEFAULT_TARGET_SCALE_FIELDS = [
+    "ariza",
+    "planli_durus",
+    "setup_ve_ayar",
+    "takim_degisimi",
+    "kalip_demontaj",
+    "kalip_montaj",
+    "onceki_istasyon_bekleme",
+    "musteri_kaynakli_durus",
+    "kalite_kaynakli_durus",
+  ];
+  const DEFAULT_TAKIM_DEGISIMI_STANDART_DK = {
+    "ROB109 H\u00fccresi": 10,
+    "ROB104 H\u00fccresi": 15,
+    "ROB108 H\u00fccresi": 15,
+  };
+  const DEFAULT_PRES_IHU_REJIM_BEKLEME = "IHU Rejim Bekleme";
+  const DEFAULT_KASA_ALMA_BIRAKMA_CELLS = [
+    "ROB108 H\u00fccresi",
+    "ROB104 H\u00fccresi",
+    "Flowform H\u00fccresi",
+    "N602 H\u00fccresi",
+    "N603 H\u00fccresi",
+  ];
   const DEFAULT_CELL_OEE_RULES = {
-    plannedTimeOut: [{ field: "mola" }],
-    availabilityExclude: [{ field: "onceki_istasyon_bekleme" }],
-    targetScale: [{ field: "mola" }, { field: "onceki_istasyon_bekleme" }],
+    plannedTimeOut: [],
+    availabilityExclude: [{ field: "mola" }, { field: "onceki_istasyon_bekleme" }],
+    targetScale: DEFAULT_TARGET_SCALE_FIELDS.map((field) => ({ field })),
     cells: Object.fromEntries(
-      [
-        "ROB108 H\u00fccresi",
-        "ROB104 H\u00fccresi",
-        "Flowform H\u00fccresi",
-        "N602 H\u00fccresi",
-        "N603 H\u00fccresi",
-      ].map((cell) => [
-        cell,
-        {
-          availabilityExclude: [
+      Array.from(new Set([...DEFAULT_KASA_ALMA_BIRAKMA_CELLS, ...Object.keys(DEFAULT_TAKIM_DEGISIMI_STANDART_DK), "Pres H\u00fccresi"])).map((cell) => {
+        const rules = {};
+        if (cell === "Pres H\u00fccresi") {
+          const ihuRule = { field: "setup_ve_ayar", typeField: "setup_turu", type: DEFAULT_PRES_IHU_REJIM_BEKLEME };
+          rules.availabilityExclude = [ihuRule];
+          rules.targetScaleExclude = [ihuRule];
+        }
+        if (DEFAULT_KASA_ALMA_BIRAKMA_CELLS.includes(cell)) {
+          rules.availabilityExclude = [
             { field: "planli_durus", typeField: "planli_durus_turu", type: "Kasa Alma - B\u0131rakma" },
-          ],
-          targetScale: [
-            { field: "planli_durus", typeField: "planli_durus_turu", type: "Kasa Alma - B\u0131rakma" },
-          ],
-        },
-      ])
+          ];
+        }
+        if (DEFAULT_TAKIM_DEGISIMI_STANDART_DK[cell]) {
+          const minutes = DEFAULT_TAKIM_DEGISIMI_STANDART_DK[cell];
+          rules.availabilityCaps = [{ field: "takim_degisimi", minutes }];
+          rules.targetScaleCaps = [{ field: "takim_degisimi", minutes }];
+        }
+        return [cell, rules];
+      })
     ),
   };
   const state = {
@@ -39,9 +65,11 @@
       detailByDate: {}, // { [tarih]: [row, ...] } — seçili hücre için
       rules: DEFAULT_CELL_OEE_RULES,
       exclusions: new Set(), // Set<slotKey> — Planlı Süre'den hariç tutulan saatler (global, dönem ayrımı yok)
+      targetOverrides: {}, // { [slotKey]: hedef_adet } — sadece sunum araci lokal override
       dateRange: null, // { start, end } — bu aralık dışındaki günler ne listede görünür ne hesaba dahil olur
       saveTimer: null,
       rangeSaveTimer: null,
+      targetSaveTimer: null,
     },
   };
 
@@ -101,6 +129,8 @@
     state.oee.rules = metaRes.cellOeeRules || DEFAULT_CELL_OEE_RULES;
     const exclRes = await fetch("/api/oee-slot-exclusions").then((r) => r.json());
     state.oee.exclusions = new Set(exclRes.exclusions || []);
+    const targetRes = await fetch("/api/oee-target-overrides").then((r) => r.json());
+    state.oee.targetOverrides = targetRes.overrides || {};
     const rangeRes = await fetch("/api/oee-date-range").then((r) => r.json());
     state.oee.dateRange = rangeRes;
     el.oeeRangeStart.value = rangeRes.start;
@@ -191,73 +221,430 @@
     }, 0);
   }
 
+  function targetForOeeRow(cell, date, row) {
+    const key = slotKey(cell, date, row.zaman_dilimi);
+    const override = Object.prototype.hasOwnProperty.call(state.oee.targetOverrides, key)
+      ? Number(state.oee.targetOverrides[key])
+      : null;
+    return Number.isFinite(override) && override >= 0 ? override : (row.hedef_uretim_adeti || 0);
+  }
+
+  function scheduleOeeTargetSave() {
+    clearTimeout(state.oee.targetSaveTimer);
+    state.oee.targetSaveTimer = setTimeout(async () => {
+      await fetch("/api/oee-target-overrides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ overrides: state.oee.targetOverrides }),
+      });
+    }, 500);
+  }
+
+  function setOeeTargetOverride(key, value) {
+    const numeric = Number(value);
+    if (value === "" || !Number.isFinite(numeric) || numeric < 0) {
+      delete state.oee.targetOverrides[key];
+    } else {
+      state.oee.targetOverrides[key] = numeric;
+    }
+    scheduleOeeTargetSave();
+    updateOeeExclCount();
+  }
+
+  function cappedMinutes(cell, row, key, field) {
+    const rule = rulesForCell(cell, key).find((item) => item.field === field && rowMatchesRule(row, item));
+    if (!rule) return null;
+    return Math.min(row[field] || 0, rule.minutes);
+  }
+
   function fieldMatchesAnyRule(cell, row, field, keys) {
     return keys.some((key) => rulesForCell(cell, key).some((rule) => rule.field === field && rowMatchesRule(row, rule)));
   }
 
-  function computeLiveOee() {
+  function availabilityLossMinutes(cell, row, field) {
+    const minutes = row[field] || 0;
+    if (!minutes) return 0;
+    if (fieldMatchesAnyRule(cell, row, field, ["plannedTimeOut", "availabilityExclude"])) return 0;
+    const capped = cappedMinutes(cell, row, "availabilityCaps", field);
+    return capped === null ? minutes : capped;
+  }
+
+  function availabilityExcludedMinutes(cell, row, field) {
+    const minutes = row[field] || 0;
+    if (!minutes) return 0;
+    if (fieldMatchesAnyRule(cell, row, field, ["plannedTimeOut", "availabilityExclude"])) return minutes;
+    const capped = cappedMinutes(cell, row, "availabilityCaps", field);
+    return capped === null ? 0 : Math.max(0, minutes - capped);
+  }
+
+  function targetScaleDetailsForRow(cell, row) {
+    return rulesForCell(cell, "targetScale")
+      .filter((rule) => rowMatchesRule(row, rule) && (row[rule.field] || 0) > 0)
+      .filter((rule) => !rulesForCell(cell, "targetScaleExclude").some((item) => item.field === rule.field && rowMatchesRule(row, item)))
+      .map((rule) => {
+        const capped = cappedMinutes(cell, row, "targetScaleCaps", rule.field);
+        return { rule, minutes: capped === null ? (row[rule.field] || 0) : capped };
+      })
+      .filter((item) => item.minutes > 0);
+  }
+  function addAvailabilityBucket(map, key, label, minutes) {
+    if (!minutes) return;
+    if (!map[key]) map[key] = { key, label, minutes: 0, slots: 0 };
+    map[key].minutes += minutes;
+    map[key].slots += 1;
+  }
+
+  function addPerformanceBucket(map, key, label, units) {
+    if (!units) return;
+    if (!map[key]) map[key] = { key, label, units: 0, slots: 0 };
+    map[key].units += units;
+    map[key].slots += 1;
+  }
+
+  function ruleLabel(rule) {
+    const base = downtimeFieldLabel(rule.field);
+    return rule.type ? `${base} / ${rule.type}` : base;
+  }
+
+  function downtimeFieldLabel(key) {
+    const field = state.oee.downtimeFields.find((item) => item.key === key);
+    return field ? field.label : key;
+  }
+
+  function availabilityBucketRows(map, denominator) {
+    return Object.values(map)
+      .sort((a, b) => b.minutes - a.minutes)
+      .map((item) => ({
+        ...item,
+        share: denominator > 0 ? item.minutes / denominator : 0,
+      }));
+  }
+
+  function performanceBucketRows(map, denominator) {
+    return Object.values(map)
+      .sort((a, b) => b.units - a.units)
+      .map((item) => ({
+        ...item,
+        share: denominator > 0 ? item.units / denominator : 0,
+      }));
+  }
+
+  function computeOeeBreakdown() {
     const cell = state.oee.cell;
     const byDate = state.oee.detailByDate || {};
     const range = state.oee.dateRange;
     if (!cell) return null;
-    let slotCount = 0;
-    let plannedMinutes = 0;
-    let downtimeMinutes = 0;
-    let targetProd = 0;
-    let actualProd = 0;
-    let targetedPlannedMinutes = 0;
+
+    const breakdown = {
+      cell,
+      start: range ? range.start : null,
+      end: range ? range.end : null,
+      status: "empty",
+      slotCount: 0,
+      excludedSlotCount: 0,
+      plannedMinutesGross: 0,
+      plannedOutMinutes: 0,
+      plannedMinutes: 0,
+      downtimeMinutes: 0,
+      workingMinutes: 0,
+      targetProd: 0,
+      targetGrossProd: 0,
+      targetReductionProd: 0,
+      actualProd: 0,
+      targetedSlotCount: 0,
+      targetedPlannedMinutes: 0,
+      plannedOut: {},
+      availabilityExcluded: {},
+      downtimeLoss: {},
+      targetScale: {},
+      lossRows: [],
+      performanceRows: [],
+    };
 
     Object.entries(byDate).forEach(([date, rows]) => {
       if (range && (date < range.start || date > range.end)) return;
       rows.forEach((row) => {
         const key = slotKey(cell, date, row.zaman_dilimi);
-        if (state.oee.exclusions.has(key)) return;
+        if (state.oee.exclusions.has(key)) {
+          breakdown.excludedSlotCount += 1;
+          return;
+        }
 
-        slotCount += 1;
+        breakdown.slotCount += 1;
+        breakdown.plannedMinutesGross += 60;
+
         const plannedOutMinutes = Math.min(60, sumRuleMinutes(cell, row, "plannedTimeOut"));
         const effectivePlannedMinutes = 60 - plannedOutMinutes;
-        plannedMinutes += effectivePlannedMinutes;
+        breakdown.plannedOutMinutes += plannedOutMinutes;
+        breakdown.plannedMinutes += effectivePlannedMinutes;
 
-        downtimeMinutes += state.oee.downtimeFields.reduce((sum, field) => {
-          return sum + (fieldMatchesAnyRule(cell, row, field.key, ["plannedTimeOut", "availabilityExclude"])
-            ? 0
-            : (row[field.key] || 0));
-        }, 0);
-
-        if ((row.hedef_uretim_adeti || 0) > 0) {
-          targetedPlannedMinutes += effectivePlannedMinutes;
-          actualProd += row.uretim_adeti || 0;
-          const targetScaleMinutes = Math.min(60, sumRuleMinutes(cell, row, "targetScale"));
+        state.oee.downtimeFields.forEach((field) => {
+          const minutes = row[field.key] || 0;
+          if (!minutes) return;
+          if (fieldMatchesAnyRule(cell, row, field.key, ["plannedTimeOut"])) {
+            addAvailabilityBucket(breakdown.plannedOut, field.key, field.label, minutes);
+            return;
+          }
+          const lossMinutes = availabilityLossMinutes(cell, row, field.key);
+          const excludedMinutes = availabilityExcludedMinutes(cell, row, field.key);
+          if (lossMinutes > 0) {
+            breakdown.downtimeMinutes += lossMinutes;
+            addAvailabilityBucket(breakdown.downtimeLoss, field.key, field.label, lossMinutes);
+            breakdown.lossRows.push({
+              date,
+              time: row.zaman_dilimi,
+              field: field.label,
+              minutes: lossMinutes,
+              summary: buildDurusSummary(row),
+            });
+          }
+          if (excludedMinutes > 0) {
+            addAvailabilityBucket(breakdown.availabilityExcluded, field.key, field.label, excludedMinutes);
+          }
+        });
+        const grossTarget = targetForOeeRow(cell, date, row);
+        if (grossTarget > 0) {
+          const scaleDetails = targetScaleDetailsForRow(cell, row);
+          const rawScaleMinutes = scaleDetails.reduce((sum, item) => sum + item.minutes, 0);
+          const targetScaleMinutes = Math.min(60, rawScaleMinutes);
           const targetScale = (60 - targetScaleMinutes) / 60;
-          targetProd += (row.hedef_uretim_adeti || 0) * targetScale;
+          const adjustedTarget = grossTarget * targetScale;
+          const reduction = grossTarget - adjustedTarget;
+          const reasons = scaleDetails.map((item) => ruleLabel(item.rule));
+
+          breakdown.targetedSlotCount += 1;
+          breakdown.targetedPlannedMinutes += effectivePlannedMinutes;
+          breakdown.actualProd += row.uretim_adeti || 0;
+          breakdown.targetGrossProd += grossTarget;
+          breakdown.targetProd += adjustedTarget;
+          breakdown.targetReductionProd += reduction;
+
+          if (reduction > 0 && rawScaleMinutes > 0) {
+            scaleDetails.forEach((item) => {
+              addPerformanceBucket(
+                breakdown.targetScale,
+                `${item.rule.field}:${item.rule.type || ""}`,
+                ruleLabel(item.rule),
+                reduction * (item.minutes / rawScaleMinutes)
+              );
+            });
+          }
+
+          breakdown.performanceRows.push({
+            date,
+            time: row.zaman_dilimi,
+            actual: row.uretim_adeti || 0,
+            targetGross: grossTarget,
+            targetAdjusted: adjustedTarget,
+            targetReduction: reduction,
+            reasons: reasons.length ? reasons.join(", ") : "-",
+          });
         }
+
       });
     });
 
-    if (plannedMinutes === 0) return { status: "empty" };
-    const availability = (plannedMinutes - downtimeMinutes) / plannedMinutes;
-    const targetCoverage = targetedPlannedMinutes / plannedMinutes;
-    if (targetProd <= 0 || targetCoverage < 0.3) {
-      return { status: "insufficient", availability, targetCoverage, slotCount };
+    if (breakdown.plannedMinutes === 0) return breakdown;
+    breakdown.workingMinutes = breakdown.plannedMinutes - breakdown.downtimeMinutes;
+    breakdown.availability = breakdown.workingMinutes / breakdown.plannedMinutes;
+    breakdown.targetCoverage = breakdown.targetedPlannedMinutes / breakdown.plannedMinutes;
+    breakdown.status = (breakdown.targetProd <= 0 || breakdown.targetCoverage < 0.3) ? "insufficient" : "ok";
+    if (breakdown.targetProd > 0) {
+      breakdown.performance = breakdown.actualProd / breakdown.targetProd;
     }
-    const performance = actualProd / targetProd;
-    return { status: "ok", availability, performance, oee: availability * performance, slotCount };
+    if (breakdown.status === "ok") {
+      breakdown.oee = breakdown.availability * breakdown.performance;
+    }
+    breakdown.plannedOutRows = availabilityBucketRows(breakdown.plannedOut, breakdown.plannedMinutesGross);
+    breakdown.availabilityExcludedRows = availabilityBucketRows(breakdown.availabilityExcluded, breakdown.plannedMinutesGross);
+    breakdown.downtimeLossRows = availabilityBucketRows(breakdown.downtimeLoss, breakdown.plannedMinutes);
+    breakdown.targetScaleRows = performanceBucketRows(breakdown.targetScale, breakdown.targetGrossProd || breakdown.targetProd);
+    breakdown.lossRows.sort((a, b) => b.minutes - a.minutes);
+    breakdown.performanceRows.sort((a, b) => b.targetReduction - a.targetReduction);
+    return breakdown;
   }
+
+  function computeLiveOee() {
+    return computeOeeBreakdown();
+  }
+
+  function pctText(value) {
+    return value == null ? "-" : `${(value * 100).toFixed(1)}%`;
+  }
+
+  function minutesText(value) {
+    return `${Math.round(value)} dk`;
+  }
+
+  function unitsText(value) {
+    const rounded = Math.round(value * 10) / 10;
+    return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
+  }
+
+  function renderMetricButton(kind, label, value, enabled) {
+    const text = `${label} ${pctText(value)}`;
+    if (!enabled) return `<span class="oee-metric-part">${text}</span>`;
+    return `<button type="button" class="oee-metric-part oee-metric-button" data-oee-metric="${kind}">${text}</button>`;
+  }
+
   function updateOeeLiveMetric() {
     const result = computeLiveOee();
     if (!result || result.status === "empty") {
-      el.oeeLiveMetric.textContent = "Availability - | Performance - | OEE -";
+      el.oeeLiveMetric.innerHTML = `${renderMetricButton("availability", "Availability", null, false)}<span class="oee-metric-sep">|</span>${renderMetricButton("performance", "Performance", null, false)}<span class="oee-metric-sep">|</span><span class="oee-metric-part">OEE -</span>`;
       el.oeeLiveMetric.title = "Secili aralikta planli saat yok.";
       return;
     }
     if (result.status === "insufficient") {
-      el.oeeLiveMetric.textContent = `Availability ${(result.availability * 100).toFixed(1)}% | Performance - | OEE -`;
-      el.oeeLiveMetric.title = `Availability ${(result.availability * 100).toFixed(1)}%, hedef kapsami ${(result.targetCoverage * 100).toFixed(1)}%`;
+      el.oeeLiveMetric.innerHTML = `${renderMetricButton("availability", "Availability", result.availability, true)}<span class="oee-metric-sep">|</span>${renderMetricButton("performance", "Performance", result.performance || null, result.targetProd > 0)}<span class="oee-metric-sep">|</span><span class="oee-metric-part">OEE -</span>`;
+      el.oeeLiveMetric.title = `Availability ${pctText(result.availability)}, hedef kapsami ${pctText(result.targetCoverage)}`;
       return;
     }
-    el.oeeLiveMetric.textContent = `Availability ${(result.availability * 100).toFixed(1)}% | Performance ${(result.performance * 100).toFixed(1)}% | OEE ${(result.oee * 100).toFixed(1)}%`;
-    el.oeeLiveMetric.title = `Availability ${(result.availability * 100).toFixed(1)}%, Performance ${(result.performance * 100).toFixed(1)}%, ${result.slotCount} saat`;
+    el.oeeLiveMetric.innerHTML = `${renderMetricButton("availability", "Availability", result.availability, true)}<span class="oee-metric-sep">|</span>${renderMetricButton("performance", "Performance", result.performance, true)}<span class="oee-metric-sep">|</span><span class="oee-metric-part">OEE ${pctText(result.oee)}</span>`;
+    el.oeeLiveMetric.title = `Availability ${pctText(result.availability)}, Performance ${pctText(result.performance)}, ${result.slotCount} saat`;
   }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function availabilityRowsHtml(rows, emptyText, denominatorLabel) {
+    if (!rows.length) return `<p class="availability-empty">${emptyText}</p>`;
+    return `<table class="availability-breakdown-table"><thead><tr><th>Kaynak</th><th>Dakika</th><th>Saat adedi</th><th>${denominatorLabel}</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${minutesText(row.minutes)}</td><td>${row.slots}</td><td>${pctText(row.share)}</td></tr>`).join("")}</tbody></table>`;
+  }
+
+  function performanceRowsHtml(rows) {
+    if (!rows.length) return `<p class="availability-empty">Hedef dusuren kural yok.</p>`;
+    return `<table class="availability-breakdown-table"><thead><tr><th>Kaynak</th><th>Hedef dususu</th><th>Saat adedi</th><th>Ham hedef payi</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${unitsText(row.units)}</td><td>${row.slots}</td><td>${pctText(row.share)}</td></tr>`).join("")}</tbody></table>`;
+  }
+
+  function performanceDetailRowsHtml(rows) {
+    if (!rows.length) return `<p class="availability-empty">Hedef girilmis saat yok.</p>`;
+    return `<table class="availability-breakdown-table"><thead><tr><th>Tarih</th><th>Saat</th><th>Gercek</th><th>Ham hedef</th><th>Duzeltilmis hedef</th><th>Dusulen hedef</th><th>Sebep</th></tr></thead><tbody>${rows.slice(0, 120).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.time)}</td><td>${unitsText(row.actual)}</td><td>${unitsText(row.targetGross)}</td><td>${unitsText(row.targetAdjusted)}</td><td>${unitsText(row.targetReduction)}</td><td>${escapeHtml(row.reasons)}</td></tr>`).join("")}</tbody></table>`;
+  }
+
+  function availabilityLossRowsHtml(rows) {
+    if (!rows.length) return `<p class="availability-empty">Availability kayb\u0131 yazan saat yok.</p>`;
+    return `<table class="availability-breakdown-table"><thead><tr><th>Tarih</th><th>Saat</th><th>Kaynak</th><th>Dakika</th><th>\u00d6zet</th></tr></thead><tbody>${rows.slice(0, 80).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.time)}</td><td>${escapeHtml(row.field)}</td><td>${minutesText(row.minutes)}</td><td>${escapeHtml(row.summary)}</td></tr>`).join("")}</tbody></table>`;
+  }
+
+  function closeMetricDialog() {
+    const existing = document.getElementById("metricDialogOverlay");
+    if (existing) existing.remove();
+  }
+
+  function showAvailabilityDialog() {
+    const data = computeOeeBreakdown();
+    if (!data || data.status === "empty") return;
+    closeMetricDialog();
+    const overlay = document.createElement("div");
+    overlay.id = "metricDialogOverlay";
+    overlay.className = "dialog-overlay";
+    overlay.innerHTML = `
+      <div class="availability-dialog" role="dialog" aria-modal="true" aria-labelledby="availabilityDialogTitle">
+        <div class="dialog-header">
+          <div>
+            <h2 id="availabilityDialogTitle">Availability Hesap Detay\u0131</h2>
+            <p>${escapeHtml(data.cell)} | ${escapeHtml(data.start || "-")} - ${escapeHtml(data.end || "-")}</p>
+          </div>
+          <button type="button" class="dialog-close" aria-label="Kapat">x</button>
+        </div>
+        <div class="availability-formula">
+          <strong>Availability = \u00c7al\u0131\u015fma S\u00fcresi / Planl\u0131 S\u00fcre</strong>
+          <span>${minutesText(data.workingMinutes)} / ${minutesText(data.plannedMinutes)} = ${pctText(data.availability)}</span>
+        </div>
+        <div class="availability-cards">
+          <div><span>Ham s\u00fcre</span><strong>${minutesText(data.plannedMinutesGross)}</strong><small>${data.slotCount} dahil saat x 60 dk</small></div>
+          <div><span>Planl\u0131 s\u00fcre d\u0131\u015f\u0131</span><strong>${minutesText(data.plannedOutMinutes)}</strong><small>Mola gibi paydadan \u00e7\u0131kan s\u00fcre</small></div>
+          <div><span>Planl\u0131 s\u00fcre</span><strong>${minutesText(data.plannedMinutes)}</strong><small>Availability paydas\u0131</small></div>
+          <div><span>Availability kayb\u0131</span><strong>${minutesText(data.downtimeMinutes)}</strong><small>H\u00fccrenin kayb\u0131 say\u0131lan duru\u015flar</small></div>
+          <div><span>\u00c7al\u0131\u015fma s\u00fcresi</span><strong>${minutesText(data.workingMinutes)}</strong><small>Planl\u0131 s\u00fcre - kay\u0131p</small></div>
+          <div><span>Tamamen hari\u00e7</span><strong>${data.excludedSlotCount} saat</strong><small>Checkbox kald\u0131r\u0131lan saatler</small></div>
+        </div>
+        <div class="availability-sections">
+          <section>
+            <h3>Availability kayb\u0131na girenler</h3>
+            ${availabilityRowsHtml(data.downtimeLossRows, "Availability kayb\u0131na giren duru\u015f yok.", "Pay")}
+          </section>
+          <section>
+            <h3>Availability'den hari\u00e7 tutulanlar</h3>
+            ${availabilityRowsHtml(data.availabilityExcludedRows, "Hari\u00e7 tutulan bekleme / do\u011fal ak\u0131\u015f s\u00fcresi yok.", "Ham s\u00fcre pay\u0131")}
+          </section>
+          <section>
+            <h3>Planl\u0131 s\u00fcre d\u0131\u015f\u0131na \u00e7\u0131kanlar</h3>
+            ${availabilityRowsHtml(data.plannedOutRows, "Planl\u0131 s\u00fcre d\u0131\u015f\u0131na \u00e7\u0131kan s\u00fcre yok.", "Ham s\u00fcre pay\u0131")}
+          </section>
+          <section>
+            <h3>Kay\u0131p yazan saat detaylar\u0131</h3>
+            ${availabilityLossRowsHtml(data.lossRows)}
+          </section>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector(".dialog-close").addEventListener("click", closeMetricDialog);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) closeMetricDialog();
+    });
+  }
+
+  function showPerformanceDialog() {
+    const data = computeOeeBreakdown();
+    if (!data || data.status === "empty" || data.targetGrossProd <= 0) return;
+    closeMetricDialog();
+    const overlay = document.createElement("div");
+    overlay.id = "metricDialogOverlay";
+    overlay.className = "dialog-overlay";
+    overlay.innerHTML = `
+      <div class="availability-dialog" role="dialog" aria-modal="true" aria-labelledby="performanceDialogTitle">
+        <div class="dialog-header">
+          <div>
+            <h2 id="performanceDialogTitle">Performance Hesap Detay\u0131</h2>
+            <p>${escapeHtml(data.cell)} | ${escapeHtml(data.start || "-")} - ${escapeHtml(data.end || "-")}</p>
+          </div>
+          <button type="button" class="dialog-close" aria-label="Kapat">x</button>
+        </div>
+        <div class="availability-formula">
+          <strong>Performance = Ger\u00e7ekle\u015fen \u00dcretim / D\u00fczeltilmi\u015f Hedef</strong>
+          <span>${unitsText(data.actualProd)} / ${unitsText(data.targetProd)} = ${pctText(data.performance)}</span>
+        </div>
+        <div class="availability-cards">
+          <div><span>Ger\u00e7ekle\u015fen</span><strong>${unitsText(data.actualProd)}</strong><small>Hedefli saatlerdeki \u00fcretim</small></div>
+          <div><span>Ham hedef</span><strong>${unitsText(data.targetGrossProd)}</strong><small>Sat\u0131rlardaki hedef toplam\u0131</small></div>
+          <div><span>D\u00fc\u015f\u00fclen hedef</span><strong>${unitsText(data.targetReductionProd)}</strong><small>Bekleme / planl\u0131 d\u0131\u015f\u0131 kurallar</small></div>
+          <div><span>D\u00fczeltilmi\u015f hedef</span><strong>${unitsText(data.targetProd)}</strong><small>Performance paydas\u0131</small></div>
+          <div><span>Hedefli saat</span><strong>${data.targetedSlotCount} saat</strong><small>Hedef girilmi\u015f sat\u0131rlar</small></div>
+          <div><span>Hedef kapsami</span><strong>${pctText(data.targetCoverage)}</strong><small>Planl\u0131 s\u00fcre i\u00e7indeki oran</small></div>
+        </div>
+        <div class="availability-sections">
+          <section>
+            <h3>Hedefi d\u00fc\u015f\u00fcren kaynaklar</h3>
+            ${performanceRowsHtml(data.targetScaleRows)}
+          </section>
+          <section>
+            <h3>Performance durumu</h3>
+            <p class="availability-empty">${data.status === "ok" ? "Bu aral\u0131kta hedef kapsami yeterli; Performance OEE hesab\u0131na dahil." : "Hedef kapsam\u0131 d\u00fc\u015f\u00fck oldu\u011fu i\u00e7in OEE taraf\u0131nda Performance yetersiz veri olarak i\u015faretlenir."}</p>
+          </section>
+          <section>
+            <h3>Saat bazl\u0131 hedef detay\u0131</h3>
+            ${performanceDetailRowsHtml(data.performanceRows)}
+          </section>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector(".dialog-close").addEventListener("click", closeMetricDialog);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) closeMetricDialog();
+    });
+  }
+
+  el.oeeLiveMetric.addEventListener("click", (event) => {
+    if (event.target.closest('[data-oee-metric="availability"]')) showAvailabilityDialog();
+    if (event.target.closest('[data-oee-metric="performance"]')) showPerformanceDialog();
+  });
   function updateOeeExclCount() {
     const cell = state.oee.cell;
     if (!cell) { el.oeeExclCount.textContent = ""; return; }
@@ -344,7 +731,40 @@
         tr.appendChild(saatTd);
 
         const uretimTd = document.createElement("td");
-        uretimTd.textContent = `${row.uretim_adeti || 0} / ${row.hedef_uretim_adeti || "—"}`;
+        uretimTd.className = "oee-production-cell";
+        const hasTargetOverride = Object.prototype.hasOwnProperty.call(state.oee.targetOverrides, key);
+        const baseTarget = row.hedef_uretim_adeti || 0;
+        const targetInput = document.createElement("input");
+        targetInput.type = "number";
+        targetInput.min = "0";
+        targetInput.step = "1";
+        targetInput.className = "oee-target-input" + (hasTargetOverride ? " overridden" : "");
+        targetInput.value = hasTargetOverride ? state.oee.targetOverrides[key] : (baseTarget || "");
+        targetInput.title = hasTargetOverride ? `Manuel hedef. Supabase: ${baseTarget}` : `Supabase hedefi: ${baseTarget}`;
+        targetInput.addEventListener("click", (event) => event.stopPropagation());
+        targetInput.addEventListener("change", () => {
+          setOeeTargetOverride(key, targetInput.value);
+          const overridden = Object.prototype.hasOwnProperty.call(state.oee.targetOverrides, key);
+          targetInput.classList.toggle("overridden", overridden);
+          targetInput.title = overridden ? `Manuel hedef. Supabase: ${baseTarget}` : `Supabase hedefi: ${baseTarget}`;
+        });
+        const resetBtn = document.createElement("button");
+        resetBtn.type = "button";
+        resetBtn.className = "oee-target-reset";
+        resetBtn.textContent = "x";
+        resetBtn.title = "Supabase hedefine don";
+        resetBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          delete state.oee.targetOverrides[key];
+          targetInput.value = baseTarget || "";
+          targetInput.classList.remove("overridden");
+          targetInput.title = `Supabase hedefi: ${baseTarget}`;
+          scheduleOeeTargetSave();
+          updateOeeExclCount();
+        });
+        uretimTd.append(`${row.uretim_adeti || 0} / `);
+        uretimTd.appendChild(targetInput);
+        uretimTd.appendChild(resetBtn);
         tr.appendChild(uretimTd);
 
         const summaryTd = document.createElement("td");

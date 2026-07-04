@@ -213,25 +213,41 @@ const KASA_ALMA_BIRAKMA_CELLS = [
   "N602 H\u00fccresi",
   "N603 H\u00fccresi",
 ];
+const TAKIM_DEGISIMI_STANDART_DK = {
+  "ROB109 H\u00fccresi": 10,
+  "ROB104 H\u00fccresi": 15,
+  "ROB108 H\u00fccresi": 15,
+};
+const PRES_IHU_REJIM_BEKLEME = "IHU Rejim Bekleme";
 const CELL_OEE_RULES = {
-  plannedTimeOut: [{ field: "mola" }],
-  availabilityExclude: [{ field: "onceki_istasyon_bekleme" }],
-  targetScale: [{ field: "mola" }, { field: "onceki_istasyon_bekleme" }],
+  plannedTimeOut: [],
+  availabilityExclude: [{ field: "mola" }, { field: "onceki_istasyon_bekleme" }],
+  // Performance hedefi, uretilebilir sureye gore olceklenir. Mola hedefi
+  // dusurmez; donusumlu mola yapilabilecek organizasyon kaybi Performance
+  // tarafinda gorunur.
+  targetScale: DOWNTIME_FIELDS.filter((field) => field !== "mola").map((field) => ({ field })),
   cells: Object.fromEntries(
-    KASA_ALMA_BIRAKMA_CELLS.map((cell) => [
-      cell,
-      {
-        availabilityExclude: [
+    Array.from(new Set([...KASA_ALMA_BIRAKMA_CELLS, ...Object.keys(TAKIM_DEGISIMI_STANDART_DK), "Pres H\u00fccresi"])).map((cell) => {
+      const rules = {};
+      if (cell === "Pres H\u00fccresi") {
+        const ihuRule = { field: "setup_ve_ayar", typeField: "setup_turu", type: PRES_IHU_REJIM_BEKLEME };
+        rules.availabilityExclude = [ihuRule];
+        rules.targetScaleExclude = [ihuRule];
+      }
+      if (KASA_ALMA_BIRAKMA_CELLS.includes(cell)) {
+        rules.availabilityExclude = [
           { field: "planli_durus", typeField: "planli_durus_turu", type: KASA_ALMA_BIRAKMA },
-        ],
-        targetScale: [
-          { field: "planli_durus", typeField: "planli_durus_turu", type: KASA_ALMA_BIRAKMA },
-        ],
-      },
-    ])
+        ];
+      }
+      if (TAKIM_DEGISIMI_STANDART_DK[cell]) {
+        const minutes = TAKIM_DEGISIMI_STANDART_DK[cell];
+        rules.availabilityCaps = [{ field: "takim_degisimi", minutes }];
+        rules.targetScaleCaps = [{ field: "takim_degisimi", minutes }];
+      }
+      return [cell, rules];
+    })
   ),
 };
-
 function rowMatchesRule(row, rule) {
   return !rule.typeField || row[rule.typeField] === rule.type;
 }
@@ -246,6 +262,40 @@ function sumRuleMinutes(cell, row, key) {
   }, 0);
 }
 
+function targetForRow(cell, tarih, row, targetOverrides) {
+  const key = slotKey(cell, tarih, row.zaman_dilimi);
+  const override = targetOverrides && Object.prototype.hasOwnProperty.call(targetOverrides, key)
+    ? Number(targetOverrides[key])
+    : null;
+  return Number.isFinite(override) && override >= 0 ? override : (row.hedef_uretim_adeti || 0);
+}
+
+function cappedMinutes(cell, row, key, field) {
+  const rule = rulesForCell(cell, key).find((item) => item.field === field && rowMatchesRule(row, item));
+  if (!rule) return null;
+  return Math.min(row[field] || 0, rule.minutes);
+}
+
+function availabilityLossMinutes(cell, row, field) {
+  const minutes = row[field] || 0;
+  if (!minutes) return 0;
+  const excluded = ["plannedTimeOut", "availabilityExclude"].some((key) =>
+    rulesForCell(cell, key).some((rule) => rule.field === field && rowMatchesRule(row, rule))
+  );
+  if (excluded) return 0;
+  const capped = cappedMinutes(cell, row, "availabilityCaps", field);
+  return capped === null ? minutes : capped;
+}
+
+function targetScaleMinutesForRow(cell, row) {
+  return rulesForCell(cell, "targetScale").reduce((sum, rule) => {
+    if (!rowMatchesRule(row, rule)) return sum;
+    const isExcluded = rulesForCell(cell, "targetScaleExclude").some((item) => item.field === rule.field && rowMatchesRule(row, item));
+    if (isExcluded) return sum;
+    const capped = cappedMinutes(cell, row, "targetScaleCaps", rule.field);
+    return sum + (capped === null ? (row[rule.field] || 0) : capped);
+  }, 0);
+}
 const DOWNTIME_FIELD_LABELS = {
   mola: "Mola",
   ariza: "Arıza",
@@ -272,23 +322,21 @@ function newReliabilityAccumulator() {
   };
 }
 
-function addRowToAccumulator(acc, row, cell) {
+function addRowToAccumulator(acc, row, cell, tarih, targetOverrides) {
   acc.slotCount += 1;
   const plannedOutMinutes = Math.min(SLOT_MINUTES, sumRuleMinutes(cell, row, "plannedTimeOut"));
   const effectivePlannedMinutes = SLOT_MINUTES - plannedOutMinutes;
   acc.plannedMinutes += effectivePlannedMinutes;
   for (const field of DOWNTIME_FIELDS) {
-    const isExcluded = ["plannedTimeOut", "availabilityExclude"].some((key) =>
-      rulesForCell(cell, key).some((rule) => rule.field === field && rowMatchesRule(row, rule))
-    );
-    if (!isExcluded) acc.downtimeMinutes += row[field] || 0;
+    acc.downtimeMinutes += availabilityLossMinutes(cell, row, field);
   }
-  if ((row.hedef_uretim_adeti || 0) > 0) {
+  const hedefUretimAdeti = targetForRow(cell, tarih, row, targetOverrides);
+  if (hedefUretimAdeti > 0) {
     acc.targetedPlannedMinutes += effectivePlannedMinutes;
     acc.targetedActualProd += row.uretim_adeti || 0;
-    const targetScaleMinutes = Math.min(SLOT_MINUTES, sumRuleMinutes(cell, row, "targetScale"));
+    const targetScaleMinutes = Math.min(SLOT_MINUTES, targetScaleMinutesForRow(cell, row));
     const targetScale = (SLOT_MINUTES - targetScaleMinutes) / SLOT_MINUTES;
-    acc.targetProd += (row.hedef_uretim_adeti || 0) * targetScale;
+    acc.targetProd += hedefUretimAdeti * targetScale;
   }
   acc.arizaMinutes += row.ariza || 0;
   if ((row.ariza || 0) > 0) acc.arizaEvents += 1;
@@ -313,19 +361,19 @@ function finalizeReliability(acc, targetCoverageMinPct = 0.3) {
   return { availability, performance, oee, mtbf, mttr, arizaEvents: acc.arizaEvents };
 }
 
-function computeCellReliability(rawByDate, cell, exclusions, plannedTimeExclusions) {
+function computeCellReliability(rawByDate, cell, exclusions, plannedTimeExclusions, targetOverrides) {
   const acc = newReliabilityAccumulator();
   for (const [tarih, rows] of Object.entries(rawByDate)) {
     for (const row of rows) {
       const key = slotKey(cell, tarih, row.zaman_dilimi);
       if (exclusions.has(key) || plannedTimeExclusions.has(key)) continue;
-      addRowToAccumulator(acc, row, cell);
+      addRowToAccumulator(acc, row, cell, tarih, targetOverrides);
     }
   }
   return finalizeReliability(acc);
 }
 
-function computeMergedCellReliability(rawByDateA, cellA, rawByDateB, cellB, exclusions, plannedTimeExclusions) {
+function computeMergedCellReliability(rawByDateA, cellA, rawByDateB, cellB, exclusions, plannedTimeExclusions, targetOverrides) {
   const acc = newReliabilityAccumulator();
   const dates = new Set([...Object.keys(rawByDateA), ...Object.keys(rawByDateB)]);
   for (const tarih of dates) {
@@ -333,7 +381,7 @@ function computeMergedCellReliability(rawByDateA, cellA, rawByDateB, cellB, excl
       for (const row of rows) {
         const key = slotKey(cell, tarih, row.zaman_dilimi);
         if (exclusions.has(key) || plannedTimeExclusions.has(key)) continue;
-        addRowToAccumulator(acc, row, cell);
+        addRowToAccumulator(acc, row, cell, tarih, targetOverrides);
       }
     }
   }
@@ -362,7 +410,7 @@ function clipToDateRange(rawByDate, dateRange) {
 // Yeni OEE/MTBF/MTTR bölümü slaytlarının veri formatını üretir.
 async function computeOeeMtbfMttrData({
   periods = DEFAULT_PERIODS, exclusionsNm = [], exclusionsHt = [],
-  plannedTimeExclusions = [], dateRange = null,
+  plannedTimeExclusions = [], dateRange = null, targetOverrides = {},
 } = {}) {
   const [rawNm, rawHt] = await Promise.all([
     fetchRawSlots(periods.nm.start, periods.nm.end),
@@ -386,11 +434,11 @@ async function computeOeeMtbfMttrData({
       const rawNmB = clipToDateRange(rawNm[MERGE_CELL_B] || {}, dateRange);
       const rawHtA = clipToDateRange(rawHt[MERGE_CELL_A] || {}, dateRange);
       const rawHtB = clipToDateRange(rawHt[MERGE_CELL_B] || {}, dateRange);
-      nmStats = computeMergedCellReliability(rawNmA, MERGE_CELL_A, rawNmB, MERGE_CELL_B, excNm, ptExcl);
-      htStats = computeMergedCellReliability(rawHtA, MERGE_CELL_A, rawHtB, MERGE_CELL_B, excHt, ptExcl);
+      nmStats = computeMergedCellReliability(rawNmA, MERGE_CELL_A, rawNmB, MERGE_CELL_B, excNm, ptExcl, targetOverrides);
+      htStats = computeMergedCellReliability(rawHtA, MERGE_CELL_A, rawHtB, MERGE_CELL_B, excHt, ptExcl, targetOverrides);
     } else {
-      nmStats = computeCellReliability(clipToDateRange(rawNm[cell] || {}, dateRange), cell, excNm, ptExcl);
-      htStats = computeCellReliability(clipToDateRange(rawHt[cell] || {}, dateRange), cell, excHt, ptExcl);
+      nmStats = computeCellReliability(clipToDateRange(rawNm[cell] || {}, dateRange), cell, excNm, ptExcl, targetOverrides);
+      htStats = computeCellReliability(clipToDateRange(rawHt[cell] || {}, dateRange), cell, excHt, ptExcl, targetOverrides);
     }
 
     return {

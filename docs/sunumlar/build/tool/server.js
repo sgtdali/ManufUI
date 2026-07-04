@@ -14,6 +14,7 @@ const OVERVIEW_PATH = path.join(DATA_DIR, "overview-data.json");
 const OEE_MTBF_MTTR_PATH = path.join(DATA_DIR, "oee-mtbf-mttr-data.json");
 const OEE_SLOT_EXCLUSIONS_PATH = path.join(DATA_DIR, "oee-slot-exclusions.json");
 const OEE_DATE_RANGE_PATH = path.join(DATA_DIR, "oee-date-range.json");
+const OEE_TARGET_OVERRIDES_PATH = path.join(DATA_DIR, "oee-target-overrides.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const BUILD_DIR = path.join(__dirname, "..");
 
@@ -66,6 +67,17 @@ function loadOeeDateRange() {
 function saveOeeDateRange(range) {
   ensureDataDir();
   fs.writeFileSync(OEE_DATE_RANGE_PATH, JSON.stringify(range, null, 2), "utf8");
+}
+
+function loadTargetOverrides() {
+  ensureDataDir();
+  if (!fs.existsSync(OEE_TARGET_OVERRIDES_PATH)) return {};
+  return JSON.parse(fs.readFileSync(OEE_TARGET_OVERRIDES_PATH, "utf8"));
+}
+
+function saveTargetOverrides(overrides) {
+  ensureDataDir();
+  fs.writeFileSync(OEE_TARGET_OVERRIDES_PATH, JSON.stringify(overrides || {}, null, 2), "utf8");
 }
 
 function sendJson(res, status, obj) {
@@ -178,10 +190,21 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
+    if (req.method === "GET" && url.pathname === "/api/oee-target-overrides") {
+      return sendJson(res, 200, { overrides: loadTargetOverrides() });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/oee-target-overrides") {
+      const body = await readBody(req);
+      saveTargetOverrides(body.overrides || {});
+      return sendJson(res, 200, { ok: true });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/generate") {
       const sel = loadSelection();
       const plannedTimeExclusions = loadPlannedTimeExclusions();
       const oeeDateRange = loadOeeDateRange();
+      const targetOverrides = loadTargetOverrides();
       const overviewData = await computeOverviewData({
         periods: sel.periods,
         exclusionsNm: sel.exclusionsNm || [],
@@ -193,6 +216,7 @@ const server = http.createServer(async (req, res) => {
         exclusionsHt: sel.exclusionsHt || [],
         plannedTimeExclusions,
         dateRange: oeeDateRange,
+        targetOverrides,
       });
       ensureDataDir();
       fs.writeFileSync(OVERVIEW_PATH, JSON.stringify(overviewData, null, 2), "utf8");

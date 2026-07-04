@@ -74,23 +74,54 @@ Bu bölüm 2026-07-02'de eklendi; önceki halde sunumda sadece istasyon-bekleme 
 
 ## Hücre OEE ve Planlı Süre Kural Tablosu (2026-07-04)
 
-Sunum aracına `OEE - Planlı Süre` bölümü eklendi. Bu bölüm lokal seçim aracında ayrı bir sekme olarak çalışır; kullanıcı hücre, başlangıç ve bitiş tarihi seçer, saatlik kayıtları görür ve her saat için checkbox ile o saatin hücre OEE hesabına dahil edilip edilmeyeceğini belirler. Checkbox işaretli ise saat hesaba dahildir; boş ise saat tamamen planlı süre dışına alınır. Tarih aralığı `tool/data/oee-date-range.json`, saat bazlı hariç tutmalar `tool/data/oee-slot-exclusions.json` dosyasında saklanır.
+Sunum aracındaki `OEE - Planlı Süre` bölümü hücre OEE'sini sunum özelinde hesaplamak için kullanılır. Kullanıcı hücre, başlangıç tarihi ve bitiş tarihi seçer; saatlik kayıtları görür ve her saat için checkbox ile o saatin hesaba dahil olup olmayacağını belirler. Checkbox işaretli ise saat hesaba dahildir; boş ise satır tamamen hesap dışına alınır. Tarih aralığı `tool/data/oee-date-range.json`, saat bazlı hariç tutmalar `tool/data/oee-slot-exclusions.json` dosyasında saklanır.
 
-Üstteki canlı metrik satırı `Availability | Performance | OEE` seçili hücre, tarih aralığı ve checkbox seçimlerine göre anlık hesaplanır. Aynı kural tablosu hem arayüzdeki canlı metrikte (`tool/public/app.js`) hem de sunuma yazılan OEE/MTBF/MTTR verisinde (`tool/dataService.js`) kullanılır; server bu kuralları `/api/oee-cell-meta` üzerinden arayüze gönderir. Eski `npm run tool` process'i açık kalırsa hot reload olmadığı için yeni kurallar görünmez; araç yeniden başlatılmalıdır.
+Üstteki canlı metrik satırı `Availability | Performance | OEE` seçili hücre, tarih aralığı, checkbox seçimleri ve varsa manuel hedef override'larına göre anlık hesaplanır. Aynı kural tablosu hem arayüzdeki canlı metrikte (`tool/public/app.js`) hem de sunuma yazılan OEE/MTBF/MTTR verisinde (`tool/dataService.js`) kullanılır; server bu kuralları `/api/oee-cell-meta` üzerinden arayüze gönderir. Eski `npm run tool` process'i açık kalırsa hot reload olmadığı için yeni kurallar görünmez; araç yeniden başlatılmalıdır.
 
 **Hücre OEE yaklaşımı:** Bu hesap, hücrenin kendi kontrol edebildiği performansı ölçer. Hat/akış OEE'si ayrı bir kavramdır; önceki istasyon kaynaklı beklemeler hat/akış analizinde görünmeye devam edebilir, ancak hücre OEE'sinde hücreyi cezalandırmaz.
 
+### Formüller
+
+- `Availability = Çalışma Süresi / Planlı Süre`
+- `Çalışma Süresi = Planlı Süre - Availability kaybı sayılan duruş dakikaları`
+- `Performance = Gerçekleşen Üretim / Düzeltilmiş Hedef`
+- `Düzeltilmiş Hedef = Ham Hedef * ((60 - hedeften düşülecek dakika) / 60)`
+- `OEE = Availability * Performance`
+
+Kalite bileşeni OEE'ye dahil edilmez. Çünkü bu 12 üretim hücresinde satır bazlı kalite/fire verisi tutulmaz; FF Preform ve Final Ölçüm ayrı ölçüm noktalarıdır.
+
+### Genel Kural Tablosu
+
 | Duruş / durum | Availability etkisi | Performance etkisi | Not |
 |---|---:|---:|---|
-| `mola` | Planlı süreden çıkarılır | Hedef süre oranında düşer | Planlı zaman dışı kabul edilir. |
+| Checkbox boş | Satır tamamen hesap dışı | Satır tamamen hesap dışı | Ne planlı süreye ne hedefe girer. |
+| `mola` | Availability kaybı sayılmaz | Ham hedef düşmez | Mola dönüşümlü organize edilebilirdi varsayımıyla performans sorumluluğu görünür kalır. |
 | `onceki_istasyon_bekleme` | Availability kaybı sayılmaz | Hedef süre oranında düşer | Parça yoksa hücre üretim yapamaz; hücre OEE'sinde cezalandırılmaz. |
 | `planli_durus_turu = Kasa Alma - Bırakma` | Seçili hücrelerde Availability kaybı sayılmaz | Hedef süre oranında düşer | Doğal üretim akışı işi olarak ele alındı. |
-| Diğer planlı duruş alt türleri | Şimdilik Availability kaybı | Hedef değişmez | Alt tür bazlı karar tablosu daha sonra genişletilebilir. |
-| `ariza`, `setup_ve_ayar`, `takim_degisimi`, `kalip_montaj`, `kalip_demontaj`, `musteri_kaynakli_durus`, `kalite_kaynakli_durus` | Availability kaybı | Hedef değişmez | Mevcut varsayılan davranış. |
+| `takim_degisimi` | Standart süreye kadar Availability kaybı | Standart süreye kadar hedef düşer; standardı aşan kısım Performance kaybı olarak kalır | ROB109: 10 dk, ROB104/ROB108: 15 dk. |
+| Pres `setup_ve_ayar` alt türü `IHU Rejim Bekleme` | Availability kaybı sayılmaz | Hedef düşmez; üretim kaybı Performance'a yansır | Rejim bekleme performans düşüklüğü olarak görünür. |
+| `ariza`, diğer `setup_ve_ayar`, diğer `planli_durus`, `kalip_montaj`, `kalip_demontaj`, `musteri_kaynakli_durus`, `kalite_kaynakli_durus` | Availability kaybı | Hedef süre oranında düşer | Arıza vb. durumlarda çalışılabilir süre kadar hedef beklenir; aynı kayıp iki kez cezalandırılmaz. |
 
 `Kasa Alma - Bırakma` muafiyeti verilen hücreler: ROB108, ROB104, Flowform, N602, N603. Bu isimler kaynakta Unicode escape ile tutulur; böylece Türkçe karakter encoding riski azaltılırken runtime'da veritabanındaki gerçek değerlerle eşleşir.
 
-Performance formülü hedef girilmiş satırlar üzerinden hesaplanır. Hedefi etkileyen kural varsa satır hedefi `hedef_uretim_adeti * ((60 - hedeften düşülecek dakika) / 60)` olarak ölçeklenir. Örneğin 60 dakika `Önceki İstasyon Bekleme` olan `0 / 20` satırı hücre OEE'ye dahil edilirse availability düşmez, o satırın performance hedefi de 0'a iner; hücre parça beklediği için cezalandırılmaz.
+### Örnekler
+
+- Pres'te 1 saatin 30 dakikası arıza, hedef 20, gerçekleşen 10 ise Availability %50 olur. Performance hedefi 10'a düşer ve 10/10 = %100 olur. OEE %50 çıkar. Böylece aynı arıza hem Availability hem Performance tarafında iki kez cezalandırılmaz.
+- ROB108'de 60 dk `Önceki İstasyon Bekleme` olan `0 / 20` satırı hücre OEE'ye dahil edilirse Availability düşmez, satır hedefi 0'a ölçeklenir. Hücre parça beklediği için cezalandırılmaz.
+- Molada hedef düşmez. Hücre parça basabilir durumda olup mola organizasyonu yüzünden hedefi kaçırdıysa bu kayıp Performance tarafında görünür.
+- ROB109'da 18 dk takım değişimi varsa 10 dk standart kabul edilir; 10 dk hedef ve Availability tarafında normal takım değişimi olarak ele alınır, kalan 8 dk Performance üzerinde düşük üretim olarak kalır.
+
+### Manuel Saatlik Hedef Override
+
+Sunum aracı Supabase'deki `hedef_uretim_adeti` değerlerini okur, fakat sunum hazırlığı için saat bazında lokal hedef değişikliğine izin verir. `OEE - Planlı Süre` tablosundaki `Üretim / Hedef` hücresinde hedef kısmı düzenlenebilir input'tur. Kullanıcı bir hedef yazarsa bu değer `tool/data/oee-target-overrides.json` dosyasında saklanır ve hem canlı metriklerde hem de PPTX üretimindeki OEE hesabında kullanılır. Supabase verisi değiştirilmez. Input yanındaki `x` ile saat tekrar Supabase hedef değerine döner.
+
+### Detay Dialogları
+
+Canlı metrik satırındaki `Availability` tıklanınca hesap detay dialog'u açılır. Bu dialog planlı süre, çalışma süresi, Availability kaybı sayılan duruşlar, Availability'den hariç tutulan süreler ve saat bazlı kayıp satırlarını gösterir.
+
+Canlı metrik satırındaki `Performance` tıklanınca Performance detay dialog'u açılır. Bu dialog gerçekleşen üretim, ham hedef, hedeften düşülen miktar, düzeltilmiş hedef, hedef kapsama oranı ve saat bazlı hedef detaylarını gösterir.
+
+MTBF/MTTR hesabı OEE'den ayrıdır: `MTBF = (Planlı Süre - Arıza Dakikası) / Arıza Kaydı Sayısı`, `MTTR = Arıza Dakikası / Arıza Kaydı Sayısı`. Sadece `ariza` kolonuna dayanır; mola, setup, takım değişimi, planlı duruş vb. dahil değildir.
 ## İlgili Sayfalar
 - [Duruşlar](duruslar.md) — `ariza_turu` kod tablosu ve tüm duruş kolonlarının kaynağı
 - [Aksiyon Takip](aksiyon-takip.md) — `manuf_action_items` tablosunun canlı ManufUI arayüzü (sunumdaki Aksiyon Takibi slaytlarının aynı verisi)
