@@ -117,6 +117,7 @@ export default async function DashboardPage({
             <Link className="rounded-md border border-amber-700 bg-amber-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-800" href="/duruslar">Duruş takip</Link>
             <Link className="rounded-md border border-blue-700 bg-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-800" href="/veri-takip">Veri takip</Link>
             <Link className="rounded-md border border-teal-700 bg-teal-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-800" href="/aksiyon-takip">Aksiyon Takip</Link>
+            <Link className="rounded-md border border-purple-700 bg-purple-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-800" href="/personel-takip">Personel Takip</Link>
             <Link className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-rose-800" href="/arıza">Arıza detay</Link>
             <Link className="rounded-md border border-indigo-700 bg-indigo-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-800" href="/dashboardy">Performans Paneli</Link>
             <Link className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-100" href="/">Forma dön</Link>
