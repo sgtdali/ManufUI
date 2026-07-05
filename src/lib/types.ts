@@ -168,6 +168,15 @@ export function getZamanDilimleriForCellAndDate(bolum: string | null | undefined
   if (bolum === "Quench Hücresi") {
     return [{ sira_no: 1, label: "Günlük" }];
   }
+  if (bolum === "ROB110-111 Hücresi" && tarih === "2026-07-04") {
+    return [
+      ...CUMA_CUMARTESI_ZAMAN_DILIMLERI,
+      { sira_no: 9, label: "17:00 - 18:00" },
+      { sira_no: 10, label: "18:00 - 19:00" },
+      { sira_no: 11, label: "19:00 - 20:00" },
+      { sira_no: 12, label: "20:00 - 21:00" },
+    ];
+  }
   if (
     bolum === "ETM Hücresi" ||
     bolum === "Flowform Hücresi" ||

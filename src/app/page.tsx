@@ -96,7 +96,7 @@ export default function ProductionFormPage() {
     if (!record) {
       setHasExistingRecord(false);
       toast.info("Bu bölüm/tarih için kayıt bulunamadı.");
-      reset({ bolum, sorumlu: BOLUM_SORUMLU[bolum] ?? "", tarih, rows: buildEmptyRows(getZamanDilimleriForDate(tarih), bolum, tarih) });
+      reset({ bolum, sorumlu: BOLUM_SORUMLU[bolum] ?? "", tarih, rows: buildEmptyRows(getZamanDilimleriForCellAndDate(bolum, tarih), bolum, tarih) });
       return;
     }
     setHasExistingRecord(true);
