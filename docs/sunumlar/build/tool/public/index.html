@@ -14,6 +14,7 @@
   <nav class="mode-tabs">
     <button class="mode-btn active" data-mode="data">Üretim Verisi Seçimi</button>
     <button class="mode-btn" data-mode="oee">OEE — Planlı Süre</button>
+    <button class="mode-btn" data-mode="ariza">Arıza Olay Gruplama</button>
   </nav>
 
   <div id="dataView">
@@ -57,6 +58,21 @@
       <p class="hint-text">Her satır bir saatlik zaman dilimidir. O saatte oluşan duruşları (tür + açıklama) görüp, o saatin <strong>Planlı Süre'ye dahil olup olmayacağına</strong> karar ver. Dahil olmayan (işareti kaldırılmış) saatler Availability/OEE/MTBF/MTTR hesabında hiç sayılmaz — sanki hiç raporlanmamış gibi. Tarih aralığının <strong>dışındaki günler</strong> de aynı şekilde ne bu listede görünür ne de hesaplamaya dahil olur. Gün satırına tıklayınca o günün saatleri açılır/kapanır.</p>
     </section>
     <main id="oeeGrid" class="grid"></main>
+  </div>
+
+  <div id="arizaView" class="hidden">
+    <section class="range-bar">
+      <label>Hücre
+        <select id="arizaCellSelect"></select>
+      </label>
+      <label>Başlangıç <input type="date" id="arizaRangeStart" /></label>
+      <label>Bitiş <input type="date" id="arizaRangeEnd" /></label>
+      <span id="arizaLiveSummary" class="oee-live-metric"></span>
+    </section>
+    <section class="range-bar oee-hint-bar">
+      <p class="hint-text">Sadece arızalı saatler listelenir. <strong>"Gerçek Arıza mı?"</strong> kutusunun işaretini kaldırırsan (girişi yanlışlıkla arıza kategorisine yazılmış bir kayıt olduğunu düşünüyorsan) o saat MTBF/MTTR hesabından (dakika + olay) tamamen çıkar — Supabase'deki veri değişmez, sadece Availability/OEE bu kolonu ayrı işlemeye devam eder. "Talaş Arabası Dolu" / "Bor Yağı Bitti" gibi bilinen arıza-olmayan türler zaten <strong>"Hayır (otomatik)"</strong> olarak işaretlidir (elle değiştirilemez — bu tür `dataService.js:NON_BREAKDOWN_ARIZA_TYPES` listesinden gelir, aynı zamanda Availability hesabından da hariç tutulur). Gerçek arıza olarak kalan saatlerden ardışık ikisi aynı arızanın devamıysa <strong>"Aynı arızanın devamı"</strong> kutusunu işaretle — işaretlenen saat ayrı bir olay sayılmaz, bir önceki saatle birleşir. Hiçbir şeyi işaretlemezsen (varsayılan) mevcut MTBF/MTTR hesabı hiç değişmez.</p>
+    </section>
+    <main id="arizaGrid" class="grid"></main>
   </div>
 
   <footer class="actionbar">

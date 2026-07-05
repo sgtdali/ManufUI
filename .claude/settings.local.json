@@ -89,7 +89,11 @@
       "Bash(node -e \"fetch\\('http://localhost:4590/api/oee-date-range', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify\\({start:'2026-06-01', end:'2026-06-15'}\\)}\\).then\\(r=>r.json\\(\\)\\).then\\(d=>console.log\\('post:', JSON.stringify\\(d\\)\\)\\)\")",
       "Bash(node -e \"fetch\\('http://localhost:4590/api/oee-date-range'\\).then\\(r=>r.json\\(\\)\\).then\\(d=>console.log\\('get after post:', JSON.stringify\\(d\\)\\)\\)\")",
       "Bash(node -e \"fetch\\('http://localhost:4590/api/cell-detail?cell=Pres%20H%C3%BCcresi'\\).then\\(r=>r.json\\(\\)\\).then\\(d=>console.log\\('cell-detail dates count:', Object.keys\\(d.byDate\\).length\\)\\)\")",
-      "Bash(powershell -Command \"Stop-Process -Id 23744 -Force\")"
+      "Bash(powershell -Command \"Stop-Process -Id 23744 -Force\")",
+      "Bash(grep -i \"~\\\\$\")",
+      "Bash(grep '~\\\\$')",
+      "Bash(node --check build.js)",
+      "Bash(powershell -NoProfile -Command \"Get-CimInstance Win32_Process -Filter \\\\\"ProcessId=21232\\\\\" | Select-Object ProcessId,ParentProcessId,CommandLine | Format-List\")"
     ]
   }
 }

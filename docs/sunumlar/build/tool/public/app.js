@@ -23,10 +23,13 @@
     "N602 H\u00fccresi",
     "N603 H\u00fccresi",
   ];
+  const DEFAULT_NON_BREAKDOWN_ARIZA_TYPES = ["Tala\u015f Arabas\u0131 Dolu", "Bor Ya\u011f\u0131 Bitti"];
+  const DEFAULT_NON_BREAKDOWN_ARIZA_RULES = DEFAULT_NON_BREAKDOWN_ARIZA_TYPES.map((type) => ({ field: "ariza", typeField: "ariza_turu", type }));
   const DEFAULT_CELL_OEE_RULES = {
     plannedTimeOut: [],
-    availabilityExclude: [{ field: "mola" }, { field: "onceki_istasyon_bekleme" }],
+    availabilityExclude: [{ field: "mola" }, { field: "onceki_istasyon_bekleme" }, ...DEFAULT_NON_BREAKDOWN_ARIZA_RULES],
     targetScale: DEFAULT_TARGET_SCALE_FIELDS.map((field) => ({ field })),
+    targetScaleExclude: DEFAULT_NON_BREAKDOWN_ARIZA_RULES,
     cells: Object.fromEntries(
       Array.from(new Set([...DEFAULT_KASA_ALMA_BIRAKMA_CELLS, ...Object.keys(DEFAULT_TAKIM_DEGISIMI_STANDART_DK), "Pres H\u00fccresi"])).map((cell) => {
         const rules = {};
@@ -71,6 +74,15 @@
       rangeSaveTimer: null,
       targetSaveTimer: null,
     },
+    ariza: {
+      cell: null,
+      detailByDate: {}, // { [tarih]: [row, ...] } — seçili hücre için, sıralı (loadOeeCellDetail ile aynı kaynak)
+      links: new Set(), // Set<slotKey> — "bu saat bir önceki arızalı saatin devamı" işareti
+      falsePositives: new Set(), // Set<slotKey> — "bu aslında gerçek arıza değil" (elle), MTBF/MTTR'den tamamen çıkar
+      autoNonBreakdownTypes: new Set(), // Set<ariza_turu> — dataService.js:NON_BREAKDOWN_ARIZA_TYPES, otomatik hariç
+      saveTimer: null,
+      fpSaveTimer: null,
+    },
   };
 
   const el = {
@@ -91,6 +103,12 @@
     oeeRangeEnd: document.getElementById("oeeRangeEnd"),
     oeeExclCount: document.getElementById("oeeExclCount"),
     oeeLiveMetric: document.getElementById("oeeLiveMetric"),
+    arizaView: document.getElementById("arizaView"),
+    arizaGrid: document.getElementById("arizaGrid"),
+    arizaCellSelect: document.getElementById("arizaCellSelect"),
+    arizaRangeStart: document.getElementById("arizaRangeStart"),
+    arizaRangeEnd: document.getElementById("arizaRangeEnd"),
+    arizaLiveSummary: document.getElementById("arizaLiveSummary"),
     summaryBar: document.getElementById("summaryBar"),
     status: document.getElementById("status"),
     generateBtn: document.getElementById("generateBtn"),
@@ -127,6 +145,7 @@
     const metaRes = await fetch("/api/oee-cell-meta").then((r) => r.json());
     state.oee.downtimeFields = metaRes.downtimeFields;
     state.oee.rules = metaRes.cellOeeRules || DEFAULT_CELL_OEE_RULES;
+    state.ariza.autoNonBreakdownTypes = new Set(metaRes.nonBreakdownArizaTypes || []);
     const exclRes = await fetch("/api/oee-slot-exclusions").then((r) => r.json());
     state.oee.exclusions = new Set(exclRes.exclusions || []);
     const targetRes = await fetch("/api/oee-target-overrides").then((r) => r.json());
@@ -136,6 +155,14 @@
     el.oeeRangeStart.value = rangeRes.start;
     el.oeeRangeEnd.value = rangeRes.end;
     populateOeeCellSelect();
+
+    const arizaLinksRes = await fetch("/api/ariza-event-links").then((r) => r.json());
+    state.ariza.links = new Set(arizaLinksRes.links || []);
+    const arizaFpRes = await fetch("/api/ariza-false-positives").then((r) => r.json());
+    state.ariza.falsePositives = new Set(arizaFpRes.keys || []);
+    el.arizaRangeStart.value = rangeRes.start;
+    el.arizaRangeEnd.value = rangeRes.end;
+    populateArizaCellSelect();
   }
 
   function scheduleOeeRangeSave() {
@@ -154,13 +181,36 @@
     const end = el.oeeRangeEnd.value;
     if (!start || !end || start > end) return;
     state.oee.dateRange = { start, end };
+    el.arizaRangeStart.value = start;
+    el.arizaRangeEnd.value = end;
     scheduleOeeRangeSave();
     if (state.oee.cell) await loadOeeCellDetail(state.oee.cell);
     else renderOeeDetail();
+    if (state.ariza.cell) await loadArizaCellDetail(state.ariza.cell);
+    else renderArizaDetail();
   }
 
   el.oeeRangeStart.addEventListener("change", handleOeeRangeChange);
   el.oeeRangeEnd.addEventListener("change", handleOeeRangeChange);
+
+  // Arıza sekmesi tarih aralığı OEE — Planlı Süre sekmesiyle aynı kaynağı
+  // (state.oee.dateRange / oee-date-range.json) paylaşır — iki sekme her zaman tutarlı kalır.
+  async function handleArizaRangeChange() {
+    const start = el.arizaRangeStart.value;
+    const end = el.arizaRangeEnd.value;
+    if (!start || !end || start > end) return;
+    state.oee.dateRange = { start, end };
+    el.oeeRangeStart.value = start;
+    el.oeeRangeEnd.value = end;
+    scheduleOeeRangeSave();
+    if (state.ariza.cell) await loadArizaCellDetail(state.ariza.cell);
+    else renderArizaDetail();
+    if (state.oee.cell) await loadOeeCellDetail(state.oee.cell);
+    else renderOeeDetail();
+  }
+
+  el.arizaRangeStart.addEventListener("change", handleArizaRangeChange);
+  el.arizaRangeEnd.addEventListener("change", handleArizaRangeChange);
 
   function populateOeeCellSelect() {
     el.oeeCellSelect.innerHTML = state.cells
@@ -188,6 +238,69 @@
   el.oeeCellSelect.addEventListener("change", () => {
     loadOeeCellDetail(el.oeeCellSelect.value);
   });
+
+  function populateArizaCellSelect() {
+    el.arizaCellSelect.innerHTML = state.cells
+      .map((c) => `<option value="${c}">${c.replace(" Hücresi", "")}</option>`)
+      .join("");
+    el.arizaCellSelect.value = state.cells[0];
+    loadArizaCellDetail(state.cells[0]);
+  }
+
+  // Aynı /api/cell-detail endpoint'ini kullanır (fetchCellDetailSlots zaten
+  // ariza_turu/ariza_aciklama/ariza_giderildi'yi sira_no sıralı döndürüyor).
+  async function loadArizaCellDetail(cell) {
+    state.ariza.cell = cell;
+    el.arizaGrid.innerHTML = `<p class="hint-text">Yükleniyor…</p>`;
+    const params = new URLSearchParams({ cell });
+    if (state.oee.dateRange) {
+      params.set("start", state.oee.dateRange.start);
+      params.set("end", state.oee.dateRange.end);
+    }
+    const httpRes = await fetch(`/api/cell-detail?${params.toString()}`);
+    const res = await httpRes.json();
+    if (!httpRes.ok) throw new Error(res.error || `Sunucu hatasi (${httpRes.status})`);
+    state.ariza.detailByDate = res.byDate;
+    renderArizaDetail();
+  }
+
+  el.arizaCellSelect.addEventListener("change", () => {
+    loadArizaCellDetail(el.arizaCellSelect.value);
+  });
+
+  function scheduleArizaLinksSave() {
+    clearTimeout(state.ariza.saveTimer);
+    state.ariza.saveTimer = setTimeout(async () => {
+      await fetch("/api/ariza-event-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ links: Array.from(state.ariza.links) }),
+      });
+    }, 500);
+  }
+
+  function toggleArizaLink(key) {
+    if (state.ariza.links.has(key)) state.ariza.links.delete(key);
+    else state.ariza.links.add(key);
+    scheduleArizaLinksSave();
+  }
+
+  function scheduleArizaFalsePositivesSave() {
+    clearTimeout(state.ariza.fpSaveTimer);
+    state.ariza.fpSaveTimer = setTimeout(async () => {
+      await fetch("/api/ariza-false-positives", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keys: Array.from(state.ariza.falsePositives) }),
+      });
+    }, 500);
+  }
+
+  function toggleArizaFalsePositive(key) {
+    if (state.ariza.falsePositives.has(key)) state.ariza.falsePositives.delete(key);
+    else state.ariza.falsePositives.add(key);
+    scheduleArizaFalsePositivesSave();
+  }
 
   function scheduleOeeExclSave() {
     clearTimeout(state.oee.saveTimer);
@@ -826,6 +939,214 @@
     updateOeeExclCount();
   }
 
+  function isArizaExcludedRow(cell, date, row) {
+    if (state.ariza.autoNonBreakdownTypes.has(row.ariza_turu)) return true;
+    return state.ariza.falsePositives.has(slotKey(cell, date, row.zaman_dilimi));
+  }
+
+  // arizaIndexes içinden "gerçek arıza değil" sayılanları çıkarır (elle işaretli +
+  // dataService.js:NON_BREAKDOWN_ARIZA_TYPES'a giren türler otomatik) — MTBF/MTTR
+  // hesabında bu saatler hiç sayılmadığı için event/adjacency mantığı da onları görmezden gelir.
+  function effectiveArizaIndexes(cell, date, arizaIndexes) {
+    return arizaIndexes.filter((item) => !isArizaExcludedRow(cell, date, item.row));
+  }
+
+  // Bir günün gerçek arızalı saatleri için, ardışık linklenen satırları düşerek
+  // gerçek olay sayısını hesaplar (dataService.js:addRowToAccumulator ile aynı mantık).
+  function dayArizaEventCount(cell, date, effectiveIndexes) {
+    return effectiveIndexes.reduce((count, item, i) => {
+      const key = slotKey(cell, date, item.row.zaman_dilimi);
+      const prevItem = effectiveIndexes[i - 1];
+      const isAdjacent = prevItem && prevItem.idx === item.idx - 1;
+      const linked = isAdjacent && state.ariza.links.has(key);
+      return count + (linked ? 0 : 1);
+    }, 0);
+  }
+
+  // Bu tabda görünen (tarih aralığı + OEE sekmesindeki Planlı Süre işaretleri)
+  // satırlar üzerinden canlı MTBF/MTTR tahmini — dataService.js:finalizeReliability
+  // ile aynı formül. Not: Üretim Verisi Seçimi sekmesindeki dönem-bazlı (nm/ht)
+  // saat hariç tutmaları burada uygulanmaz — bu bir canlı önizlemedir, kesin
+  // değerler "Sunumu Oluştur" ile yeniden üretilen oee-mtbf-mttr-data.json'dadır.
+  function updateArizaLiveSummary() {
+    const cell = state.ariza.cell;
+    if (!cell) { el.arizaLiveSummary.textContent = ""; return; }
+    const byDate = state.ariza.detailByDate || {};
+    const range = state.oee.dateRange;
+    let hourCount = 0;
+    let realCount = 0;
+    let eventCount = 0;
+    let plannedMinutes = 0;
+    let arizaMinutes = 0;
+    Object.entries(byDate).forEach(([date, rows]) => {
+      if (range && (date < range.start || date > range.end)) return;
+      const arizaIndexes = rows
+        .map((row, idx) => ({ row, idx }))
+        .filter((item) => (item.row.ariza || 0) > 0);
+      const effectiveIndexes = effectiveArizaIndexes(cell, date, arizaIndexes);
+      hourCount += arizaIndexes.length;
+      realCount += effectiveIndexes.length;
+      eventCount += dayArizaEventCount(cell, date, effectiveIndexes);
+      arizaMinutes += effectiveIndexes.reduce((sum, item) => sum + (item.row.ariza || 0), 0);
+      rows.forEach((row) => {
+        const key = slotKey(cell, date, row.zaman_dilimi);
+        if (state.oee.exclusions.has(key)) return;
+        plannedMinutes += getSlotMinutes(cell, date);
+      });
+    });
+    const fpNote = hourCount > realCount ? ` (${hourCount - realCount} gerçek değil sayıldı)` : "";
+    const mtbf = (plannedMinutes > 0 && eventCount > 0) ? (plannedMinutes - arizaMinutes) / eventCount : null;
+    const mttr = eventCount > 0 ? arizaMinutes / eventCount : null;
+    const mtbfText = mtbf === null ? "—" : `${mtbf.toFixed(1)} dk`;
+    const mttrText = mttr === null ? "—" : `${mttr.toFixed(1)} dk`;
+    el.arizaLiveSummary.textContent = `${hourCount} arızalı saat → ${eventCount} olay${fpNote} · MTBF ${mtbfText} · MTTR ${mttrText}`;
+  }
+
+  function renderArizaDetail() {
+    const cell = state.ariza.cell;
+    const byDate = state.ariza.detailByDate;
+    const range = state.oee.dateRange;
+    const dates = Object.keys(byDate)
+      .filter((d) => !range || (d >= range.start && d <= range.end))
+      .sort();
+
+    const container = document.createElement("div");
+    container.className = "oee-detail";
+    let anyAriza = false;
+
+    dates.forEach((date) => {
+      const rows = byDate[date];
+      const arizaIndexes = rows
+        .map((row, idx) => ({ row, idx }))
+        .filter((item) => (item.row.ariza || 0) > 0);
+      if (arizaIndexes.length === 0) return;
+      anyAriza = true;
+
+      const dayDiv = document.createElement("div");
+      dayDiv.className = "oee-day";
+
+      const header = document.createElement("div");
+      header.className = "oee-day-header";
+      const updateBadge = () => {
+        const effectiveIndexes = effectiveArizaIndexes(cell, date, arizaIndexes);
+        const count = dayArizaEventCount(cell, date, effectiveIndexes);
+        const fpNote = arizaIndexes.length > effectiveIndexes.length ? ` · ${arizaIndexes.length - effectiveIndexes.length} gerçek değil` : "";
+        header.querySelector(".oee-day-badge").textContent = `${arizaIndexes.length} saat arızalı · ${count} olay${fpNote}`;
+      };
+      header.innerHTML = `<span class="oee-day-chevron">▶</span> <strong>${date}</strong> <span class="oee-day-badge"></span>`;
+      updateBadge();
+      dayDiv.appendChild(header);
+
+      const table = document.createElement("table");
+      table.className = "oee-detail-table hidden";
+      table.innerHTML = `<thead><tr><th>Saat</th><th>Arıza (dk)</th><th>Tür</th><th>Açıklama</th><th>Giderildi</th><th>Gerçek Arıza mı?</th><th>Aynı arızanın devamı</th></tr></thead>`;
+      const tbody = document.createElement("tbody");
+
+      arizaIndexes.forEach((item) => {
+        const { row, idx } = item;
+        const key = slotKey(cell, date, row.zaman_dilimi);
+        const tr = document.createElement("tr");
+
+        const saatTd = document.createElement("td");
+        saatTd.textContent = row.zaman_dilimi;
+        tr.appendChild(saatTd);
+
+        const dkTd = document.createElement("td");
+        dkTd.textContent = `${row.ariza} dk`;
+        tr.appendChild(dkTd);
+
+        const turTd = document.createElement("td");
+        turTd.textContent = row.ariza_turu || "—";
+        tr.appendChild(turTd);
+
+        const aciklamaTd = document.createElement("td");
+        aciklamaTd.className = "oee-summary-cell";
+        aciklamaTd.textContent = row.ariza_aciklama || "—";
+        tr.appendChild(aciklamaTd);
+
+        const giderildiTd = document.createElement("td");
+        giderildiTd.textContent = row.ariza_giderildi ? "Evet" : "Hayır";
+        tr.appendChild(giderildiTd);
+
+        const isAutoNonBreakdown = state.ariza.autoNonBreakdownTypes.has(row.ariza_turu);
+        const isExcluded = isArizaExcludedRow(cell, date, row);
+        tr.classList.toggle("excluded", isExcluded);
+
+        const fpTd = document.createElement("td");
+        fpTd.className = "ariza-link-cell";
+        if (isAutoNonBreakdown) {
+          fpTd.textContent = "Hayır (otomatik)";
+          fpTd.title = "Bu tür dataService.js:NON_BREAKDOWN_ARIZA_TYPES listesinde — elle değiştirilemez.";
+        } else {
+          const isFalsePositive = state.ariza.falsePositives.has(key);
+          fpTd.innerHTML = `<label class="ariza-link-toggle"><input type="checkbox" ${isFalsePositive ? "" : "checked"} /> Gerçek</label>`;
+          fpTd.addEventListener("click", () => {
+            toggleArizaFalsePositive(key);
+            const nowFalsePositive = state.ariza.falsePositives.has(key);
+            tr.classList.toggle("excluded", nowFalsePositive);
+            fpTd.querySelector("input").checked = !nowFalsePositive;
+            rerenderLinkCell();
+            updateBadge();
+            updateArizaLiveSummary();
+          });
+        }
+        tr.appendChild(fpTd);
+
+        const linkTd = document.createElement("td");
+        linkTd.className = "ariza-link-cell";
+        const rerenderLinkCell = () => {
+          linkTd.innerHTML = "";
+          if (isArizaExcludedRow(cell, date, row)) {
+            linkTd.textContent = "—";
+            linkTd.onclick = null;
+            return;
+          }
+          const effectiveIndexes = effectiveArizaIndexes(cell, date, arizaIndexes);
+          const effIdx = effectiveIndexes.findIndex((e) => e.idx === idx);
+          const prevEff = effIdx > 0 ? effectiveIndexes[effIdx - 1] : null;
+          const isAdjacent = prevEff && prevEff.idx === idx - 1;
+          if (!isAdjacent) {
+            linkTd.textContent = "—";
+            linkTd.onclick = null;
+            return;
+          }
+          const isLinked = state.ariza.links.has(key);
+          linkTd.innerHTML = `<label class="ariza-link-toggle"><input type="checkbox" ${isLinked ? "checked" : ""} /> Devamı</label>`;
+          tr.classList.toggle("ariza-linked", isLinked);
+          linkTd.onclick = () => {
+            toggleArizaLink(key);
+            const nowLinked = state.ariza.links.has(key);
+            tr.classList.toggle("ariza-linked", nowLinked);
+            linkTd.querySelector("input").checked = nowLinked;
+            updateBadge();
+            updateArizaLiveSummary();
+          };
+        };
+        rerenderLinkCell();
+        tr.appendChild(linkTd);
+
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      dayDiv.appendChild(table);
+
+      header.addEventListener("click", () => {
+        table.classList.toggle("hidden");
+        header.querySelector(".oee-day-chevron").textContent = table.classList.contains("hidden") ? "▶" : "▼";
+      });
+
+      container.appendChild(dayDiv);
+    });
+
+    if (!anyAriza) {
+      el.arizaGrid.innerHTML = `<p class="hint-text">Seçili tarih aralığında bu hücrede arıza kaydı yok.</p>`;
+    } else {
+      el.arizaGrid.innerHTML = "";
+      el.arizaGrid.appendChild(container);
+    }
+    updateArizaLiveSummary();
+  }
+
   el.modeTabs.forEach((btn) => {
     btn.addEventListener("click", () => {
       el.modeTabs.forEach((b) => b.classList.remove("active"));
@@ -833,6 +1154,7 @@
       state.mode = btn.dataset.mode;
       el.dataView.classList.toggle("hidden", state.mode !== "data");
       el.oeeView.classList.toggle("hidden", state.mode !== "oee");
+      el.arizaView.classList.toggle("hidden", state.mode !== "ariza");
     });
   });
 

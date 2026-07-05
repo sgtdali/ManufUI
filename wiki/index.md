@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-04
+updated: 2026-07-05
 
 sources: []
 ---
@@ -24,7 +24,8 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 | [Global Şifre Koruması](systems/sifre-korumasi.md) | Tüm sitenin genel şifre yetkilendirmesi (`rmk_hf901`), middleware kontrolü, şifresiz salt okunur performans paneli erişimi ve `/aksiyon-takip` istisnası |
 | [Otomasyon & Entegrasyon Paneli](systems/teams-entegrasyonu.md) | Günlük e-posta raporu, Teams bildirimleri, cron joblar ve webhook adreslerini yöneten şifre korumalı panel |
 | [Hat Kapanış Tahmini](systems/hat-forecast.md) | `/hat-forecast` sayfası: Pres'in 9 Temmuz'da kapanması sonrası hattaki tüm hücrelerin ne zaman biteceğini hesaplayan rundown simülasyonu |
-| [Üst Yönetim Sunumu](systems/ust-yonetim-sunumu.md) | `docs/sunumlar/`: ManufUI dışı bağımsız PPTX üretim aracı (pptxgenjs + Supabase) — lokal hücre-seçim UI'ı (port 4590) + `build.js` slayt üretimi, N602-N603 birleştirme mantığı, Duruş Analizi bölümü, OEE - Planlı Süre kural tablosu |
+| [Üst Yönetim Sunumu](systems/ust-yonetim-sunumu.md) | `docs/sunumlar/`: ManufUI dışı bağımsız PPTX üretim aracı (pptxgenjs + Supabase) — lokal hücre-seçim UI'ı (port 4590, 3 sekme: Üretim Verisi Seçimi / OEE - Planlı Süre / Arıza Olay Gruplama) + `build.js` slayt üretimi, N602-N603 birleştirme, `EXCLUDED_CELLS` ile geri alınabilir hücre hariç tutma (Fosfat/Boya), Duruş Analizi bölümü, OEE kural tablosu + `NON_BREAKDOWN_ARIZA_TYPES` |
+| [Personel Takip](systems/personel-takip.md) | `/personel-takip` sayfası: Saha personelinin NCMS Otel ve Dış Otel konaklama planlamasını listeleyen dondurulmuş kolonlu çizelge ve sıralanabilir tablo görünümü |
 
 ## Entities — Varlıklar ve Veri Yapıları
 
@@ -52,6 +53,7 @@ Saudi Arabistan üretim sahası için OEE/WIP takip sistemi (Next.js + Supabase)
 - `/aksiyon-takip` → [Aksiyon Takip](systems/aksiyon-takip.md)
 - `/veri-takip` → Veri takip (henüz incelenmedi)
 - `/hat-forecast` → [Hat Kapanış Tahmini](systems/hat-forecast.md)
+- `/personel-takip` → [Personel Takip](systems/personel-takip.md) (NCMS & Dış Otel Konaklama Planlama)
 
 **Anahtar dosyalar:**
 - `src/lib/types.ts` — BOLUMLER, DURUS_KOLONLARI, ZAMAN_DILIMLERI

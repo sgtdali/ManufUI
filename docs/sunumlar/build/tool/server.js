@@ -5,6 +5,7 @@ const { spawn } = require("child_process");
 const {
   CELLS, DEFAULT_PERIODS, fetchRawSlots, computeOverviewData, computeOeeMtbfMttrData,
   DOWNTIME_FIELDS, DOWNTIME_FIELD_LABELS, DOWNTIME_FIELD_DETAIL_KEYS, CELL_OEE_RULES, fetchCellDetailSlots,
+  NON_BREAKDOWN_ARIZA_TYPES, computeTotalProductionData,
 } = require("./dataService");
 
 const PORT = 4590;
@@ -12,9 +13,12 @@ const DATA_DIR = path.join(__dirname, "data");
 const SELECTION_PATH = path.join(DATA_DIR, "selection.json");
 const OVERVIEW_PATH = path.join(DATA_DIR, "overview-data.json");
 const OEE_MTBF_MTTR_PATH = path.join(DATA_DIR, "oee-mtbf-mttr-data.json");
+const TOTAL_PRODUCTION_PATH = path.join(DATA_DIR, "total-production-data.json");
 const OEE_SLOT_EXCLUSIONS_PATH = path.join(DATA_DIR, "oee-slot-exclusions.json");
 const OEE_DATE_RANGE_PATH = path.join(DATA_DIR, "oee-date-range.json");
 const OEE_TARGET_OVERRIDES_PATH = path.join(DATA_DIR, "oee-target-overrides.json");
+const ARIZA_EVENT_LINKS_PATH = path.join(DATA_DIR, "ariza-event-links.json");
+const ARIZA_FALSE_POSITIVES_PATH = path.join(DATA_DIR, "ariza-false-positives.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const BUILD_DIR = path.join(__dirname, "..");
 
@@ -78,6 +82,28 @@ function loadTargetOverrides() {
 function saveTargetOverrides(overrides) {
   ensureDataDir();
   fs.writeFileSync(OEE_TARGET_OVERRIDES_PATH, JSON.stringify(overrides || {}, null, 2), "utf8");
+}
+
+function loadArizaEventLinks() {
+  ensureDataDir();
+  if (!fs.existsSync(ARIZA_EVENT_LINKS_PATH)) return [];
+  return JSON.parse(fs.readFileSync(ARIZA_EVENT_LINKS_PATH, "utf8"));
+}
+
+function saveArizaEventLinks(list) {
+  ensureDataDir();
+  fs.writeFileSync(ARIZA_EVENT_LINKS_PATH, JSON.stringify(list, null, 2), "utf8");
+}
+
+function loadArizaFalsePositives() {
+  ensureDataDir();
+  if (!fs.existsSync(ARIZA_FALSE_POSITIVES_PATH)) return [];
+  return JSON.parse(fs.readFileSync(ARIZA_FALSE_POSITIVES_PATH, "utf8"));
+}
+
+function saveArizaFalsePositives(list) {
+  ensureDataDir();
+  fs.writeFileSync(ARIZA_FALSE_POSITIVES_PATH, JSON.stringify(list, null, 2), "utf8");
 }
 
 function sendJson(res, status, obj) {
@@ -155,6 +181,7 @@ const server = http.createServer(async (req, res) => {
           key, label: DOWNTIME_FIELD_LABELS[key], ...DOWNTIME_FIELD_DETAIL_KEYS[key],
         })),
         cellOeeRules: CELL_OEE_RULES,
+        nonBreakdownArizaTypes: NON_BREAKDOWN_ARIZA_TYPES,
       });
     }
 
@@ -200,11 +227,33 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
+    if (req.method === "GET" && url.pathname === "/api/ariza-event-links") {
+      return sendJson(res, 200, { links: loadArizaEventLinks() });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/ariza-event-links") {
+      const body = await readBody(req);
+      saveArizaEventLinks(body.links || []);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/ariza-false-positives") {
+      return sendJson(res, 200, { keys: loadArizaFalsePositives() });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/ariza-false-positives") {
+      const body = await readBody(req);
+      saveArizaFalsePositives(body.keys || []);
+      return sendJson(res, 200, { ok: true });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/generate") {
       const sel = loadSelection();
       const plannedTimeExclusions = loadPlannedTimeExclusions();
       const oeeDateRange = loadOeeDateRange();
       const targetOverrides = loadTargetOverrides();
+      const arizaEventLinks = loadArizaEventLinks();
+      const arizaFalsePositives = loadArizaFalsePositives();
       const overviewData = await computeOverviewData({
         periods: sel.periods,
         exclusionsNm: sel.exclusionsNm || [],
@@ -217,10 +266,17 @@ const server = http.createServer(async (req, res) => {
         plannedTimeExclusions,
         dateRange: oeeDateRange,
         targetOverrides,
+        arizaEventLinks,
+        arizaFalsePositives,
+      });
+      const totalProductionData = await computeTotalProductionData({
+        periods: sel.periods,
+        exclusionsHt: sel.exclusionsHt || [],
       });
       ensureDataDir();
       fs.writeFileSync(OVERVIEW_PATH, JSON.stringify(overviewData, null, 2), "utf8");
       fs.writeFileSync(OEE_MTBF_MTTR_PATH, JSON.stringify(oeeMtbfMttrData, null, 2), "utf8");
+      fs.writeFileSync(TOTAL_PRODUCTION_PATH, JSON.stringify(totalProductionData, null, 2), "utf8");
 
       const child = spawn(process.execPath, ["build.js"], { cwd: BUILD_DIR });
       let out = "";

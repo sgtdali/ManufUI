@@ -6,6 +6,55 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 ---
 
 
+## [2026-07-05] feature | Üst Yönetim Sunumu: Hücre Hariç Tutma, Slayt Sadeleştirme ve Arıza Olay Gruplama
+
+**Kaynak:** Kullanıcı konuşması + `docs/sunumlar/build/build.js`, `docs/sunumlar/build/tool/dataService.js`, `docs/sunumlar/build/tool/server.js`, `docs/sunumlar/build/tool/public/app.js`, `docs/sunumlar/build/tool/public/index.html`, `docs/sunumlar/build/tool/public/style.css`
+
+### 1. Fosfat & Boya Hücrelerinin Sunumdan Geri Alınabilir Şekilde Çıkarılması
+- `build.js` başına `EXCLUDED_CELLS = ["Fosfat", "Boya"]` + `isExcludedCell()` eklendi. `overviewData`/`oeeData` bu listeye göre filtreleniyor, kapsam çipleri (`ACTIVE_CELLS`), Slayt 3 başlığı, akış şeması, yoğunluk tablosu buna göre dinamik. `fosfatBoyaExcluded` bayrağı birkaç anlatı metnini ve "Boya & Fosfat Veri Boşluğu" özel slaydını koşullu hale getiriyor.
+- **Kasıtlı olarak dokunulmayan yerler:** `dataService.js`'deki `CELLS` (canlı Supabase sorguları) ve lokal seçim aracı — orada hâlâ 12 hücre ayrı ayrı listeleniyor. Geri eklemek için sadece `EXCLUDED_CELLS`'i boşaltmak yeterli.
+
+### 2. İçerik ve Slayt Sadeleştirmeleri
+- Kapak sayfası: "Performans Raporu ve Aksiyon / Yatırım Talebi" → sadece **"Performans Raporu"**.
+- "Sunumun Amacı ve Kapsamı" sayfası: stale "12 hücre" referansı dinamik hale getirildi, "kısa özet." gibi taslak görünen metin gerçek cümleyle değiştirildi.
+- İki slayt tamamen kaldırıldı: **"Önceki İstasyon Bekleme Süresi"** (Genel Bakış KPI kartlarıyla birlikte) ve **"Önceki İstasyon Bekleme Trendi"** (Darboğaz bölümü bar chart'ı) — geri dönüşü olmayan silme (git geçmişinden alınmalı, EXCLUDED_CELLS gibi bayrak yok).
+- **MTBF ve MTTR** slaydı Nisan-Mayıs karşılaştırmasından çıkarılıp sadece Haziran-Temmuz'u gösteren tek tabloya indirgendi (`Hücre | MTBF | MTTR | Arıza Kaydı`); düşük-örnek uyarısı artık veriden otomatik hesaplanıyor. Kullanılmayan `changeCell()` yardımcı fonksiyonu temizlendi.
+- Sunum 26 → 24 sayfaya düştü.
+
+### 3. MTBF/MTTR Hesap Doğruluğu — Arıza Olay Gruplama Sekmesi
+**Sorun tespiti (kullanıcı):** Ardışık saatlerde süren tek bir arıza, mevcut mantıkla (`if (ariza>0) arizaEvents+=1` her satırda) birden fazla ayrı "olay" sayılıyor → MTBF/MTTR olduğundan düşük çıkıyor. Ayrıca bazı `ariza_turu` alt türleri (`Talaş Arabası Dolu`, `Bor Yağı Bitti`, ROB108/ROB104) gerçekte mekanik arıza değil, yanlış kategorize edilmiş organizasyonel/lojistik duruşlar.
+
+**Çözüm — lokal araca üçüncü mod sekmesi ("Arıza Olay Gruplama"), üç mekanizma, hepsi Supabase verisine dokunmadan:**
+1. **"Gerçek Arıza mı?" (elle, satır bazlı):** `arizaFalsePositives` Set → `ariza-false-positives.json`. İşaretsiz saat MTBF/MTTR'den (dakika+olay) tamamen çıkar; Availability/OEE'yi etkilemez (kasıtlı dar kapsam).
+2. **"Aynı arızanın devamı" (elle, ardışık satır bazlı):** `arizaEventLinks` Set → `ariza-event-links.json`. Sadece aynı gün, tam sıralı dizide bitişik iki gerçek-arıza satırı arasında sunulur; işaretlenirse ikinci saat ayrı olay sayılmaz.
+3. **`NON_BREAKDOWN_ARIZA_TYPES` (otomatik, tür bazlı, kod içi liste):** Bu türler MTBF/MTTR'den otomatik çıkar VE OEE kural tablosunda (`CELL_OEE_RULES`) mola-benzeri muamele görür — **Availability kaybı sayılmaz, hedef de düşmez** (Pres'in `IHU Rejim Bekleme` istisnasıyla aynı `targetScaleExclude` deseni). Kritik tasarım tartışması: ilk denemede bu türler `onceki_istasyon_bekleme` gibi ele alınmıştı (Availability muaf + hedef düşer), kullanıcı bunun yanlış olduğunu belirtti — önceki istasyon bekleme dışsal/önlenemez bir bağımlılık, ama "Bor Yağı Bitti" organizasyonla önlenebilir bir kayıp; bu yüzden mola'nın davranışı (Availability muaf + hedef DÜŞMEZ, gerçekleşen düşükse Performance'ta görünür kalır) doğru model olarak benimsendi.
+- Yeni endpoint'ler: `GET/POST /api/ariza-event-links`, `GET/POST /api/ariza-false-positives`; `/api/oee-cell-meta` artık `nonBreakdownArizaTypes` da dönüyor.
+- Sekmede canlı özet: `"N arızalı saat → M olay (X gerçek değil sayıldı) · MTBF Y dk · MTTR Z dk"`, her checkbox değişikliğinde anlık güncelleniyor. Bilinçli sınırlama: bu canlı sayı Üretim Verisi Seçimi sekmesindeki dönem-bazlı (nm/ht) saat hariç tutmalarını hesaba katmıyor (tahmini bir önizleme; kesin sayılar `Sunumu Oluştur` ile üretilir).
+- `fetchRawSlots` artık `ariza_turu` kolonunu da çekiyor (önceden sadece `fetchCellDetailSlots`'ta vardı). `build.js`'e hiçbir değişiklik gerekmedi.
+
+### Kullanıcı Geri Bildirimi
+"Claude Preview kullanma, ben aksini belirtmedikçe" — iki kez tekrarlandı (3 gün arayla), ikincisinde harness'ın PostToolUse hook nudge'ına uyup yine tetiklemiştim. Hafıza notu bu spesifik tetikleyiciyi (hook mesajını göz ardı et) kapsayacak şekilde güncellendi.
+
+### Wiki
+`wiki/systems/ust-yonetim-sunumu.md` güncellendi: yeni "Hücre Hariç Tutma" ve "Arıza Olay Gruplama Sekmesi" bölümleri eklendi, Slayt Envanteri ve Genel Kural Tablosu güncel duruma göre yeniden yazıldı.
+
+---
+
+## [2026-07-05] update | Personel Takip Sistemi: Zaman Çizelgesi ve Sıralanabilir Tablo Entegrasyonu
+
+**Kaynak:** Kullanıcı talebi + excel veri kaynağı (`Kopya NCMS Saha Personel Listesi_04.07.20261.xlsx`)
+
+**Yapılanlar:**
+- **Personel Takip Modülü (`/personel-takip`):** Saha personeli konaklama planlaması ve takibi için yepyeni bir sayfa geliştirildi.
+- **Konaklama Dropdownları:** Lokasyon alanı dropdown yapılarak "NCMS Otel" ve "Dış Otel" seçenekleri sunuldu.
+- **Dinamik Personel Dropdown:** Excel dosyasından ayıklanan 46 saha personeli adı `manuf_personnel` tablosuna aktarıldı. Arayüzdeki "İsim" seçimleri bu dinamik kaynaktan beslenir hale getirildi.
+- **Tarih Alanlarının Nullable Yapılması:** arrival_date ve return_date alanlarındaki NOT NULL zorunlulukları kaldırıldı. Uydurma/varsayılan tarih atanması engellendi.
+- **Zaman Çizelgesi Matrisi (Timeline Matrix):** Excel stili yatay planlama takvimi eklendi. Sol iki sütun (Personel & Konaklama) dondurulmuş (sticky left) tutularak kaydırma kolaylığı sağlandı. Geliş, dönüş ve aradaki tüm konaklama periyotları NCMS ve Dış Otel renk kodlarıyla boyandı.
+- **Kolon Sıralama (Sorting):** Tablo görünümündeki Geliş Tarihi ve Dönüş Tarihi başlıkları tıklanarak "Artan, Azalan ve Varsayılan" sıralama döngüsüne bağlandı. Boş tarihler en alta itilerek tablo düzeni korundu.
+- **Wiki Belgelendirmesi:** `wiki/systems/personel-takip.md` oluşturuldu, `wiki/index.md` güncellendi.
+
+---
+
 ## [2026-07-04] update | Üst Yönetim Sunumu: OEE Hesaplama Yöntemi Dokümantasyonu
 
 **Kaynak:** Kullanıcı konuşması + `wiki/systems/ust-yonetim-sunumu.md`, `docs/sunumlar/build/tool/dataService.js`, `docs/sunumlar/build/tool/public/app.js`, `docs/sunumlar/build/tool/server.js`

@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-04
+updated: 2026-07-05
 sources: [docs/sunumlar/build/build.js, docs/sunumlar/build/tool/dataService.js, docs/sunumlar/build/tool/server.js, docs/sunumlar/build/tool/public/app.js, docs/sunumlar/build/tool/public/index.html, docs/sunumlar/build/tool/public/style.css, docs/sunumlar/2026-07-ust-yonetim-sunum-plani.md]
 ---
 
@@ -34,6 +34,12 @@ docs/sunumlar/
 
 **Önemli ayrım:** Genel Bakış tablosundaki (Slayt 3-4) N602/N603 birleştirmesi **sadece build.js'in çıktı aşamasında** olur — `computeMergedCellAverage()` (`dataService.js`) iki hücrenin ham slot verisini gün-birleşimi (union of active days) üzerinden toplayıp tek "N602-N603 Hücresi" satırına indirger. Seçim aracının grid'i bundan etkilenmez, hâlâ 12 hücre gösterir. Bu ikilik bilinçli: küratörlük ayrı hücre bazında yapılabilsin, ama üst yönetime giden final tabloda N602/N603 fiziksel olarak aynı hat segmentini paylaştığı için birleşik görünsün.
 
+## Hücre Hariç Tutma (`EXCLUDED_CELLS`, 2026-07-05)
+
+`build.js` başında (IIFE'den önce) tanımlı `EXCLUDED_CELLS = ["Fosfat", "Boya"]` listesi ve `isExcludedCell(name)` yardımcısı, bu iki hücreyi **sadece üretilen PPTX'ten** çıkarır — `tool/dataService.js` (`CELLS` listesi, canlı Supabase sorguları) ve lokal seçim aracı (`tool/server.js`, port 4590) tamamen etkilenmez, orada hâlâ 12 hücre ayrı ayrı listelenir. Geri eklemek için tek yapılması gereken listeyi boşaltmak.
+
+Bu filtre şu noktalara uygulanır: `overviewData`/`oeeData` dizileri (yükleme sonrası `.filter()`), Slayt 2'deki kapsam çipleri (`ACTIVE_CELLS`), Slayt 3/4 başlıklarındaki hücre sayısı (artık `${overviewData.length} Hücre` şeklinde dinamik), Slayt 8'deki akış şeması ikinci satırı, Slayt 13'teki yoğunluk tablosu satırları. `fosfatBoyaExcluded` bayrağı (her iki hücre de hariçse `true`) birkaç anlatı metnini (Slayt 4/5 dipnotları, Slayt 17 adım metni, "Müşteriden Talep Edilecekler" örneği) ve **"Boya & Fosfat Hücreleri — Veri Boşluğu"** özel slaydını tamamen koşullu hale getirir (hücreler hariçken bu slayt atlanır).
+
 ## Veri Kaynağı
 
 **Tek gerçek kaynak:** Supabase projesi `jxijtnwwmjjgyovxgnkk` (region eu-west-3), tablo `manuf_production_rows` (+ `manuf_production_records` join, `bolum`/`tarih` üzerinden) ve `manuf_action_items` (aksiyon takibi verisi, 74 madde). Ayrıntılı kolon dökümü için bkz. [Duruşlar](duruslar.md).
@@ -51,16 +57,22 @@ Tüm slaytlar aynı stil sistemini paylaşır (navy/ice renk paleti, Cambria ba�
 - İkonlar (`icons.tools`, `icons.chartBar`, `icons.warning`, vb.) build.js başında bir kez base64 PNG olarak render edilip anahtar üzerinden tekrar kullanılıyor — yeni slayt eklerken önce mevcut ikon setine bakmak gerekir.
 - pptxgenjs grafik API'si: `pres.charts.BAR` (`barDir: "col"|"bar"`, `barGrouping: "stacked"`) ve `pres.charts.DOUGHNUT` (`holeSize`) — build.js'de birden çok slaytta tekrar kullanılan pattern'ler.
 
-## Slayt Envanteri (2026-07-02 itibarıyla, 24 sayfa)
+## Slayt Envanteri (2026-07-05 itibarıyla, 24 sayfa)
 
-1. Kapak
-2. (Genel Bakış — amaç/kapsam)
-3-4. **Genel Bakış — 11 Hücre Özet Tablosu** (N602-N603 birleşik satır olarak; Nisan-Mayıs vs Haziran-Temmuz KPI karşılaştırması)
-5-7. Darboğaz & Kök Neden Analizi (ETM/Pres upstream ilişkisi, önceki istasyon bekleme trendi, kök neden özeti)
-8-14. **Duruş Analizi** (yeni bölüm, bkz. aşağı) — Genel Bakış KPI kartları → Kategori Dağılımı (stacked bar) → Üretime Oranlı Yoğunluk (tablo) → Neden Pareto'su (bar chart) → Hücre Bazlı Baskın Neden (tablo) → Tekrarlayan Somut Sorunlar (tablo) → Kayıt Takip Disiplini (doughnut)
-15-19. Öne Çıkan Sorunlar (hücre başına 1 sayfa, seçim aracından gelen dinamik vaka seçimi — N603/Quench/Flowform/Pres vb.)
+1. Kapak (başlık artık sadece **"Performans Raporu"** — "ve Aksiyon / Yatırım Talebi" kaldırıldı)
+2. Genel Bakış — Amaç ve Kapsam (hücre sayısı artık `ACTIVE_CELLS.length` ile dinamik; "kısa özet." gibi taslak metinler gerçek cümlelerle değiştirildi)
+3. **Genel Bakış — 9 Hücre Özet Tablosu** (N602-N603 birleşik + Fosfat/Boya hariç; Nisan-Mayıs vs Haziran-Temmuz üretim karşılaştırması)
+4. OEE — Ekipman Etkinliği (Haziran-Temmuz)
+5. **MTBF ve MTTR — Arıza Bazlı Güvenilirlik (sadece Haziran-Temmuz)** — tek tablo (Hücre, MTBF, MTTR, Arıza Kaydı), Nisan-Mayıs karşılaştırma kolonları kaldırıldı; düşük örnekli hücre uyarısı artık veriden otomatik hesaplanıyor
+6. Güvenilirlik Özeti — Hücre Kıyaslaması
+7. Darboğaz — Hücreler Arası Akış Sırası (Fosfat/Boya akış şemasından çıkarıldı)
+8. Kök Neden Özeti ve Alınan Aksiyonlar
+9-15. **Duruş Analizi** — Genel Bakış KPI kartları → Kategori Dağılımı (stacked bar) → Üretime Oranlı Yoğunluk (tablo) → Neden Pareto'su (bar chart) → Hücre Bazlı Baskın Neden (tablo) → Tekrarlayan Somut Sorunlar (tablo) → Kayıt Takip Disiplini (doughnut)
+16-19. Öne Çıkan Sorunlar (N603/Quench/Flowform/Pres — seçim aracından gelen dinamik vaka seçimi)
 20-21. Aksiyon Takibi (74 madde durumu, Haziran-Temmuz'da kapananlar)
 22-24. Talep / Karar (yatırım + müşteri talepleri, sonraki adımlar)
+
+**Kaldırılan slaytlar (2026-07-05):** "Önceki İstasyon Bekleme Süresi" (Genel Bakış'ın ikinci sayfası, KPI kartlarıyla birlikte) ve "Önceki İstasyon Bekleme Trendi" (dk/gün bar chart, Darboğaz bölümü) tamamen build.js'den silindi — geri eklemek için git geçmişinden kod bloğu geri alınmalı (EXCLUDED_CELLS gibi tek bayrakla geri açılabilen bir mekanizma değil). "Boya & Fosfat Hücreleri — Veri Boşluğu" (Öne Çıkan Sorunlar) slaydı silinmedi, sadece `fosfatBoyaExcluded` bayrağına göre koşullu atlanıyor.
 
 ### Duruş Analizi Bölümü (Slayt 8-14) — Tasarım Notları
 
@@ -101,8 +113,9 @@ Kalite bileşeni OEE'ye dahil edilmez. Çünkü bu 12 üretim hücresinde satır
 | `takim_degisimi` | Standart süreye kadar Availability kaybı | Standart süreye kadar hedef düşer; standardı aşan kısım Performance kaybı olarak kalır | ROB109: 10 dk, ROB104/ROB108: 15 dk. |
 | Pres `setup_ve_ayar` alt türü `IHU Rejim Bekleme` | Availability kaybı sayılmaz | Hedef düşmez; üretim kaybı Performance'a yansır | Rejim bekleme performans düşüklüğü olarak görünür. |
 | `ariza`, diğer `setup_ve_ayar`, diğer `planli_durus`, `kalip_montaj`, `kalip_demontaj`, `musteri_kaynakli_durus`, `kalite_kaynakli_durus` | Availability kaybı | Hedef süre oranında düşer | Arıza vb. durumlarda çalışılabilir süre kadar hedef beklenir; aynı kayıp iki kez cezalandırılmaz. |
+| `ariza_turu` ∈ `NON_BREAKDOWN_ARIZA_TYPES` (`Talaş Arabası Dolu`, `Bor Yağı Bitti`) | Availability kaybı sayılmaz | Hedef düşmez (mola gibi) | Mekanik/elektrik arızası değil, önlenebilir organizasyonel/lojistik duruş — `onceki_istasyon_bekleme`'den farklı olarak dışsal bir bağımlılık değil, bu yüzden hedef düşürülmeyip gerçekleşen düşükse Performance'ta görünür bırakılıyor. Ayrıca MTBF/MTTR'den de tamamen çıkarılır (bkz. aşağı). |
 
-`Kasa Alma - Bırakma` muafiyeti verilen hücreler: ROB108, ROB104, Flowform, N602, N603. Bu isimler kaynakta Unicode escape ile tutulur; böylece Türkçe karakter encoding riski azaltılırken runtime'da veritabanındaki gerçek değerlerle eşleşir.
+`Kasa Alma - Bırakma` muafiyeti verilen hücreler: ROB108, ROB104, Flowform, N602, N603. Bu isimler kaynakta Unicode escape ile tutulur; böylece Türkçe karakter encoding riski azaltılırken runtime'da veritabanındaki gerçek değerlerle eşleşir. `NON_BREAKDOWN_ARIZA_TYPES` ise hücre bağımsızdır — `dataService.js`'de tek bir liste, hangi hücrede görülürse görülsün aynı muameleyi görür (`CELL_OEE_RULES.availabilityExclude` + `targetScaleExclude`, Pres'in `IHU Rejim Bekleme` istisnasıyla aynı `{field, typeField, type}` deseni).
 
 ### Örnekler
 
@@ -122,6 +135,23 @@ Canlı metrik satırındaki `Availability` tıklanınca hesap detay dialog'u aç
 Canlı metrik satırındaki `Performance` tıklanınca Performance detay dialog'u açılır. Bu dialog gerçekleşen üretim, ham hedef, hedeften düşülen miktar, düzeltilmiş hedef, hedef kapsama oranı ve saat bazlı hedef detaylarını gösterir.
 
 MTBF/MTTR hesabı OEE'den ayrıdır: `MTBF = (Planlı Süre - Arıza Dakikası) / Arıza Kaydı Sayısı`, `MTTR = Arıza Dakikası / Arıza Kaydı Sayısı`. Sadece `ariza` kolonuna dayanır; mola, setup, takım değişimi, planlı duruş vb. dahil değildir.
+
+## Arıza Olay Gruplama Sekmesi (2026-07-05)
+
+**Sorun:** Ham MTBF/MTTR hesabı (`addRowToAccumulator`, `dataService.js`) her saatlik satırda `ariza > 0` ise o satırı ayrı bir "olay" sayıyordu. Aynı arıza 2+ saat arka arkaya sürerse bu, olay sayısını şişirip MTBF/MTTR'yi olduğundan düşük gösteriyordu. Ayrıca bazı `ariza_turu` alt türleri (`Talaş Arabası Dolu`, `Bor Yağı Bitti`) gerçekte mekanik/elektrik arızası değil, veri girişi hatasıyla `ariza` kolonuna yazılmış organizasyonel/lojistik duruşlar.
+
+Bunu çözmek için lokal seçim aracına (`tool/public/index.html`, port 4590) üçüncü bir mod sekmesi eklendi: **"Arıza Olay Gruplama"**. Hücre + tarih aralığı seçimi "OEE — Planlı Süre" sekmesiyle aynı kaynağı (`state.oee.dateRange` / `oee-date-range.json`) paylaşır. Sadece arızalı saatler (`ariza > 0`) günlere göre gruplu listelenir; her satırda tür/açıklama/giderildi bilgisi görünür.
+
+**Üç düzeltme mekanizması, hepsi Supabase verisine dokunmadan:**
+
+1. **"Gerçek Arıza mı?" (elle, satır bazlı):** `arizaFalsePositives`: `Set<slotKey>`, `tool/data/ariza-false-positives.json`'a persist edilir (`GET/POST /api/ariza-false-positives`). İşareti kaldırılan saat MTBF/MTTR'den (dakika + olay) tamamen çıkar; Availability/OEE etkilenmez (kapsam kasıtlı olarak dar tutuldu).
+2. **"Aynı arızanın devamı" (elle, ardışık satır bazlı):** `arizaEventLinks`: `Set<slotKey>`, `tool/data/ariza-event-links.json`'a persist edilir (`GET/POST /api/ariza-event-links`). Sadece aynı gün, tam sıralı dizide bitişik VE her ikisi de gerçek arıza sayılan iki saat arasında sunulur — işaretlenirse ikinci saat ayrı olay sayılmaz, öncekiyle birleşir (arıza dakikası toplamı değişmez, sadece olay SAYISI düzelir).
+3. **`NON_BREAKDOWN_ARIZA_TYPES` (otomatik, tür bazlı):** `dataService.js`'de kod içi liste (şu an `Talaş Arabası Dolu`, `Bor Yağı Bitti`). Bu türdeki satırlar hem MTBF/MTTR'den otomatik çıkar hem OEE kural tablosunda mola-benzeri muamele görür (bkz. yukarıdaki kural tablosu). Arayüzde bu satırların "Gerçek Arıza mı?" hücresi checkbox değil, elle değiştirilemeyen **"Hayır (otomatik)"** yazısıdır. Yeni bir yanlış-kategori bulunduğunda tek yapılması gereken bu diziye string eklemek.
+
+Her ikisi de dönem ayrımı yapmaz (`slotKey` zaten tam tarihi içerdiği için nm/ht otomatik doğru eşleşir — `plannedTimeExclusions` ile aynı yaklaşım). Sekmenin üst barında canlı bir özet (`arizaLiveSummary`) her checkbox değişikliğinde anlık güncellenir: `"N arızalı saat → M olay (X gerçek değil sayıldı) · MTBF Y dk · MTTR Z dk"`. Bu canlı sayı, sekmede görünen tarih aralığı + "OEE — Planlı Süre" sekmesindeki saat hariç tutmalarını kullanır ama **Üretim Verisi Seçimi sekmesindeki dönem-bazlı (nm/ht) saat hariç tutmalarını hesaba katmaz** — yani bir tahmindir, kesin sayılar yalnızca "Sunumu Oluştur" ile yeniden üretilen `oee-mtbf-mttr-data.json`'dadır.
+
+`computeOeeMtbfMttrData` artık `arizaEventLinks` ve `arizaFalsePositives` parametrelerini alıyor, `/api/generate` handler'ı (`server.js`) bunları ilgili JSON dosyalarından yükleyip geçiriyor. `build.js`'e hiçbir değişiklik gerekmedi — o zaten cache dosyasını okuyor.
+
 ## İlgili Sayfalar
 - [Duruşlar](duruslar.md) — `ariza_turu` kod tablosu ve tüm duruş kolonlarının kaynağı
 - [Aksiyon Takip](aksiyon-takip.md) — `manuf_action_items` tablosunun canlı ManufUI arayüzü (sunumdaki Aksiyon Takibi slaytlarının aynı verisi)

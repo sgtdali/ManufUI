@@ -54,6 +54,17 @@ function fmtPct(from, to, decimals = 0) {
   return `${sign}${pct.toFixed(decimals)}%`;
 }
 
+// Sunumdan geçici olarak hariç tutulan hücreler. Geri eklemek için sadece bu
+// listeyi boşaltmak yeterli — seçim aracı (tool/server.js) ve dataService.js
+// bundan etkilenmez, orada hâlâ tüm 12 hücre listelenir. Bu liste sadece
+// build.js'in ürettiği PPTX'i etkiler.
+const EXCLUDED_CELLS = ["Fosfat", "Boya"];
+function isExcludedCell(name) {
+  return EXCLUDED_CELLS.some((ex) => name.includes(ex));
+}
+const ALL_CELLS = ["Pres", "ETM", "ROB108", "Flowform", "ROB104", "N602", "N603", "ROB109", "Quench", "ROB110-111", "Fosfat", "Boya"];
+const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
+
 (async () => {
   const icons = {};
   const iconDefs = {
@@ -89,6 +100,7 @@ function fmtPct(from, to, decimals = 0) {
 
   const PW = 13.333, PH = 7.5;
   let pageNum = 0;
+  const fosfatBoyaExcluded = isExcludedCell("Fosfat") && isExcludedCell("Boya");
 
   function newContentSlide() {
     pageNum += 1;
@@ -202,21 +214,18 @@ function fmtPct(from, to, decimals = 0) {
       x: 0.9, y: 2.3, w: 10, h: 0.4, margin: 0,
       fontFace: FONT_BODY, fontSize: 14, color: COLORS.ice, bold: true, charSpacing: 3,
     });
-    slide.addText("Performans Raporu ve\nAksiyon / Yatırım Talebi", {
+    slide.addText("Performans Raporu", {
       x: 0.85, y: 2.75, w: 11, h: 2.0, margin: 0,
       fontFace: FONT_HEAD, fontSize: 44, color: COLORS.white, bold: true, lineSpacing: 50,
     });
-    slide.addText("Nisan – Temmuz 2026 Değerlendirmesi  ·  12 Üretim Hücresi", {
+    slide.addText(`Nisan – Temmuz 2026 Değerlendirmesi`, {
       x: 0.9, y: 4.75, w: 10, h: 0.4, margin: 0,
       fontFace: FONT_BODY, fontSize: 16, color: COLORS.ice,
     });
     slide.addShape(pres.shapes.LINE, {
       x: 0.9, y: 5.35, w: 2.2, h: 0, line: { color: COLORS.ice, width: 1.5 },
     });
-    slide.addText("Üst Yönetim Sunumu · Temmuz 2026", {
-      x: 0.9, y: 6.7, w: 8, h: 0.35, margin: 0,
-      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slateLight,
-    });
+  
   }
 
   // ==================================================================
@@ -228,7 +237,7 @@ function fmtPct(from, to, decimals = 0) {
 
     const cardY = 1.75, cardH = 2.15;
     const cards = [
-      { title: "3 Aylık Performans Özeti", body: "Nisan – Temmuz döneminde 12 üretim hücresinin üretim adedi, duruş süreleri ve darboğaz göstergeleri veriye dayalı olarak özetlenir." },
+      { title: "3 Aylık Performans Özeti", body: `Nisan – Temmuz döneminde ${ACTIVE_CELLS.length} üretim hücresinin üretim adedi, duruş süreleri ve darboğaz göstergeleri veriye dayalı olarak özetlenir.` },
       { title: "Somut Aksiyon / Yatırım Talebi", body: "Sadece durum raporu değil; açık aksiyon maddeleri, yatırım ihtiyaçları ve müşteriden talep edilecek konular için karar talebi içerir." },
     ];
     cards.forEach((c, i) => {
@@ -258,7 +267,7 @@ function fmtPct(from, to, decimals = 0) {
     });
     slide.addText([
       { text: "Nisan – Mayıs: ", options: { bold: true, color: COLORS.navy } },
-      { text: "kısa özet.  ", options: { color: COLORS.slate } },
+      { text: "başlangıç seviyesi ve tespit edilen kök sorunlar kısaca özetlenir.  ", options: { color: COLORS.slate } },
       { text: "Haziran – Temmuz: ", options: { bold: true, color: COLORS.navy } },
       { text: "atılan aksiyonların sonuçları detaylı işlenir. Sunumun ağırlığı Haziran sonrası ilerlemededir — veri bu kurguyu destekliyor.", options: { color: COLORS.slate } },
     ], { x: 0.95, y: 4.6, w: 10.8, h: 0.95, margin: 0, valign: "middle", fontFace: FONT_BODY, fontSize: 13, lineSpacing: 18 });
@@ -267,7 +276,7 @@ function fmtPct(from, to, decimals = 0) {
       x: 0.6, y: 5.75, w: 6, h: 0.3, margin: 0,
       fontFace: FONT_BODY, fontSize: 11.5, color: COLORS.slateLight, bold: true, charSpacing: 2,
     });
-    const cells = ["Pres", "ETM", "ROB108", "Flowform", "ROB104", "N602", "N603", "ROB109", "Quench", "ROB110-111", "Fosfat", "Boya"];
+    const cells = ACTIVE_CELLS;
     const chipW = 0.88, gap = 0.1;
     cells.forEach((c, i) => {
       const col = i % 12;
@@ -292,7 +301,7 @@ function fmtPct(from, to, decimals = 0) {
   const fs = require("fs");
   const path = require("path");
   const overviewDataPath = path.join(__dirname, "tool", "data", "overview-data.json");
-  const overviewData = fs.existsSync(overviewDataPath)
+  const overviewData = (fs.existsSync(overviewDataPath)
     ? JSON.parse(fs.readFileSync(overviewDataPath, "utf8"))
     : [
         { cell: "Pres Hücresi",     nm: 33.2, ht: 102.1, nmB: 0.0,   htB: 0.0,   note: "" },
@@ -306,12 +315,12 @@ function fmtPct(from, to, decimals = 0) {
         { cell: "ROB110-111 Hücresi", nm: 19.9, ht: 57.4, nmB: 38.6, htB: 17.8,  note: "" },
         { cell: "Fosfat Hücresi",   nm: 27.2, ht: null,  nmB: 33.3,  htB: null,  note: "veri yok" },
         { cell: "Boya Hücresi",     nm: 24.8, ht: null,  nmB: 40.0,  htB: null,  note: "veri yok" },
-      ];
+      ]).filter((d) => !isExcludedCell(d.cell));
 
   // tool/data/oee-mtbf-mttr-data.json varsa (dataService.js'in canlı Supabase
   // hesabından üretilmiştir) onu kullan; yoksa son bilinen sabit veriye geri dön.
   const oeeDataPath = path.join(__dirname, "tool", "data", "oee-mtbf-mttr-data.json");
-  const oeeData = fs.existsSync(oeeDataPath)
+  const oeeData = (fs.existsSync(oeeDataPath)
     ? JSON.parse(fs.readFileSync(oeeDataPath, "utf8"))
     : [
         { cell: "Pres Hücresi",       availabilityNm: 27.3, availabilityHt: 63.0, performanceNm: null, performanceHt: 65.7, oeeNm: null, oeeHt: 41.4, mtbfNm: 315.8,  mtbfHt: 148.1, mttrNm: 54.3, mttrHt: 27.6, arizaEventsNm: 53,  arizaEventsHt: 56 },
@@ -325,14 +334,14 @@ function fmtPct(from, to, decimals = 0) {
         { cell: "ROB110-111 Hücresi", availabilityNm: 55.2, availabilityHt: 56.0, performanceNm: null, performanceHt: 49.6, oeeNm: null, oeeHt: 27.8, mtbfNm: 1234.4, mtbfHt: 106.9, mttrNm: 36.9, mttrHt: 31.7, arizaEventsNm: 16,  arizaEventsHt: 42 },
         { cell: "Fosfat Hücresi",     availabilityNm: 89.6, availabilityHt: null, performanceNm: null, performanceHt: null, oeeNm: null, oeeHt: null, mtbfNm: 7170.0, mtbfHt: null,  mttrNm: 60.0, mttrHt: null, arizaEventsNm: 2,   arizaEventsHt: 0 },
         { cell: "Boya Hücresi",       availabilityNm: 86.9, availabilityHt: null, performanceNm: null, performanceHt: null, oeeNm: null, oeeHt: null, mtbfNm: null,   mtbfHt: null,  mttrNm: null, mttrHt: null, arizaEventsNm: 0,   arizaEventsHt: 0 },
-      ];
+      ]).filter((d) => !isExcludedCell(d.cell));
 
   // ==================================================================
   // SLIDE 3 — GENEL BAKIŞ: ÜRETİM TABLOSU
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.chartBar, eyebrow: "Genel Bakış", title: "11 Hücre — Günlük Ortalama Üretim Adedi" });
+    addHeader(slide, { icon: icons.chartBar, eyebrow: "Genel Bakış", title: `Günlük Ortalama Üretim Adedi` });
 
 
     // Legend Container
@@ -456,61 +465,6 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // ==================================================================
-  // SLIDE 4 — GENEL BAKIŞ: BEKLEME + KPI
-  // ==================================================================
-  {
-    const slide = newContentSlide();
-    addHeader(slide, { icon: icons.hourglass, eyebrow: "Genel Bakış", title: "11 Hücre — Önceki İstasyon Bekleme Süresi" });
-
-    const header = ["Hücre", "Nisan–Mayıs (dk/gün)", "Haziran–Temmuz (dk/gün)", "Değişim"];
-    const rows = overviewData.map((d) => {
-      let changeCell;
-      if (d.htB === null) changeCell = { text: "—", color: COLORS.red };
-      else if (d.cell === "Pres Hücresi") changeCell = { text: "ilk istasyon", color: COLORS.slateLight };
-      else {
-        const pct = fmtPct(d.nmB, d.htB);
-        const worse = d.htB > d.nmB;
-        changeCell = { text: pct + (d.note ? " ⚠" : ""), color: worse ? COLORS.amber : COLORS.green, bold: true };
-      }
-      return [
-        d.cell,
-        d.nmB.toFixed(1),
-        d.htB === null ? { text: "veri yok", color: COLORS.red, bold: true } : d.htB.toFixed(1),
-        changeCell,
-      ];
-    });
-    styledTable(slide, header, rows, { x: 0.6, y: 1.55, w: 7.3, colW: [2.6, 1.7, 1.7, 1.3], rowH: 0.335 });
-
-    // KPI stat callouts
-    const stats = [
-      { big: "+195%", small: "Hücre başına\ngünlük ortalama üretim" },
-      { big: "-46%", small: "Ortalama önceki istasyon\nbekleme süresi" },
-      { big: "14 / 74", small: "Haziran-Temmuz'da kapanan\naksiyon maddesi" },
-    ];
-    stats.forEach((s, i) => {
-      const y = 1.55 + i * 1.65;
-      slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-        x: 8.2, y, w: 4.2, h: 1.4, rectRadius: 0.08,
-        fill: { color: COLORS.navy }, line: { type: "none" },
-      });
-      slide.addText(s.big, {
-        x: 8.45, y: y + 0.1, w: 3.7, h: 0.65, margin: 0,
-        fontFace: FONT_HEAD, fontSize: 30, bold: true, color: COLORS.white,
-      });
-      slide.addText(s.small, {
-        x: 8.45, y: y + 0.78, w: 3.7, h: 0.55, margin: 0,
-        fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.ice, lineSpacing: 12,
-      });
-    });
-
-    slide.addText("⚠ ROB109 hücresinde bekleme günlük ortalamada arttı (63,0 → 87,1 dk) — Quench / N602-N603 çıktı dalgalanmasına bağlı yeni darboğaz riski, izleniyor.", {
-      x: 0.6, y: 6.55, w: 11.8, h: 0.4, margin: 0,
-      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.amber,
-    });
-    addFooter(slide, "Genel Bakış");
-  }
-
-  // ==================================================================
   // OEE / MTBF / MTTR — yardımcılar
   // ==================================================================
   function shortCell(name) {
@@ -524,13 +478,84 @@ function fmtPct(from, to, decimals = 0) {
     if (v === null || v === undefined) return { text: "veri yok", color: COLORS.red, bold: true };
     return v.toFixed(1);
   }
-  function changeCell(from, to, higherIsBetter) {
-    if (from === null || to === null || from === undefined || to === undefined) {
-      return { text: "—", color: COLORS.slateLight };
-    }
-    const pct = fmtPct(from, to);
-    const improved = higherIsBetter ? to > from : to < from;
-    return { text: pct, color: improved ? COLORS.green : COLORS.red, bold: true };
+
+  // ==================================================================
+  // Hücre Bazlı Üretim Adetleri — veri
+  // ==================================================================
+  // tool/data/total-production-data.json varsa (dataService.js:computeTotalProductionData
+  // çıktısının cache'i) onu kullan; yoksa son bilinen sabit veriye geri dön. Bu, Genel
+  // Bakış'taki günlük ORTALAMA üretim (overviewData) tablosundan farklı — burada Haziran-
+  // Temmuz'un TOPLAM (kümülatif) üretim adedi gösteriliyor.
+  const totalProductionDataPath = path.join(__dirname, "tool", "data", "total-production-data.json");
+  const totalProductionData = (fs.existsSync(totalProductionDataPath)
+    ? JSON.parse(fs.readFileSync(totalProductionDataPath, "utf8"))
+    : [
+        { cell: "Pres Hücresi",      total: 2107 },
+        { cell: "ETM Hücresi",       total: 2003 },
+        { cell: "ROB108 Hücresi",    total: 1823 },
+        { cell: "Flowform Hücresi",  total: 1680 },
+        { cell: "ROB104 Hücresi",    total: 1644 },
+        { cell: "N602-N603 Hücresi", total: 1521 },
+        { cell: "ROB109 Hücresi",    total: 1450 },
+        { cell: "Quench Hücresi",    total: 1462 },
+        { cell: "ROB110-111 Hücresi", total: 821 },
+        { cell: "Fosfat Hücresi",    total: 0 },
+        { cell: "Boya Hücresi",      total: 0 },
+      ]).filter((d) => !isExcludedCell(d.cell));
+
+  // ==================================================================
+  // SLIDE — HÜCRE BAZLI ÜRETİM ADETLERİ
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.chartBar, eyebrow: "Genel Bakış", title: "Hücre Bazlı Üretim Adetleri (Haziran–Temmuz)" });
+
+    // Yatay bar chart'ta ilk kategori alta, son kategori üste yerleşir (PowerPoint
+    // varsayılanı) — akış sırasının yukarıdan aşağıya (Pres üstte) görünmesi için
+    // diziyi tersten besliyoruz. Tablo sırası (totalProductionData) değişmiyor.
+    const chartFlowOrder = [...totalProductionData].reverse();
+    slide.addChart(
+      pres.charts.BAR,
+      [{ name: "Üretim (adet)", labels: chartFlowOrder.map((d) => shortCell(d.cell)), values: chartFlowOrder.map((d) => d.total) }],
+      {
+        x: 0.5, y: 1.55, w: 7.4, h: 4.95, barDir: "bar", barGapWidthPct: 30,
+        chartColors: [COLORS.navy],
+        chartArea: { fill: { color: COLORS.white }, roundedCorners: true },
+        catAxisLabelColor: COLORS.slate, catAxisLabelFontSize: 11,
+        valAxisLabelColor: COLORS.slateLight, valAxisLabelFontSize: 10,
+        valAxisTitle: "adet", showValAxisTitle: true, valAxisTitleFontSize: 10, valAxisTitleColor: COLORS.slateLight,
+        valGridLine: { color: COLORS.border, size: 0.5 },
+        catGridLine: { style: "none" },
+        showValue: true, dataLabelPosition: "outEnd", dataLabelFontSize: 10, dataLabelColor: COLORS.slate,
+        showLegend: false, showTitle: false,
+      }
+    );
+
+    const totalSum = totalProductionData.reduce((sum, d) => sum + d.total, 0);
+    const cellHeaderStyle = { fill: { color: COLORS.navy }, color: COLORS.white, bold: true, fontFace: FONT_BODY, fontSize: 11, valign: "middle" };
+    const header = [
+      { text: "Hücre", options: { ...cellHeaderStyle, align: "left" } },
+      { text: "Haziran–Temmuz\nÜretim (adet)", options: { ...cellHeaderStyle, align: "center" } },
+    ];
+    const bodyRows = totalProductionData.map((d, i) => {
+      const bg = i % 2 === 0 ? COLORS.white : COLORS.iceTint;
+      return [
+        { text: shortCell(d.cell), options: { fill: { color: bg }, color: COLORS.slate, fontFace: FONT_BODY, fontSize: 11, align: "left", valign: "middle" } },
+        { text: fmtInt(d.total), options: { fill: { color: bg }, color: COLORS.slate, fontFace: FONT_BODY, fontSize: 11, align: "center", valign: "middle" } },
+      ];
+    });
+    const totalRowStyle = { fill: { color: COLORS.border }, color: COLORS.navy, bold: true, fontFace: FONT_BODY, fontSize: 11.5, valign: "middle" };
+    const totalRow = [
+      { text: "TOPLAM HAT", options: { ...totalRowStyle, align: "left" } },
+      { text: fmtInt(totalSum), options: { ...totalRowStyle, align: "center" } },
+    ];
+    slide.addTable([header, ...bodyRows, totalRow], {
+      x: 8.3, y: 1.55, w: 4.4, colW: [2.6, 1.8],
+      border: { pt: 0.75, color: COLORS.border },
+      autoPage: false, rowH: 0.44,
+    });
+
+    addFooter(slide, "Genel Bakış");
   }
 
   // ==================================================================
@@ -544,7 +569,8 @@ function fmtPct(from, to, decimals = 0) {
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.slateLight, lineSpacing: 13,
     });
 
-    // oeeData hat akış sırasındadır (Pres → ... → Boya, dataService.js CELLS ile aynı) —
+    // oeeData hat akış sırasındadır (Pres → ... → son aktif hücre, dataService.js CELLS ile aynı;
+    // EXCLUDED_CELLS'teki hücreler burada filtrelenmiş durumda) —
     // tablo bu sırayla gösterilir (OEE'ye göre sıralanmaz).
     const header = ["Hücre", "Availability", "Performance", "OEE"];
     const rows = oeeData.map((d) => [
@@ -580,7 +606,9 @@ function fmtPct(from, to, decimals = 0) {
       });
     });
 
-    slide.addText("Quench, Fosfat ve Boya'da Haziran-Temmuz'da hedefli üretim verisi yetersiz olduğundan Performance/OEE hesaplanamadı (Fosfat/Boya'da Availability da veri yok — bu dönemde kayıt girilmemiş).", {
+    slide.addText(fosfatBoyaExcluded
+      ? "Quench'te Haziran-Temmuz'da hedefli üretim verisi yetersiz olduğundan Performance/OEE hesaplanamadı."
+      : "Quench, Fosfat ve Boya'da Haziran-Temmuz'da hedefli üretim verisi yetersiz olduğundan Performance/OEE hesaplanamadı (Fosfat/Boya'da Availability da veri yok — bu dönemde kayıt girilmemiş).", {
       x: 0.6, y: 6.55, w: 11.8, h: 0.4, margin: 0,
       fontFace: FONT_BODY, fontSize: 9.5, italic: true, color: COLORS.slateLight,
     });
@@ -592,36 +620,30 @@ function fmtPct(from, to, decimals = 0) {
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.hourglass, eyebrow: "OEE, MTBF & MTTR", title: "MTBF ve MTTR — Arıza Bazlı Güvenilirlik" });
+    addHeader(slide, { icon: icons.hourglass, eyebrow: "OEE, MTBF & MTTR", title: "MTBF ve MTTR — Arıza Bazlı Güvenilirlik (Haziran–Temmuz)" });
     slide.addText("MTBF = (Planlı Süre − Arıza Dakikası) / Arıza Kaydı Sayısı  ·  MTTR = Arıza Dakikası / Arıza Kaydı Sayısı. Sadece \"Arıza\" (breakdown) kolonuna dayanır; planlı duruş, setup, mola vb. diğer duruş türleri dahil değildir.", {
       x: 0.6, y: 1.45, w: 11.8, h: 0.5, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight, lineSpacing: 13,
     });
 
-    slide.addText("MTBF (dk) — Arızalar Arası Çalışma Süresi", {
-      x: 0.5, y: 2.05, w: 5.85, h: 0.3, margin: 0,
-      fontFace: FONT_BODY, fontSize: 12, bold: true, color: COLORS.navy,
-    });
-    const mtbfHeader = ["Hücre", "N-M (dk)", "H-T (dk)", "Değişim"];
-    const mtbfRows = oeeData.map((d) => [
-      shortCell(d.cell), dkCell(d.mtbfNm), dkCell(d.mtbfHt), changeCell(d.mtbfNm, d.mtbfHt, true),
+    const mtbfMttrHeader = ["Hücre", "MTBF (dk)", "MTTR (dk)", "Arıza Kaydı"];
+    const mtbfMttrRows = oeeData.map((d) => [
+      shortCell(d.cell),
+      dkCell(d.mtbfHt),
+      dkCell(d.mttrHt),
+      d.arizaEventsHt === null ? { text: "veri yok", color: COLORS.red, bold: true } : String(d.arizaEventsHt),
     ]);
-    styledTable(slide, mtbfHeader, mtbfRows, { x: 0.5, y: 2.4, w: 5.85, colW: [1.85, 1.3, 1.3, 1.4], rowH: 0.3 });
+    styledTable(slide, mtbfMttrHeader, mtbfMttrRows, { x: 0.6, y: 2.05, w: 11.8, colW: [4.0, 2.6, 2.6, 2.6], rowH: 0.4 });
 
-    slide.addText("MTTR (dk) — Arıza Başına Giderilme Süresi", {
-      x: 6.75, y: 2.05, w: 5.85, h: 0.3, margin: 0,
-      fontFace: FONT_BODY, fontSize: 12, bold: true, color: COLORS.navy,
-    });
-    const mttrHeader = ["Hücre", "N-M (dk)", "H-T (dk)", "Değişim"];
-    const mttrRows = oeeData.map((d) => [
-      shortCell(d.cell), dkCell(d.mttrNm), dkCell(d.mttrHt), changeCell(d.mttrNm, d.mttrHt, false),
-    ]);
-    styledTable(slide, mttrHeader, mttrRows, { x: 6.75, y: 2.4, w: 5.85, colW: [1.85, 1.3, 1.3, 1.4], rowH: 0.3 });
-
-    slide.addText("* Örnek sayısı azdır (<5 arıza kaydı) — ROB104 (Nisan-Mayıs: 3 kayıt), Fosfat (Nisan-Mayıs: 2 kayıt) ve Quench (Haziran-Temmuz: 4 kayıt) için MTBF/MTTR yorumlanırken dikkatli olunmalı. Boya'da ve Fosfat'ın Haziran-Temmuz döneminde hiç arıza kaydı yok.", {
-      x: 0.5, y: 6.15, w: 12.1, h: 0.55, margin: 0,
-      fontFace: FONT_BODY, fontSize: 9.5, italic: true, color: COLORS.slateLight, lineSpacing: 12,
-    });
+    const lowSampleCells = oeeData
+      .filter((d) => d.arizaEventsHt !== null && d.arizaEventsHt < 5)
+      .map((d) => `${shortCell(d.cell)} (${d.arizaEventsHt} kayıt)`);
+    if (lowSampleCells.length > 0) {
+      slide.addText(`* Örnek sayısı azdır (<5 arıza kaydı) — ${lowSampleCells.join(", ")} için MTBF/MTTR yorumlanırken dikkatli olunmalı.`, {
+        x: 0.5, y: 6.15, w: 12.1, h: 0.55, margin: 0,
+        fontFace: FONT_BODY, fontSize: 9.5, italic: true, color: COLORS.slateLight, lineSpacing: 12,
+      });
+    }
     addFooter(slide, "OEE, MTBF & MTTR");
   }
 
@@ -709,8 +731,8 @@ function fmtPct(from, to, decimals = 0) {
     const arrowY = y1 + boxH + 0.55;
     slide.addImage({ data: icons.arrowDownNavy, x: arrowX, y: arrowY, w: 0.32, h: 0.32 });
 
-    // Row 2: ROB109 -> Quench -> ROB110-111 -> Fosfat -> Boya
-    const flowRow2 = ["ROB109", "Quench", "ROB110-111", "Fosfat", "Boya"];
+    // Row 2: ROB109 -> Quench -> ROB110-111 -> Fosfat -> Boya (EXCLUDED_CELLS'e göre filtrelenir)
+    const flowRow2 = ["ROB109", "Quench", "ROB110-111", "Fosfat", "Boya"].filter((c) => !isExcludedCell(c));
     const boxW2 = 1.85, gapX2 = 0.42;
     const y3 = arrowY + 0.32 + 0.25;
     flowRow2.forEach((c, i) => {
@@ -739,40 +761,6 @@ function fmtPct(from, to, decimals = 0) {
       { text: "Pres'in hemen ardından gelen istasyonlar olarak en yüksek upstream bekleme baskısını taşıyordu. Bu analizde odak buradadır.", options: { color: COLORS.slate } },
     ], { x: 1.0, y: infoY, w: 10.7, h: 0.85, margin: 0, valign: "middle", fontFace: FONT_BODY, fontSize: 12.5, lineSpacing: 16 });
 
-    addFooter(slide, "Darboğaz ve Kök Neden Analizi");
-  }
-
-  // ==================================================================
-  // SLIDE 9 — DARBOĞAZ: BEKLEME TREND GRAFİĞİ
-  // ==================================================================
-  {
-    const slide = newContentSlide();
-    addHeader(slide, { icon: icons.chartLine, eyebrow: "Darboğaz ve Kök Neden Analizi", title: "Önceki İstasyon Bekleme Trendi (dk/gün)" });
-
-    slide.addChart(
-      pres.charts.BAR,
-      [
-        { name: "Nisan–Mayıs", labels: ["ETM", "N602", "ROB108", "ROB109"], values: [373.5, 95.0, 84.9, 63.0] },
-        { name: "Haziran–Temmuz", labels: ["ETM", "N602", "ROB108", "ROB109"], values: [132.5, 81.2, 34.4, 87.1] },
-      ],
-      {
-        x: 0.7, y: 1.6, w: 11.9, h: 4.6, barDir: "col", barGapWidthPct: 40,
-        chartColors: [COLORS.ice, COLORS.navy],
-        chartArea: { fill: { color: COLORS.white }, roundedCorners: true },
-        catAxisLabelColor: COLORS.slate, catAxisLabelFontSize: 12,
-        valAxisLabelColor: COLORS.slateLight, valAxisLabelFontSize: 10,
-        valAxisTitle: "dk / gün", showValAxisTitle: true, valAxisTitleFontSize: 11, valAxisTitleColor: COLORS.slateLight,
-        valGridLine: { color: COLORS.border, size: 0.5 },
-        catGridLine: { style: "none" },
-        showValue: true, dataLabelPosition: "outEnd", dataLabelFontSize: 10, dataLabelColor: COLORS.slate,
-        showLegend: true, legendPos: "t", legendColor: COLORS.slate, legendFontSize: 11,
-        showTitle: false,
-      }
-    );
-    slide.addText("ETM ve ROB108'de bekleme belirgin şekilde düştü; N602 ılımlı iyileşti. ROB109 istisna oluşturuyor ve ayrıca izleniyor (bkz. Genel Bakış notu).", {
-      x: 0.7, y: 6.35, w: 11.9, h: 0.5, margin: 0,
-      fontFace: FONT_BODY, fontSize: 11.5, italic: true, color: COLORS.slateLight,
-    });
     addFooter(slide, "Darboğaz ve Kök Neden Analizi");
   }
 
@@ -907,7 +895,9 @@ function fmtPct(from, to, decimals = 0) {
         showTitle: false,
       }
     );
-    slide.addText("Toplam dakikadır (hücrelerin kayıtlı gün sayısı farklı olduğundan günlük ortalama değildir — yoğunluk karşılaştırması için bir sonraki sayfaya bakınız). Boya ve Fosfat'ta bu dönemde veri girişi olmadığından grafiğe dahil edilmemiştir.", {
+    slide.addText(fosfatBoyaExcluded
+      ? "Toplam dakikadır (hücrelerin kayıtlı gün sayısı farklı olduğundan günlük ortalama değildir — yoğunluk karşılaştırması için bir sonraki sayfaya bakınız)."
+      : "Toplam dakikadır (hücrelerin kayıtlı gün sayısı farklı olduğundan günlük ortalama değildir — yoğunluk karşılaştırması için bir sonraki sayfaya bakınız). Boya ve Fosfat'ta bu dönemde veri girişi olmadığından grafiğe dahil edilmemiştir.", {
       x: 0.5, y: 6.15, w: 12.3, h: 0.5, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.slateLight,
     });
@@ -937,7 +927,7 @@ function fmtPct(from, to, decimals = 0) {
       { cell: "ROB110-111 Hücresi", nm: 78.0, ht: 236.9, tag: "bad" },
       { cell: "Fosfat Hücresi", nm: 16.3, ht: null, tag: "nodata" },
       { cell: "Boya Hücresi", nm: 0.0, ht: null, tag: "nodata" },
-    ];
+    ].filter((d) => !isExcludedCell(d.cell));
     const header = ["Hücre", "Nisan–Mayıs (dk/100 adet)", "Haziran–Temmuz (dk/100 adet)", "Değişim"];
     const rows = intensityRows.map((d) => {
       let changeCell;
@@ -1247,7 +1237,9 @@ function fmtPct(from, to, decimals = 0) {
   }
 
   // SLIDE 12 — Boya & Fosfat veri boşluğu (Karar bekliyor)
-  {
+  // Bu hücreler EXCLUDED_CELLS ile sunumdan çıkarıldığında bu slayt da atlanır;
+  // hücreler geri eklendiğinde (EXCLUDED_CELLS boşaltıldığında) otomatik döner.
+  if (!fosfatBoyaExcluded) {
     const slide = caseSlide({
       eyebrow: "Öne Çıkan Sorunlar",
       cellTitle: "Boya & Fosfat Hücreleri — Veri Boşluğu",
@@ -1371,7 +1363,9 @@ function fmtPct(from, to, decimals = 0) {
     eyebrow: "Talep / Karar",
     title: "Müşteriden Talep Edilecekler",
     promptLabel: "Doldurulacak Şablon",
-    promptExample: "[Talep Konusu]  —  Gerekçe  —  Beklenen Katkı\n\nÖrnek aday (bu oturumda netleşmedi): Boya ve Fosfat hücrelerindeki operasyonel durumun ve veri girişi kesintisinin netleştirilmesi için müşteri/saha koordinasyonu.",
+    promptExample: fosfatBoyaExcluded
+      ? "[Talep Konusu]  —  Gerekçe  —  Beklenen Katkı\n\nÖrnek aday (bu oturumda netleşmedi): sunum hazırlığı sırasında ilgili paydaşlarla netleştirilecek."
+      : "[Talep Konusu]  —  Gerekçe  —  Beklenen Katkı\n\nÖrnek aday (bu oturumda netleşmedi): Boya ve Fosfat hücrelerindeki operasyonel durumun ve veri girişi kesintisinin netleştirilmesi için müşteri/saha koordinasyonu.",
   });
 
   // ==================================================================
@@ -1382,7 +1376,9 @@ function fmtPct(from, to, decimals = 0) {
     addHeader(slide, { icon: icons.calendar, eyebrow: "Talep / Karar", title: "Sonraki Adımlar" });
 
     const steps = [
-      { n: "1", title: "Öne çıkan sorunlar için aksiyon planı", body: "Quench SOP/eğitim gözden geçirmesi ve Boya/Fosfat veri boşluğunun nedeni netleştirilecek." },
+      { n: "1", title: "Öne çıkan sorunlar için aksiyon planı", body: fosfatBoyaExcluded
+          ? "Quench SOP/eğitim gözden geçirmesi yapılacak."
+          : "Quench SOP/eğitim gözden geçirmesi ve Boya/Fosfat veri boşluğunun nedeni netleştirilecek." },
       { n: "2", title: "Talep listesinin kesinleştirilmesi", body: "Yatırım ve müşteri talebi maddeleri ilgili sorumlularla birlikte tamamlanacak." },
       { n: "3", title: "Pres kapanış takvimine göre önceliklendirme", body: "9 Temmuz öncesi Pres hücresindeki 29 açık maddenin önceliklendirilmesi." },
       { n: "4", title: "Üst yönetim sunumu ve karar toplantısı", body: "Netleşen talep listesiyle birlikte nihai sunumun üst yönetime iletilmesi." },

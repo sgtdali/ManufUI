@@ -21,7 +21,7 @@ async function fetchRawSlots(start, end) {
   const { data, error } = await supabase
     .from("manuf_production_records")
     .select(
-      "bolum, tarih, manuf_production_rows(zaman_dilimi, sira_no, uretim_adeti, hedef_uretim_adeti, onceki_istasyon_bekleme, mola, ariza, planli_durus, planli_durus_turu, setup_ve_ayar, takim_degisimi, kalip_demontaj, kalip_montaj, musteri_kaynakli_durus, kalite_kaynakli_durus)"
+      "bolum, tarih, manuf_production_rows(zaman_dilimi, sira_no, uretim_adeti, hedef_uretim_adeti, onceki_istasyon_bekleme, mola, ariza, ariza_turu, planli_durus, planli_durus_turu, setup_ve_ayar, takim_degisimi, kalip_demontaj, kalip_montaj, musteri_kaynakli_durus, kalite_kaynakli_durus)"
     )
     .in("bolum", CELLS)
     .gte("tarih", start)
@@ -46,6 +46,7 @@ async function fetchRawSlots(start, end) {
         onceki_istasyon_bekleme: row.onceki_istasyon_bekleme || 0,
         mola: row.mola || 0,
         ariza: row.ariza || 0,
+        ariza_turu: row.ariza_turu || null,
         planli_durus: row.planli_durus || 0,
         setup_ve_ayar: row.setup_ve_ayar || 0,
         planli_durus_turu: row.planli_durus_turu || null,
@@ -230,13 +231,31 @@ const TAKIM_DEGISIMI_STANDART_DK = {
   "ROB108 H\u00fccresi": 15,
 };
 const PRES_IHU_REJIM_BEKLEME = "IHU Rejim Bekleme";
+// "ariza" kolonuna yanlışlıkla yazılmış ama gerçekte mekanik/elektrik arızası
+// olmayan, önlenebilir (malzeme/lojistik/organizasyon kaynaklı) alt türler —
+// hücre bağımsız, hangi hücrede görülürse görülsün aynı muameleyi görür: mola
+// ile birebir aynı davranış (Availability kaybı sayılmaz, hedef de düşmez —
+// gerçekleşen düşükse bu düşüklük Performance'ta görünür kalır, "daha iyi
+// organize edilebilirdi" sorumluluğu gizlenmez). onceki_istasyon_bekleme'den
+// farkı: o dışsal bir bağımlılık (hücrenin yapabileceği bir şey yok), bunlar
+// önlenebilir organizasyonel kayıplar — bu yüzden hedefi düşürmüyoruz.
+// MTBF/MTTR'den de tamamen çıkarılır (bkz. addRowToAccumulator). Supabase
+// verisi değişmez — yeni bir tür bulunduğunda bu listeye eklemek yeterlidir.
+const NON_BREAKDOWN_ARIZA_TYPES = ["Talaş Arabası Dolu", "Bor Yağı Bitti"];
+const NON_BREAKDOWN_ARIZA_RULES = NON_BREAKDOWN_ARIZA_TYPES.map((type) => ({ field: "ariza", typeField: "ariza_turu", type }));
 const CELL_OEE_RULES = {
   plannedTimeOut: [],
-  availabilityExclude: [{ field: "mola" }, { field: "onceki_istasyon_bekleme" }],
+  availabilityExclude: [
+    { field: "mola" },
+    { field: "onceki_istasyon_bekleme" },
+    ...NON_BREAKDOWN_ARIZA_RULES,
+  ],
   // Performance hedefi, uretilebilir sureye gore olceklenir. Mola hedefi
   // dusurmez; donusumlu mola yapilabilecek organizasyon kaybi Performance
-  // tarafinda gorunur.
+  // tarafinda gorunur. NON_BREAKDOWN_ARIZA_TYPES de ayni sebeple asagida
+  // targetScaleExclude ile hedefi dusurmekten muaf tutuluyor.
   targetScale: DOWNTIME_FIELDS.filter((field) => field !== "mola").map((field) => ({ field })),
+  targetScaleExclude: NON_BREAKDOWN_ARIZA_RULES,
   cells: Object.fromEntries(
     Array.from(new Set([...KASA_ALMA_BIRAKMA_CELLS, ...Object.keys(TAKIM_DEGISIMI_STANDART_DK), "Pres H\u00fccresi"])).map((cell) => {
       const rules = {};
@@ -333,7 +352,7 @@ function newReliabilityAccumulator() {
   };
 }
 
-function addRowToAccumulator(acc, row, cell, tarih, targetOverrides) {
+function addRowToAccumulator(acc, row, cell, tarih, targetOverrides, arizaEventLinks, arizaFalsePositives) {
   acc.slotCount += 1;
   const slotMinutes = getSlotMinutes(cell, tarih);
   const plannedOutMinutes = Math.min(slotMinutes, sumRuleMinutes(cell, row, "plannedTimeOut"));
@@ -350,8 +369,19 @@ function addRowToAccumulator(acc, row, cell, tarih, targetOverrides) {
     const targetScale = (slotMinutes - targetScaleMinutes) / slotMinutes;
     acc.targetProd += hedefUretimAdeti * targetScale;
   }
-  acc.arizaMinutes += row.ariza || 0;
-  if ((row.ariza || 0) > 0) acc.arizaEvents += 1;
+  if ((row.ariza || 0) > 0) {
+    const key = slotKey(cell, tarih, row.zaman_dilimi);
+    // arizaFalsePositives: kullanıcının elle "bu aslında gerçek bir arıza değil"
+    // diye işaretlediği saatler + NON_BREAKDOWN_ARIZA_TYPES'a giren türler otomatik
+    // olarak — ikisi de MTBF/MTTR hesabından (dakika + olay) tamamen çıkar.
+    const isKnownNonBreakdown = NON_BREAKDOWN_ARIZA_TYPES.includes(row.ariza_turu);
+    const isManuallyFlagged = arizaFalsePositives && arizaFalsePositives.has(key);
+    const isRealAriza = !isKnownNonBreakdown && !isManuallyFlagged;
+    if (isRealAriza) {
+      acc.arizaMinutes += row.ariza || 0;
+      if (!arizaEventLinks || !arizaEventLinks.has(key)) acc.arizaEvents += 1;
+    }
+  }
 }
 
 // targetCoverageMinPct: Performance/OEE'nin anlamlı sayılması için hedefli satırların
@@ -373,19 +403,19 @@ function finalizeReliability(acc, targetCoverageMinPct = 0.3) {
   return { availability, performance, oee, mtbf, mttr, arizaEvents: acc.arizaEvents };
 }
 
-function computeCellReliability(rawByDate, cell, exclusions, plannedTimeExclusions, targetOverrides) {
+function computeCellReliability(rawByDate, cell, exclusions, plannedTimeExclusions, targetOverrides, arizaEventLinks, arizaFalsePositives) {
   const acc = newReliabilityAccumulator();
   for (const [tarih, rows] of Object.entries(rawByDate)) {
     for (const row of rows) {
       const key = slotKey(cell, tarih, row.zaman_dilimi);
       if (exclusions.has(key) || plannedTimeExclusions.has(key)) continue;
-      addRowToAccumulator(acc, row, cell, tarih, targetOverrides);
+      addRowToAccumulator(acc, row, cell, tarih, targetOverrides, arizaEventLinks, arizaFalsePositives);
     }
   }
   return finalizeReliability(acc);
 }
 
-function computeMergedCellReliability(rawByDateA, cellA, rawByDateB, cellB, exclusions, plannedTimeExclusions, targetOverrides) {
+function computeMergedCellReliability(rawByDateA, cellA, rawByDateB, cellB, exclusions, plannedTimeExclusions, targetOverrides, arizaEventLinks, arizaFalsePositives) {
   const acc = newReliabilityAccumulator();
   const dates = new Set([...Object.keys(rawByDateA), ...Object.keys(rawByDateB)]);
   for (const tarih of dates) {
@@ -393,7 +423,7 @@ function computeMergedCellReliability(rawByDateA, cellA, rawByDateB, cellB, excl
       for (const row of rows) {
         const key = slotKey(cell, tarih, row.zaman_dilimi);
         if (exclusions.has(key) || plannedTimeExclusions.has(key)) continue;
-        addRowToAccumulator(acc, row, cell, tarih, targetOverrides);
+        addRowToAccumulator(acc, row, cell, tarih, targetOverrides, arizaEventLinks, arizaFalsePositives);
       }
     }
   }
@@ -423,6 +453,7 @@ function clipToDateRange(rawByDate, dateRange) {
 async function computeOeeMtbfMttrData({
   periods = DEFAULT_PERIODS, exclusionsNm = [], exclusionsHt = [],
   plannedTimeExclusions = [], dateRange = null, targetOverrides = {},
+  arizaEventLinks = [], arizaFalsePositives = [],
 } = {}) {
   const [rawNm, rawHt] = await Promise.all([
     fetchRawSlots(periods.nm.start, periods.nm.end),
@@ -434,6 +465,11 @@ async function computeOeeMtbfMttrData({
   // plannedTimeExclusions dönem ayrımı yapmaz — slotKey zaten tam tarihi içerir,
   // dolayısıyla tek bir set her iki dönem hesabında da doğru satırları eşleştirir.
   const ptExcl = new Set(plannedTimeExclusions);
+  // arizaEventLinks de aynı sebeple dönem ayrımı yapmaz — "bu saat bir önceki
+  // saatteki arızanın devamı" işareti hangi döneme düşerse orada geçerlidir.
+  const arizaLinks = new Set(arizaEventLinks);
+  // arizaFalsePositives: "bu aslında gerçek arıza değil" işareti de dönem ayrımı yapmaz.
+  const arizaFP = new Set(arizaFalsePositives);
 
   const displayCells = CELLS.filter((c) => c !== MERGE_CELL_B).map((c) =>
     c === MERGE_CELL_A ? MERGED_CELL_LABEL : c
@@ -446,11 +482,11 @@ async function computeOeeMtbfMttrData({
       const rawNmB = clipToDateRange(rawNm[MERGE_CELL_B] || {}, dateRange);
       const rawHtA = clipToDateRange(rawHt[MERGE_CELL_A] || {}, dateRange);
       const rawHtB = clipToDateRange(rawHt[MERGE_CELL_B] || {}, dateRange);
-      nmStats = computeMergedCellReliability(rawNmA, MERGE_CELL_A, rawNmB, MERGE_CELL_B, excNm, ptExcl, targetOverrides);
-      htStats = computeMergedCellReliability(rawHtA, MERGE_CELL_A, rawHtB, MERGE_CELL_B, excHt, ptExcl, targetOverrides);
+      nmStats = computeMergedCellReliability(rawNmA, MERGE_CELL_A, rawNmB, MERGE_CELL_B, excNm, ptExcl, targetOverrides, arizaLinks, arizaFP);
+      htStats = computeMergedCellReliability(rawHtA, MERGE_CELL_A, rawHtB, MERGE_CELL_B, excHt, ptExcl, targetOverrides, arizaLinks, arizaFP);
     } else {
-      nmStats = computeCellReliability(clipToDateRange(rawNm[cell] || {}, dateRange), cell, excNm, ptExcl, targetOverrides);
-      htStats = computeCellReliability(clipToDateRange(rawHt[cell] || {}, dateRange), cell, excHt, ptExcl, targetOverrides);
+      nmStats = computeCellReliability(clipToDateRange(rawNm[cell] || {}, dateRange), cell, excNm, ptExcl, targetOverrides, arizaLinks, arizaFP);
+      htStats = computeCellReliability(clipToDateRange(rawHt[cell] || {}, dateRange), cell, excHt, ptExcl, targetOverrides, arizaLinks, arizaFP);
     }
 
     return {
@@ -503,7 +539,56 @@ async function computeOverviewData({ periods = DEFAULT_PERIODS, exclusionsNm = [
   });
 }
 
+// exclusions: Set<slotKey>. computeCellAverage'dan farkı: gün sayısına bölmez,
+// ham TOPLAM üretim adedini döner — "Hücre Bazlı Üretim Adetleri" slaydı için.
+function computeCellProductionTotal(rawByDate, cell, exclusions) {
+  let sumProd = 0;
+  for (const [tarih, rows] of Object.entries(rawByDate)) {
+    for (const row of rows) {
+      const key = slotKey(cell, tarih, row.zaman_dilimi);
+      if (exclusions.has(key)) continue;
+      sumProd += row.uretim_adeti;
+    }
+  }
+  return sumProd;
+}
+
+function computeMergedCellProductionTotal(rawByDateA, cellA, rawByDateB, cellB, exclusions) {
+  let sumProd = 0;
+  const dates = new Set([...Object.keys(rawByDateA), ...Object.keys(rawByDateB)]);
+  for (const tarih of dates) {
+    for (const [cell, rows] of [[cellA, rawByDateA[tarih] || []], [cellB, rawByDateB[tarih] || []]]) {
+      for (const row of rows) {
+        const key = slotKey(cell, tarih, row.zaman_dilimi);
+        if (exclusions.has(key)) continue;
+        sumProd += row.uretim_adeti;
+      }
+    }
+  }
+  return sumProd;
+}
+
+// Slayt "Hücre Bazlı Üretim Adetleri" için: sadece Haziran-Temmuz döneminin TOPLAM
+// (ortalama değil) üretim adedi, hücre bazında. computeOverviewData'daki günlük
+// ortalama mantığından bilerek ayrı tutuldu — burada ihtiyaç toplam adet.
+async function computeTotalProductionData({ periods = DEFAULT_PERIODS, exclusionsHt = [] } = {}) {
+  const rawHt = await fetchRawSlots(periods.ht.start, periods.ht.end);
+  const excHt = new Set(exclusionsHt);
+
+  const displayCells = CELLS.filter((c) => c !== MERGE_CELL_B).map((c) =>
+    c === MERGE_CELL_A ? MERGED_CELL_LABEL : c
+  );
+
+  return displayCells.map((cell) => {
+    const total = cell === MERGED_CELL_LABEL
+      ? computeMergedCellProductionTotal(rawHt[MERGE_CELL_A] || {}, MERGE_CELL_A, rawHt[MERGE_CELL_B] || {}, MERGE_CELL_B, excHt)
+      : computeCellProductionTotal(rawHt[cell] || {}, cell, excHt);
+    return { cell, total };
+  });
+}
+
 module.exports = {
   CELLS, DEFAULT_PERIODS, fetchRawSlots, slotKey, computeOverviewData, computeOeeMtbfMttrData,
   DOWNTIME_FIELDS, DOWNTIME_FIELD_LABELS, DOWNTIME_FIELD_DETAIL_KEYS, CELL_OEE_RULES, fetchCellDetailSlots,
+  NON_BREAKDOWN_ARIZA_TYPES, computeTotalProductionData,
 };

@@ -132,6 +132,11 @@ table.oee-detail-table tr.excluded td.oee-summary-cell,
 table.oee-detail-table tr.excluded td:first-child { color: var(--slate-light); text-decoration: line-through; }
 table.oee-detail-table tr.excluded td.oee-check-cell input { accent-color: var(--red); }
 
+table.oee-detail-table td.ariza-link-cell { text-align: center; white-space: nowrap; cursor: pointer; }
+.ariza-link-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--slate); cursor: pointer; }
+table.oee-detail-table tr.ariza-linked { background: var(--ice-tint); }
+table.oee-detail-table tr.ariza-linked td.ariza-link-cell { color: var(--navy); font-weight: 700; }
+
 .range-bar {
   display: flex;
   align-items: center;
