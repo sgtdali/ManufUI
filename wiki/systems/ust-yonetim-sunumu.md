@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-05
+updated: 2026-07-06
 sources: [docs/sunumlar/build/build.js, docs/sunumlar/build/tool/dataService.js, docs/sunumlar/build/tool/server.js, docs/sunumlar/build/tool/public/app.js, docs/sunumlar/build/tool/public/index.html, docs/sunumlar/build/tool/public/style.css, docs/sunumlar/2026-07-ust-yonetim-sunum-plani.md]
 ---
 
@@ -57,20 +57,21 @@ Tüm slaytlar aynı stil sistemini paylaşır (navy/ice renk paleti, Cambria ba�
 - İkonlar (`icons.tools`, `icons.chartBar`, `icons.warning`, vb.) build.js başında bir kez base64 PNG olarak render edilip anahtar üzerinden tekrar kullanılıyor — yeni slayt eklerken önce mevcut ikon setine bakmak gerekir.
 - pptxgenjs grafik API'si: `pres.charts.BAR` (`barDir: "col"|"bar"`, `barGrouping: "stacked"`) ve `pres.charts.DOUGHNUT` (`holeSize`) — build.js'de birden çok slaytta tekrar kullanılan pattern'ler.
 
-## Slayt Envanteri (2026-07-05 itibarıyla, 24 sayfa)
+## Slayt Envanteri (2026-07-06 itibarıyla, 26 sayfa)
 
 1. Kapak (başlık artık sadece **"Performans Raporu"** — "ve Aksiyon / Yatırım Talebi" kaldırıldı)
 2. Genel Bakış — Amaç ve Kapsam (hücre sayısı artık `ACTIVE_CELLS.length` ile dinamik; "kısa özet." gibi taslak metinler gerçek cümlelerle değiştirildi)
 3. **Genel Bakış — 9 Hücre Özet Tablosu** (N602-N603 birleşik + Fosfat/Boya hariç; Nisan-Mayıs vs Haziran-Temmuz üretim karşılaştırması)
-4. OEE — Ekipman Etkinliği (Haziran-Temmuz)
-5. **MTBF ve MTTR — Arıza Bazlı Güvenilirlik (sadece Haziran-Temmuz)** — tek tablo (Hücre, MTBF, MTTR, Arıza Kaydı), Nisan-Mayıs karşılaştırma kolonları kaldırıldı; düşük örnekli hücre uyarısı artık veriden otomatik hesaplanıyor
-6. Güvenilirlik Özeti — Hücre Kıyaslaması
-7. Darboğaz — Hücreler Arası Akış Sırası (Fosfat/Boya akış şemasından çıkarıldı)
-8. Kök Neden Özeti ve Alınan Aksiyonlar
-9-15. **Duruş Analizi** — Genel Bakış KPI kartları → Kategori Dağılımı (stacked bar) → Üretime Oranlı Yoğunluk (tablo) → Neden Pareto'su (bar chart) → Hücre Bazlı Baskın Neden (tablo) → Tekrarlayan Somut Sorunlar (tablo) → Kayıt Takip Disiplini (doughnut)
-16-19. Öne Çıkan Sorunlar (N603/Quench/Flowform/Pres — seçim aracından gelen dinamik vaka seçimi)
-20-21. Aksiyon Takibi (74 madde durumu, Haziran-Temmuz'da kapananlar)
-22-24. Talep / Karar (yatırım + müşteri talepleri, sonraki adımlar)
+4. **Zamana Bağlı Ortalama Üretim Değişimi** (Nisan–Mayıs ve Haziran–Temmuz yan yana iki trend grafiği)
+5. OEE — Ekipman Etkinliği (Haziran-Temmuz)
+6. **MTBF ve MTTR — Arıza Bazlı Güvenilirlik (sadece Haziran-Temmuz)** — tek tablo (Hücre, MTBF, MTTR, Arıza Kaydı), Nisan-Mayıs karşılaştırma kolonları kaldırıldı; düşük örnekli hücre uyarısı artık veriden otomatik hesaplanıyor
+7. Güvenilirlik Özeti — Hücre Kıyaslaması
+8. Darboğaz — Hücreler Arası Akış Sırası (Fosfat/Boya akış şemasından çıkarıldı)
+9. Kök Neden Özeti ve Alınan Aksiyonlar
+10-16. **Duruş Analizi** — Genel Bakış KPI kartları → Kategori Dağılımı (stacked bar) → Üretime Oranlı Yoğunluk (tablo) → Neden Pareto'su (bar chart) → Hücre Bazlı Baskın Neden (tablo) → Tekrarlayan Somut Sorunlar (tablo) → Kayıt Takip Disiplini (doughnut)
+17-20. Öne Çıkan Sorunlar (N603/Quench/Flowform/Pres — seçim aracından gelen dinamik vaka seçimi)
+21-22. Aksiyon Takibi (74 madde durumu, Haziran-Temmuz'da kapananlar)
+23-25. Talep / Karar (yatırım + müşteri talepleri, sonraki adımlar)
 
 **Kaldırılan slaytlar (2026-07-05):** "Önceki İstasyon Bekleme Süresi" (Genel Bakış'ın ikinci sayfası, KPI kartlarıyla birlikte) ve "Önceki İstasyon Bekleme Trendi" (dk/gün bar chart, Darboğaz bölümü) tamamen build.js'den silindi — geri eklemek için git geçmişinden kod bloğu geri alınmalı (EXCLUDED_CELLS gibi tek bayrakla geri açılabilen bir mekanizma değil). "Boya & Fosfat Hücreleri — Veri Boşluğu" (Öne Çıkan Sorunlar) slaydı silinmedi, sadece `fosfatBoyaExcluded` bayrağına göre koşullu atlanıyor.
 
@@ -151,6 +152,19 @@ Bunu çözmek için lokal seçim aracına (`tool/public/index.html`, port 4590) 
 Her ikisi de dönem ayrımı yapmaz (`slotKey` zaten tam tarihi içerdiği için nm/ht otomatik doğru eşleşir — `plannedTimeExclusions` ile aynı yaklaşım). Sekmenin üst barında canlı bir özet (`arizaLiveSummary`) her checkbox değişikliğinde anlık güncellenir: `"N arızalı saat → M olay (X gerçek değil sayıldı) · MTBF Y dk · MTTR Z dk"`. Bu canlı sayı, sekmede görünen tarih aralığı + "OEE — Planlı Süre" sekmesindeki saat hariç tutmalarını kullanır ama **Üretim Verisi Seçimi sekmesindeki dönem-bazlı (nm/ht) saat hariç tutmalarını hesaba katmaz** — yani bir tahmindir, kesin sayılar yalnızca "Sunumu Oluştur" ile yeniden üretilen `oee-mtbf-mttr-data.json`'dadır.
 
 `computeOeeMtbfMttrData` artık `arizaEventLinks` ve `arizaFalsePositives` parametrelerini alıyor, `/api/generate` handler'ı (`server.js`) bunları ilgili JSON dosyalarından yükleyip geçiriyor. `build.js`'e hiçbir değişiklik gerekmedi — o zaten cache dosyasını okuyor.
+
+## Zamana Bağlı Ortalama Üretim Değişimi Slaydı (2026-07-06)
+
+**Amaç ve Kapsam:** Hattaki aktif hücrelerin (Fosfat/Boya hariç, N602 ve N603 birleşik) günlük ortalama üretim miktarının zamana bağlı değişimini göstermek üzere eklenen yeni slayttır. 
+
+### Hesaplama ve Filtreleme Mantığı
+- **Çift Katmanlı Dışlama Filtresi:** Her günün verisi işlenirken, hem OEE planlı süre dışlamaları (`oee-slot-exclusions.json`) hem de kullanıcının ilk sekmeden yaptığı ana dönem dışlama seçimleri (`selection.json` altındaki `exclusionsNm` ve `exclusionsHt` dizileri) kontrol edilir. İki listeden herhangi birinde hariç tutulmuş olan saatlik slotlar hesaba katılmaz.
+- **Aktif Gün Düzeltmesi (Dinamik Payda):** Günlük ortalama üretim hesaplanırken, günlük toplam üretim sadece o gün için geçerli (dışlanmamış) aktif slotu bulunan istasyon sayısına bölünür. Böylece veri girilmemiş veya tamamen dışlanmış istasyonlar ortalamayı yapay olarak düşürmez.
+- **Dönemsel Ayrım (Yan Yana Çift Grafik):** Veriler tek bir birleşik çizgide gösterilmez. Bunun yerine Nisan–Mayıs ve Haziran–Temmuz (13 Haziran sonrası) dönemleri **yan yana iki ayrı grafik** olarak çizdirilir.
+- **Tarih Kısıtlamaları:** 
+  - Haziran döneminin başındaki veri boşluklarını engellemek için **01.06.2026 - 12.06.2026** tarih aralığı filtrelenir (13.06.2026 dahildir).
+  - Özel talep doğrultusunda **20.06.2026** ve verisi henüz tamamlanmamış olan **06.07.2026** (bugün) tarihleri hesaptan hariç tutulur.
+- **Amber Renkli Doğrusal Trend Çizgisi:** Her iki grafiğe de en küçük kareler yöntemiyle (least squares regression) hesaplanan doğrusal trend çizgileri eklenmiştir. Çizgiler, navy ana çizgiyle kontrast oluşturması için **amber (turuncu/kehribar)** renkte render edilir. Eksen etiketlerinin çakışmaması için Nisan-Mayıs'ta 6 günde bir, Haziran-Temmuz'da ise 3 günde bir etiket basılır (`catLabelInterval`).
 
 ## İlgili Sayfalar
 - [Duruşlar](duruslar.md) — `ariza_turu` kod tablosu ve tüm duruş kolonlarının kaynağı

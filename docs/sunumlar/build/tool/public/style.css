@@ -439,3 +439,9 @@ table.matrix tr.day-row td.day-cell input { pointer-events: none; margin-right: 
   .availability-sections section:last-child { grid-column: auto; }
   .availability-formula { align-items: flex-start; flex-direction: column; }
 }
+
+tr.excluded, tr.excluded-row {
+  opacity: 0.5;
+  background: #f8fafc !important;
+  text-decoration: line-through;
+}

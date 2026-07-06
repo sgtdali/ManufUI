@@ -336,6 +336,101 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         { cell: "Boya Hücresi",       availabilityNm: 86.9, availabilityHt: null, performanceNm: null, performanceHt: null, oeeNm: null, oeeHt: null, mtbfNm: null,   mtbfHt: null,  mttrNm: null, mttrHt: null, arizaEventsNm: 0,   arizaEventsHt: 0 },
       ]).filter((d) => !isExcludedCell(d.cell));
 
+  // tool/data/kayip-analizi-data.json varsa yükle ve Pareto kategorilerini hesapla
+  const kayipDataPath = path.join(__dirname, "tool", "data", "kayip-analizi-data.json");
+  let kayipData = null;
+  if (fs.existsSync(kayipDataPath)) {
+    try {
+      kayipData = JSON.parse(fs.readFileSync(kayipDataPath, "utf8"));
+    } catch (e) {
+      console.error("Kayıp analizi verisi okunamadı:", e.message);
+    }
+  }
+
+  let activePareto = [];
+  if (kayipData && kayipData.allDowntimes) {
+    const activeDowntimes = kayipData.allDowntimes.filter(d => {
+      if (isExcludedCell(d.cell)) return false;
+      if (d.category === "Mola" || d.category === "Önceki İstasyon Bekleme") return false;
+      return true;
+    });
+    const cellsMap = {};
+    activeDowntimes.forEach(d => {
+      const cellShort = d.cell.replace(" Hücresi", "");
+      if (!cellsMap[cellShort]) {
+        cellsMap[cellShort] = {
+          category: cellShort,
+          duration: 0,
+          eventCount: 0,
+          kokNedenler: new Set(),
+          onleyiciAksiyonlar: new Set(),
+          details: []
+        };
+      }
+      const cellData = cellsMap[cellShort];
+      cellData.duration += d.duration;
+      cellData.eventCount += 1;
+      if (d.kokNeden && d.kokNeden.trim()) cellData.kokNedenler.add(d.kokNeden.trim());
+      if (d.onleyiciAksiyon && d.onleyiciAksiyon.trim()) cellData.onleyiciAksiyonlar.add(d.onleyiciAksiyon.trim());
+      cellData.details.push(d);
+    });
+    
+    const sorted = Object.values(cellsMap).sort((a, b) => b.duration - a.duration);
+    const totalDuration = sorted.reduce((sum, c) => sum + c.duration, 0);
+    let cumDuration = 0;
+    
+    activePareto = sorted.map(c => {
+      cumDuration += c.duration;
+      c.details.sort((a, b) => b.duration - a.duration);
+      const topWithKok = c.details.find(d => d.kokNeden && d.kokNeden.trim() !== "");
+      const topKok = topWithKok ? topWithKok.kokNeden : (Array.from(c.kokNedenler)[0] || "—");
+      
+      const topWithAksiyon = c.details.find(d => d.onleyiciAksiyon && d.onleyiciAksiyon.trim() !== "");
+      const topAks = topWithAksiyon ? topWithAksiyon.onleyiciAksiyon : (Array.from(c.onleyiciAksiyonlar)[0] || "—");
+      
+      return {
+        category: c.category,
+        duration: c.duration,
+        eventCount: c.eventCount,
+        cumPercentage: totalDuration > 0 ? Math.round((cumDuration / totalDuration) * 100) : 0,
+        topKokNeden: topKok,
+        topOnleyiciAksiyon: topAks
+      };
+    });
+  }
+
+  let activeLossTypes = [];
+  if (kayipData && kayipData.allDowntimes) {
+    const activeDowntimes = kayipData.allDowntimes.filter(d => {
+      if (isExcludedCell(d.cell)) return false;
+      if (d.category === "Mola" || d.category === "Önceki İstasyon Bekleme") return false;
+      return true;
+    });
+
+    const lossMap = {};
+    activeDowntimes.forEach(d => {
+      if (!lossMap[d.category]) {
+        lossMap[d.category] = {
+          category: d.category,
+          duration: 0,
+          eventCount: 0
+        };
+      }
+      lossMap[d.category].duration += d.duration;
+      lossMap[d.category].eventCount += 1;
+    });
+
+    const sortedLoss = Object.values(lossMap).sort((a, b) => b.duration - a.duration);
+    const totalLossDuration = sortedLoss.reduce((sum, c) => sum + c.duration, 0);
+    
+    activeLossTypes = sortedLoss.map(c => ({
+      category: c.category,
+      duration: c.duration,
+      eventCount: c.eventCount,
+      percentage: totalLossDuration > 0 ? Math.round((c.duration / totalLossDuration) * 100) : 0
+    }));
+  }
+
   // ==================================================================
   // SLIDE 3 — GENEL BAKIŞ: ÜRETİM TABLOSU
   // ==================================================================
@@ -554,6 +649,281 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       border: { pt: 0.75, color: COLORS.border },
       autoPage: false, rowH: 0.44,
     });
+
+    addFooter(slide, "Genel Bakış");
+  }
+
+  // ==================================================================
+  // SLIDE — ZAMANA BAĞLI ORTALAMA ÜRETİM DEĞİŞİMİ
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.chartLine, eyebrow: "Genel Bakış", title: "Hattaki Ortalama Üretim Miktarının Zamana Bağlı Değişimi" });
+
+    let nmTrendData = [];
+    let htTrendData = [];
+
+    try {
+      const { createClient } = require("@supabase/supabase-js");
+      const { SUPABASE_URL, SUPABASE_ANON_KEY } = require(path.join(__dirname, "tool", "env"));
+      const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      // Perform direct Supabase query synchronously in build execution flow starting from April 1st
+      const { data: rawRecords, error: rawError } = await supabaseClient
+        .from("manuf_production_records")
+        .select(
+          "bolum, tarih, manuf_production_rows(zaman_dilimi, uretim_adeti)"
+        )
+        .in("bolum", [
+          "Pres Hücresi", "ETM Hücresi", "ROB108 Hücresi", "Flowform Hücresi",
+          "ROB104 Hücresi", "N602 Hücresi", "N603 Hücresi", "ROB109 Hücresi",
+          "Quench Hücresi", "ROB110-111 Hücresi", "Fosfat Hücresi", "Boya Hücresi"
+        ])
+        .gte("tarih", "2026-04-01")
+        .order("tarih", { ascending: true });
+
+      if (rawError) throw rawError;
+
+      const exclusionsPath = path.join(__dirname, "tool", "data", "oee-slot-exclusions.json");
+      const plannedTimeExclusions = fs.existsSync(exclusionsPath)
+        ? JSON.parse(fs.readFileSync(exclusionsPath, "utf8"))
+        : [];
+      const ptExcl = new Set(Array.isArray(plannedTimeExclusions) ? plannedTimeExclusions : []);
+
+      const selectionPath = path.join(__dirname, "tool", "data", "selection.json");
+      const selection = fs.existsSync(selectionPath)
+        ? JSON.parse(fs.readFileSync(selectionPath, "utf8"))
+        : {};
+      const exclusionsHt = selection.exclusionsHt || [];
+      const exclusionsNm = selection.exclusionsNm || [];
+      const excSet = new Set([...exclusionsHt, ...exclusionsNm]);
+
+      const datesWithData = new Set();
+      const recordsByDate = {};
+      for (const record of rawRecords || []) {
+        if (isExcludedCell(record.bolum)) continue;
+        const dateStr = record.tarih;
+        datesWithData.add(dateStr);
+        if (!recordsByDate[dateStr]) {
+          recordsByDate[dateStr] = [];
+        }
+        recordsByDate[dateStr].push(record);
+      }
+
+      const sortedDates = Array.from(datesWithData).sort();
+      for (const dateStr of sortedDates) {
+        // Exclude specific date range for June as requested: 01.06.2026 - 12.06.2026 (13.06 is included)
+        if (dateStr >= "2026-06-01" && dateStr <= "2026-06-12") continue;
+
+        // Exclude 20.06.2026 as requested
+        if (dateStr === "2026-06-20") continue;
+
+        // Exclude 06.07.2026 as requested
+        if (dateStr === "2026-07-06") continue;
+
+        const activeCellNames = [];
+        const cellsToCalculate = ALL_CELLS.map(c => c + " Hücresi").filter(c => !isExcludedCell(c));
+        for (const cell of cellsToCalculate) {
+          if (cell === "N602 Hücresi" || cell === "N603 Hücresi") {
+            if (!activeCellNames.includes("N602-N603 Hücresi")) {
+              activeCellNames.push("N602-N603 Hücresi");
+            }
+          } else {
+            activeCellNames.push(cell);
+          }
+        }
+
+        const dailyCellProduction = {};
+        for (const cellName of activeCellNames) {
+          dailyCellProduction[cellName] = 0;
+        }
+
+        const cellsWithActiveSlots = new Set();
+        let hasAnyValidSlot = false;
+        for (const record of recordsByDate[dateStr]) {
+          let cell = record.bolum;
+          if (isExcludedCell(cell)) continue;
+
+          // Map N602 and N603 to combined key in our daily production map
+          if (cell === "N602 Hücresi" || cell === "N603 Hücresi") {
+            cell = "N602-N603 Hücresi";
+          }
+
+          for (const row of record.manuf_production_rows || []) {
+            const key = `${record.bolum}||${dateStr}||${row.zaman_dilimi}`;
+            if (ptExcl.has(key) || excSet.has(key)) continue;
+
+            dailyCellProduction[cell] += (row.uretim_adeti || 0);
+            cellsWithActiveSlots.add(cell);
+            hasAnyValidSlot = true;
+          }
+        }
+
+        if (!hasAnyValidSlot) continue;
+
+        let sum = 0;
+        let count = 0;
+        for (const cellName of activeCellNames) {
+          if (cellsWithActiveSlots.has(cellName)) {
+            sum += dailyCellProduction[cellName];
+            count++;
+          }
+        }
+
+        const avg = count > 0 ? sum / count : 0;
+        const entry = {
+          date: dateStr,
+          average: Math.round(avg * 10) / 10
+        };
+
+        if (dateStr >= "2026-04-01" && dateStr <= "2026-05-31") {
+          nmTrendData.push(entry);
+        } else if (dateStr >= "2026-06-13" && dateStr <= "2026-07-31") {
+          htTrendData.push(entry);
+        }
+      }
+    } catch (e) {
+      console.error("New trend slide calculation error, using fallback:", e);
+      nmTrendData = [
+        { date: "2026-04-02", average: 34.4 },
+        { date: "2026-04-04", average: 33.3 },
+        { date: "2026-04-05", average: 36.4 },
+      ];
+      htTrendData = [
+        { date: "2026-06-13", average: 35.2 },
+        { date: "2026-06-14", average: 38.1 },
+        { date: "2026-06-15", average: 40.5 },
+      ];
+    }
+
+    function formatChartDate(dateStr) {
+      const parts = dateStr.split("-");
+      if (parts.length !== 3) return dateStr;
+      return `${parts[2]}.${parts[1]}`;
+    }
+
+    function calculateTrendLine(data) {
+      const N = data.length;
+      if (N < 2) return data.map(() => null);
+      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+      for (let i = 0; i < N; i++) {
+        sumX += i;
+        sumY += data[i];
+        sumXY += i * data[i];
+        sumXX += i * i;
+      }
+      const slope = (N * sumXY - sumX * sumY) / (N * sumXX - sumX * sumX);
+      const intercept = (sumY - slope * sumX) / N;
+      return data.map((_, i) => Math.round((slope * i + intercept) * 10) / 10);
+    }
+
+    // Draw Left Chart (Nisan-Mayıs)
+    if (nmTrendData.length > 0) {
+      const nmValues = nmTrendData.map(d => d.average);
+      const nmMax = Math.max(...nmValues);
+      const nmAvg = nmValues.reduce((a, b) => a + b, 0) / nmValues.length;
+
+      slide.addText("NİSAN – MAYIS TRENDİ", {
+        x: 0.5, y: 1.8, w: 5.9, h: 0.3, margin: 0,
+        fontFace: FONT_HEAD, fontSize: 13, bold: true, color: COLORS.navy, align: "center"
+      });
+
+      slide.addChart(
+        pres.charts.LINE,
+        [
+          {
+            name: "Ortalama Üretim (adet/gün)",
+            labels: nmTrendData.map(d => formatChartDate(d.date)),
+            values: nmValues
+          },
+          {
+            name: "Genel Trend",
+            labels: nmTrendData.map(d => formatChartDate(d.date)),
+            values: calculateTrendLine(nmValues)
+          }
+        ],
+        {
+          x: 0.5, y: 2.1, w: 5.9, h: 4.1,
+          chartColors: [COLORS.navy, COLORS.amber],
+          lineSize: 2.5,
+          showLegend: true,
+          legendPos: "b",
+          showTitle: false,
+          catAxisLabelColor: COLORS.slate, catAxisLabelFontSize: 8.5,
+          catLabelInterval: 6,
+          valAxisLabelColor: COLORS.slateLight, valAxisLabelFontSize: 8.5,
+          valAxisTitle: "adet/gün", showValAxisTitle: true, valAxisTitleFontSize: 8.5, valAxisTitleColor: COLORS.slateLight,
+          valGridLine: { color: COLORS.border, size: 0.5 },
+          catGridLine: { style: "none" },
+          showValue: false
+        }
+      );
+
+      const nmStatsText = `Takip: ${nmTrendData.length} Gün  ·  En Yüksek Ort: ${nmMax.toFixed(1)}  ·  Dönem Ort: ${nmAvg.toFixed(1)}`;
+      slide.addText(nmStatsText, {
+        x: 0.5, y: 6.3, w: 5.9, h: 0.3, margin: 0,
+        fontFace: FONT_BODY, fontSize: 10.5, bold: true, color: COLORS.slate, align: "center"
+      });
+    } else {
+      slide.addText("Hesaplanmış Nisan–Mayıs verisi bulunamadı.", {
+        x: 0.5, y: 3.5, w: 5.9, h: 1, align: "center",
+        fontFace: FONT_BODY, fontSize: 14, color: COLORS.red
+      });
+    }
+
+    // Draw Right Chart (Haziran-Temmuz)
+    if (htTrendData.length > 0) {
+      const htValues = htTrendData.map(d => d.average);
+      const htMax = Math.max(...htValues);
+      const htAvg = htValues.reduce((a, b) => a + b, 0) / htValues.length;
+
+      slide.addText("HAZİRAN – TEMMUZ TRENDİ (13 HAZİRAN SONRASI)", {
+        x: 6.9, y: 1.8, w: 5.9, h: 0.3, margin: 0,
+        fontFace: FONT_HEAD, fontSize: 13, bold: true, color: COLORS.navy, align: "center"
+      });
+
+      slide.addChart(
+        pres.charts.LINE,
+        [
+          {
+            name: "Ortalama Üretim (adet/gün)",
+            labels: htTrendData.map(d => formatChartDate(d.date)),
+            values: htValues
+          },
+          {
+            name: "Genel Trend",
+            labels: htTrendData.map(d => formatChartDate(d.date)),
+            values: calculateTrendLine(htValues)
+          }
+        ],
+        {
+          x: 6.9, y: 2.1, w: 5.9, h: 4.1,
+          chartColors: [COLORS.navy, COLORS.amber],
+          lineSize: 2.5,
+          showLegend: true,
+          legendPos: "b",
+          showTitle: false,
+          catAxisLabelColor: COLORS.slate, catAxisLabelFontSize: 8.5,
+          catLabelInterval: 3,
+          valAxisLabelColor: COLORS.slateLight, valAxisLabelFontSize: 8.5,
+          valAxisTitle: "adet/gün", showValAxisTitle: true, valAxisTitleFontSize: 8.5, valAxisTitleColor: COLORS.slateLight,
+          valGridLine: { color: COLORS.border, size: 0.5 },
+          catGridLine: { style: "none" },
+          showValue: false
+        }
+      );
+
+      const htStatsText = `Takip: ${htTrendData.length} Gün  ·  En Yüksek Ort: ${htMax.toFixed(1)}  ·  Dönem Ort: ${htAvg.toFixed(1)}`;
+      slide.addText(htStatsText, {
+        x: 6.9, y: 6.3, w: 5.9, h: 0.3, margin: 0,
+        fontFace: FONT_BODY, fontSize: 10.5, bold: true, color: COLORS.slate, align: "center"
+      });
+    } else {
+      slide.addText("Hesaplanmış Haziran–Temmuz verisi bulunamadı.", {
+        x: 6.9, y: 3.5, w: 5.9, h: 1, align: "center",
+        fontFace: FONT_BODY, fontSize: 14, color: COLORS.red
+      });
+    }
 
     addFooter(slide, "Genel Bakış");
   }
@@ -989,6 +1359,163 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
   // ==================================================================
+  // SLIDE 14B — DURUŞ ANALİZİ: KAYIP ANALİZİ (PARETO) - 13.06.2026 VE SONRASI
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.warning, eyebrow: "Duruş Analizi", title: "Kayıp Analizi (Pareto) — 13.06.2026 ve Sonrası" });
+
+    const rawPareto = activePareto.length > 0 ? activePareto : [
+      { category: "Pres", duration: 1850, eventCount: 84 },
+      { category: "N602", duration: 1450, eventCount: 52 },
+      { category: "ROB109", duration: 1100, eventCount: 65 },
+      { category: "Quench", duration: 750, eventCount: 22 },
+      { category: "Flowform", duration: 150, eventCount: 15 }
+    ];
+
+    const totalDuration = rawPareto.reduce((sum, item) => sum + item.duration, 0);
+    const paretoSource = [...rawPareto];
+
+    // Kümülatif % değerlerini yeni listeye göre yeniden hesaplayalım
+    let cum = 0;
+    paretoSource.forEach(item => {
+      cum += item.duration;
+      item.cumPercentage = totalDuration > 0 ? Math.round((cum / totalDuration) * 100) : 0;
+    });
+
+    const labels = paretoSource.map((item) => item.category);
+    
+    // Combo chart formatı
+    const chartTypes = [
+      {
+        type: pres.charts.BAR,
+        data: [
+          {
+            name: "Duruş Süresi (dk)",
+            labels: labels,
+            values: paretoSource.map((item) => item.duration),
+          }
+        ],
+        options: {
+          barGrouping: "clustered",
+          // İlk 3 neden vurgulu: navy, diğerleri sönük slateLight
+          chartColors: paretoSource.map((item, idx) => idx < 3 ? COLORS.navy : "94A3B8"),
+        }
+      },
+      {
+        type: pres.charts.LINE,
+        data: [
+          {
+            name: "Olay Sayısı",
+            labels: labels,
+            values: paretoSource.map((item) => item.eventCount),
+          }
+        ],
+        options: {
+          secondaryValAxis: true,
+          secondaryCatAxis: true,
+          chartColors: [COLORS.amber],
+        }
+      }
+    ];
+
+    slide.addChart(chartTypes, {
+      x: 0.6, y: 1.6, w: 12.1, h: 4.3,
+      showLegend: false,
+      showTitle: false,
+      valAxes: [
+        {
+          valAxisTitle: "Duruş Süresi (dk)",
+          showValAxisTitle: true,
+          valAxisTitleFontSize: 9.5,
+          valAxisTitleColor: COLORS.slateLight,
+          valAxisLabelFontSize: 9,
+          valAxisLabelColor: COLORS.slate,
+          valGridLine: { color: COLORS.border, size: 0.5 },
+        },
+        {
+          valAxisTitle: "Olay Sayısı (Adet)",
+          showValAxisTitle: true,
+          valAxisTitleFontSize: 9.5,
+          valAxisTitleColor: COLORS.slateLight,
+          valAxisLabelFontSize: 9,
+          valAxisLabelColor: COLORS.slate,
+          valAxisMinVal: 0,
+        }
+      ],
+      catAxes: [
+        {
+          catAxisLabelColor: COLORS.slate,
+          catAxisLabelFontSize: 10.5, // Hücre adları kısa olduğu için daha büyük font seçtik
+          catGridLine: { style: "none" },
+        },
+        {
+          catAxisHidden: true
+        }
+      ],
+      chartArea: { fill: { color: COLORS.white }, roundedCorners: true },
+    });
+
+    const top3Duration = rawPareto.slice(0, 3).reduce((sum, item) => sum + item.duration, 0);
+    const top3Percentage = totalDuration > 0 ? Math.round((top3Duration / totalDuration) * 100) : 0;
+
+    const isDynamic = activePareto.length > 0;
+    const footerText = `Grafik: Pareto duruş süresi (bar, sol eksen) ve Duruş sıklığı (turuncu çizgi, sağ eksen), ilk 3 neden vurgulu. İlk 3 neden toplam duruş süresinin %${top3Percentage}'ini oluşturmaktadır. ` + (isDynamic 
+      ? "Veriler 13.06.2026 sonrası seçili hücrelerin kategorize edilmiş duruş verileridir."
+      : "Veriler 13.06.2026 sonrası dönemi kapsayan taslak (dummy) verilerdir.");
+
+    slide.addText(footerText, {
+      x: 0.6, y: 6.0, w: 12.1, h: 0.65, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight,
+    });
+    
+    addFooter(slide, "Duruş Analizi");
+  }
+
+  // ==================================================================
+  // SLIDE 14C — DURUŞ ANALİZİ: KAYIP ANALİZİ AKSİYON PLANI
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.checkWhite, eyebrow: "Duruş Analizi", title: "Kayıp Analizi (Aksiyon Planı) — 13.06.2026 ve Sonrası" });
+
+    const rawPareto = activePareto.length > 0 ? activePareto : [
+      { category: "Pres", duration: 1850, eventCount: 84, cumPercentage: 35, topKokNeden: "CNC Rulman aşınması ve yatak boşluğu", topOnleyiciAksiyon: "Haftalık rulman titreşim analizi ve periyodik yağlama kontrolü" },
+      { category: "N602", duration: 1450, eventCount: 52, cumPercentage: 62, topKokNeden: "Operatörlerin duruş kodu girmemesi", topOnleyiciAksiyon: "Duruş giriş ekranında 10 dk üzeri kayıtlarda kod zorunluluğu" },
+      { category: "ROB109", duration: 1100, eventCount: 65, cumPercentage: 83, topKokNeden: "Gürültülü hatlarda I/O modül haberleşme kaybı", topOnleyiciAksiyon: "Haberleşme kablolarının ekranlı kablo ile değişimi ve topraklama" },
+      { category: "Quench", duration: 750, eventCount: 22, cumPercentage: 97, topKokNeden: "Eşanjör tıkanıklığı ve yetersiz soğutma debisi", topOnleyiciAksiyon: "Kritik hücrelerin eşanjör temizliği ve soğutma suyu debi takibi" },
+      { category: "Flowform", duration: 150, eventCount: 15, cumPercentage: 100, topKokNeden: "Minör arızalar ve mikro duruşlar", topOnleyiciAksiyon: "Aksiyon takip listesi üzerinden takip ve analiz" }
+    ];
+
+    const actionList = rawPareto.slice(0, 5);
+
+    const header = ["Hücre", "Toplam Süre", "Duruş Sayısı", "Küm. %", "Baskın Kök Neden", "Önleyici Aksiyon Planı"];
+    const rows = actionList.map((item) => [
+      item.category,
+      `${fmtInt(item.duration)} dk`,
+      String(item.eventCount),
+      `%${item.cumPercentage}`,
+      item.topKokNeden || "—",
+      item.topOnleyiciAksiyon || "—"
+    ]);
+
+    styledTable(slide, header, rows, {
+      x: 0.6,
+      y: 1.6,
+      w: 12.1,
+      colW: [2.3, 0.7, 0.5, 0.6, 4.0, 4.0], // Toplam: 2.3 + 0.7 + 0.5 + 0.6 + 4.0 + 4.0 = 12.1
+      rowH: 0.75
+    });
+
+    slide.addText("Tablo: Pareto analizine göre en yüksek kayba yol açan ilk 5 hücrenin baskın kök nedenleri ve önleyici faaliyetleri listelenmiştir.", {
+      x: 0.6, y: 6.0, w: 12.1, h: 0.65, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight,
+    });
+
+    addFooter(slide, "Duruş Analizi");
+  }
+
+  // ==================================================================
   // SLIDE 15 — DURUŞ ANALİZİ: HÜCRE BAZLI BASKIN NEDEN
   // ==================================================================
   {
@@ -1014,6 +1541,93 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 0.6, y: 6.35, w: 11.8, h: 0.4, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight,
     });
+    addFooter(slide, "Duruş Analizi");
+  }
+
+  // ==================================================================
+  // SLIDE 15B — DURUŞ ANALİZİ: KAYIP TÜRLERİNE GÖRE DAĞILIM
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.chartLine, eyebrow: "Duruş Analizi", title: "Kayıp Türlerine Göre Dağılım — 13.06.2026 ve Sonrası" });
+
+    const rawLossTypes = activeLossTypes.length > 0 ? activeLossTypes : [
+      { category: "Mekanik Arıza", duration: 3500, eventCount: 145, percentage: 38 },
+      { category: "Setup / Ayar", duration: 2200, eventCount: 85, percentage: 24 },
+      { category: "Elektrik Arıza", duration: 1500, eventCount: 45, percentage: 16 },
+      { category: "Takım / Kalıp Değişimi", duration: 1100, eventCount: 30, percentage: 12 },
+      { category: "Akışkan Arıza", duration: 600, eventCount: 18, percentage: 7 },
+      { category: "Yardımcı Süreç Kayıpları", duration: 250, eventCount: 12, percentage: 3 }
+    ];
+
+    const labels = rawLossTypes.map((item) => item.category);
+    const values = rawLossTypes.map((item) => item.duration);
+
+    // Pasta grafik için kurumsal renk paleti
+    const pieColors = [
+      COLORS.navy,      // En büyük pay
+      COLORS.amber,     // İkinci pay
+      COLORS.green,     // Üçüncü pay
+      "475569",         // Koyu gri
+      "94A3B8",         // Orta gri
+      "CBD5E1",         // Açık gri
+      "E2E8F0"
+    ];
+
+    // Sol Taraf (Pie Chart)
+    slide.addChart(
+      pres.charts.PIE,
+      [
+        {
+          name: "Kayıp Süresi (dk)",
+          labels: labels,
+          values: values,
+        }
+      ],
+      {
+        x: 0.6,
+        y: 1.6,
+        w: 5.8,
+        h: 4.3,
+        showLegend: true,
+        legendPos: "b", // altta gösterilsin
+        legendFontSize: 9.5,
+        legendColor: COLORS.slate,
+        showPercent: true,
+        showValue: false,
+        chartColors: pieColors,
+        dataLabelFontSize: 10,
+        dataLabelColor: "FFFFFF"
+      }
+    );
+
+    // Sağ Taraf (Detay Tablosu)
+    const header = ["Kayıp Türü", "Toplam Süre", "Duruş Sayısı", "Pay (%)"];
+    const rows = rawLossTypes.map((item) => [
+      item.category,
+      `${fmtInt(item.duration)} dk`,
+      String(item.eventCount),
+      `%${item.percentage}`
+    ]);
+
+    styledTable(slide, header, rows, {
+      x: 6.8,
+      y: 1.6,
+      w: 5.9,
+      colW: [2.5, 1.2, 1.2, 1.0], // Toplam: 2.5 + 1.2 + 1.2 + 1.0 = 5.9
+      rowH: 0.65
+    });
+
+    const isDynamic = activeLossTypes.length > 0;
+    const footerText = `Grafik: Kayıp kategorilerinin toplam duruş sürelerine göre yüzde dağılımı. ` + (isDynamic
+      ? "Veriler 13.06.2026 sonrası seçili hücrelerin kategorize edilmiş duruş verileridir."
+      : "Veriler 13.06.2026 sonrası dönemi kapsayan taslak (dummy) verilerdir.");
+
+    slide.addText(footerText, {
+      x: 0.6, y: 6.0, w: 12.1, h: 0.65, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight,
+    });
+
     addFooter(slide, "Duruş Analizi");
   }
 

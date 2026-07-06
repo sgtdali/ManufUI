@@ -6,6 +6,21 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 ---
 
 
+## [2026-07-06] update | Zamana Bağlı Ortalama Üretim Değişimi Trend Slaydı ve Çift Dışlama Entegrasyonu
+
+**Yapılanlar:**
+- **Zamana Bağlı Ortalama Üretim Değişimi Trend Slaydı:** PPTX sunumuna, hattaki aktif hücrelerin günlük ortalama üretim trendini karşılaştırmalı olarak gösteren yeni bir slayt eklendi.
+- **Dönemsel Grafik Ayrımı (Yan Yana Çift Grafik):** Nisan–Mayıs ve Haziran–Temmuz (13 Haziran sonrası) dönemleri tek bir birleşik grafik yerine, yan yana iki ayrı çizgi grafik (Line Chart) olarak tasarlandı.
+- **Çift Katmanlı Dışlama Entegrasyonu:** Trend hesaplamasında hem OEE planlı süre dışlamaları (`oee-slot-exclusions.json`) hem de 4590 portundaki seçim arayüzünden yapılan ana dönem dışlama seçimleri (`selection.json` -> `exclusionsNm`, `exclusionsHt`) entegre edildi.
+- **Aktif Hücrelere Göre Ortalama (Dinamik Payda):** Günlük ortalama hesaplanırken, günlük toplam üretim sadece o gün dışlanmamış aktif slotu bulunan hücre sayısına bölünerek hesaplandı.
+- **Tarih Kısıtlamaları ve Dışlamalar:** 
+  - Haziran başındaki veri boşluğunu önlemek amacıyla `01.06.2026 - 12.06.2026` aralığı hesaptan çıkarıldı (13.06.2026 dahil edildi).
+  - Özel istek üzerine `20.06.2026` ve verisi eksik olan `06.07.2026` (bugün) tarihleri trend hesaplarından hariç tutuldu.
+- **Amber Renkli Doğrusal Trend Çizgileri:** Her iki çizgi grafiğe de en küçük kareler yöntemiyle (linear regression) hesaplanan doğrusal trend çizgileri eklenerek `COLORS.amber` (turuncu/kehribar) rengiyle belirginleştirildi. Eksen çakışmasını önlemek için `catLabelInterval` parametreleri (Nisan-Mayıs için 6, Haziran-Temmuz için 3) uygulandı.
+- **Dokümantasyon:** Wiki sistemi üzerindeki `systems/ust-yonetim-sunumu.md` ve `log.md` sayfaları oturum adımları doğrultusunda güncellendi.
+
+---
+
 ## [2026-07-05] feature | Üst Yönetim Sunumu: Hücre Hariç Tutma, Slayt Sadeleştirme ve Arıza Olay Gruplama
 
 **Kaynak:** Kullanıcı konuşması + `docs/sunumlar/build/build.js`, `docs/sunumlar/build/tool/dataService.js`, `docs/sunumlar/build/tool/server.js`, `docs/sunumlar/build/tool/public/app.js`, `docs/sunumlar/build/tool/public/index.html`, `docs/sunumlar/build/tool/public/style.css`

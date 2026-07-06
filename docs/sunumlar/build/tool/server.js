@@ -19,6 +19,8 @@ const OEE_DATE_RANGE_PATH = path.join(DATA_DIR, "oee-date-range.json");
 const OEE_TARGET_OVERRIDES_PATH = path.join(DATA_DIR, "oee-target-overrides.json");
 const ARIZA_EVENT_LINKS_PATH = path.join(DATA_DIR, "ariza-event-links.json");
 const ARIZA_FALSE_POSITIVES_PATH = path.join(DATA_DIR, "ariza-false-positives.json");
+const KAYIP_ANALIZI_PATH = path.join(DATA_DIR, "kayip-analizi.json");
+const KAYIP_ANALIZI_DATA_PATH = path.join(DATA_DIR, "kayip-analizi-data.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const BUILD_DIR = path.join(__dirname, "..");
 
@@ -104,6 +106,17 @@ function loadArizaFalsePositives() {
 function saveArizaFalsePositives(list) {
   ensureDataDir();
   fs.writeFileSync(ARIZA_FALSE_POSITIVES_PATH, JSON.stringify(list, null, 2), "utf8");
+}
+
+function loadKayipAnalizi() {
+  ensureDataDir();
+  if (!fs.existsSync(KAYIP_ANALIZI_PATH)) return {};
+  return JSON.parse(fs.readFileSync(KAYIP_ANALIZI_PATH, "utf8"));
+}
+
+function saveKayipAnalizi(data) {
+  ensureDataDir();
+  fs.writeFileSync(KAYIP_ANALIZI_PATH, JSON.stringify(data || {}, null, 2), "utf8");
 }
 
 function sendJson(res, status, obj) {
@@ -237,13 +250,23 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
-    if (req.method === "GET" && url.pathname === "/api/ariza-false-positives") {
+        if (req.method === "GET" && url.pathname === "/api/ariza-false-positives") {
       return sendJson(res, 200, { keys: loadArizaFalsePositives() });
     }
 
     if (req.method === "POST" && url.pathname === "/api/ariza-false-positives") {
       const body = await readBody(req);
       saveArizaFalsePositives(body.keys || []);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/kayip-analizi") {
+      return sendJson(res, 200, loadKayipAnalizi());
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/kayip-analizi") {
+      const body = await readBody(req);
+      saveKayipAnalizi(body || {});
       return sendJson(res, 200, { ok: true });
     }
 
@@ -254,6 +277,7 @@ const server = http.createServer(async (req, res) => {
       const targetOverrides = loadTargetOverrides();
       const arizaEventLinks = loadArizaEventLinks();
       const arizaFalsePositives = loadArizaFalsePositives();
+      const kayipOverrides = loadKayipAnalizi();
       const overviewData = await computeOverviewData({
         periods: sel.periods,
         exclusionsNm: sel.exclusionsNm || [],
@@ -273,10 +297,16 @@ const server = http.createServer(async (req, res) => {
         periods: sel.periods,
         exclusionsHt: sel.exclusionsHt || [],
       });
+      
+      // Kayıp Analizi Pareto verilerini 13.06.2026 sonrası için derleme
+      const { computeKayipAnaliziData } = require("./dataService");
+      const kayipAnaliziData = await computeKayipAnaliziData(kayipOverrides);
+
       ensureDataDir();
       fs.writeFileSync(OVERVIEW_PATH, JSON.stringify(overviewData, null, 2), "utf8");
       fs.writeFileSync(OEE_MTBF_MTTR_PATH, JSON.stringify(oeeMtbfMttrData, null, 2), "utf8");
       fs.writeFileSync(TOTAL_PRODUCTION_PATH, JSON.stringify(totalProductionData, null, 2), "utf8");
+      fs.writeFileSync(KAYIP_ANALIZI_DATA_PATH, JSON.stringify(kayipAnaliziData, null, 2), "utf8");
 
       const child = spawn(process.execPath, ["build.js"], { cwd: BUILD_DIR });
       let out = "";

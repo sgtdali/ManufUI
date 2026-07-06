@@ -15,6 +15,8 @@
     <button class="mode-btn active" data-mode="data">Üretim Verisi Seçimi</button>
     <button class="mode-btn" data-mode="oee">OEE — Planlı Süre</button>
     <button class="mode-btn" data-mode="ariza">Arıza Olay Gruplama</button>
+    <button class="mode-btn" data-mode="kayip">Kayıp Analizi</button>
+    <button class="mode-btn" data-mode="kayip2">Kayıp Analizi 2</button>
   </nav>
 
   <div id="dataView">
@@ -73,6 +75,36 @@
       <p class="hint-text">Sadece arızalı saatler listelenir. <strong>"Gerçek Arıza mı?"</strong> kutusunun işaretini kaldırırsan (girişi yanlışlıkla arıza kategorisine yazılmış bir kayıt olduğunu düşünüyorsan) o saat MTBF/MTTR hesabından (dakika + olay) tamamen çıkar — Supabase'deki veri değişmez, sadece Availability/OEE bu kolonu ayrı işlemeye devam eder. "Talaş Arabası Dolu" / "Bor Yağı Bitti" gibi bilinen arıza-olmayan türler zaten <strong>"Hayır (otomatik)"</strong> olarak işaretlidir (elle değiştirilemez — bu tür `dataService.js:NON_BREAKDOWN_ARIZA_TYPES` listesinden gelir, aynı zamanda Availability hesabından da hariç tutulur). Gerçek arıza olarak kalan saatlerden ardışık ikisi aynı arızanın devamıysa <strong>"Aynı arızanın devamı"</strong> kutusunu işaretle — işaretlenen saat ayrı bir olay sayılmaz, bir önceki saatle birleşir. Hiçbir şeyi işaretlemezsen (varsayılan) mevcut MTBF/MTTR hesabı hiç değişmez.</p>
     </section>
     <main id="arizaGrid" class="grid"></main>
+  </div>
+
+  <div id="kayipView" class="hidden">
+    <section class="range-bar">
+      <label>Hücre
+        <select id="kayipCellSelect"></select>
+      </label>
+      <label>Başlangıç <input type="date" id="kayipRangeStart" /></label>
+      <label>Bitiş <input type="date" id="kayipRangeEnd" /></label>
+      <span id="kayipLiveSummary" class="oee-live-metric"></span>
+    </section>
+    <section class="range-bar oee-hint-bar">
+      <p class="hint-text">13.06.2026 sonrası tüm duruş kayıtları listelenir. Duruş kayıtlarını bu panelden kategorize edebilir, kök neden ve önleyici aksiyon ekleyebilirsiniz. Bu veriler localde saklanır, Supabase'deki veriler değişmez. Bu veriler sunumdaki Pareto grafiği ve detay tablosunu besler.</p>
+    </section>
+    <main id="kayipGrid" class="grid"></main>
+  </div>
+
+  <div id="kayip2View" class="hidden">
+    <section class="range-bar">
+      <label>Kayıp Türü
+        <select id="kayip2LossTypeSelect"></select>
+      </label>
+      <label>Başlangıç <input type="date" id="kayip2RangeStart" /></label>
+      <label>Bitiş <input type="date" id="kayip2RangeEnd" /></label>
+      <span id="kayip2LiveSummary" class="oee-live-metric"></span>
+    </section>
+    <section class="range-bar oee-hint-bar">
+      <p class="hint-text">Seçilen kayıp türüne uyan tüm hücrelerdeki duruş kayıtları listelenir. Buradaki "Dahil" checkbox'ı ve kök neden/aksiyon girdileri ilk Kayıp Analizi sekmesiyle entegre çalışır (birinde yapılan değişiklik diğerini de anında günceller).</p>
+    </section>
+    <main id="kayip2Grid" class="grid"></main>
   </div>
 
   <footer class="actionbar">

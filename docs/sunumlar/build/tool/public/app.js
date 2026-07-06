@@ -83,6 +83,16 @@
       saveTimer: null,
       fpSaveTimer: null,
     },
+    kayip: {
+      cell: null,
+      detailByDate: {}, // { [tarih]: [row, ...] }
+      overrides: {}, // { [slotKey]: { kategori, kokNeden, onleyiciAksiyon } }
+      saveTimer: null,
+    },
+    kayip2: {
+      lossType: "Mekanik Arıza",
+      allData: [], // [{ cell, date, row }, ...]
+    },
   };
 
   const el = {
@@ -109,6 +119,18 @@
     arizaRangeStart: document.getElementById("arizaRangeStart"),
     arizaRangeEnd: document.getElementById("arizaRangeEnd"),
     arizaLiveSummary: document.getElementById("arizaLiveSummary"),
+    kayipView: document.getElementById("kayipView"),
+    kayipGrid: document.getElementById("kayipGrid"),
+    kayipCellSelect: document.getElementById("kayipCellSelect"),
+    kayipRangeStart: document.getElementById("kayipRangeStart"),
+    kayipRangeEnd: document.getElementById("kayipRangeEnd"),
+    kayipLiveSummary: document.getElementById("kayipLiveSummary"),
+    kayip2View: document.getElementById("kayip2View"),
+    kayip2Grid: document.getElementById("kayip2Grid"),
+    kayip2LossTypeSelect: document.getElementById("kayip2LossTypeSelect"),
+    kayip2RangeStart: document.getElementById("kayip2RangeStart"),
+    kayip2RangeEnd: document.getElementById("kayip2RangeEnd"),
+    kayip2LiveSummary: document.getElementById("kayip2LiveSummary"),
     summaryBar: document.getElementById("summaryBar"),
     status: document.getElementById("status"),
     generateBtn: document.getElementById("generateBtn"),
@@ -163,6 +185,39 @@
     el.arizaRangeStart.value = rangeRes.start;
     el.arizaRangeEnd.value = rangeRes.end;
     populateArizaCellSelect();
+
+    const kayipRes = await fetch("/api/kayip-analizi").then((r) => r.json());
+    state.kayip.overrides = kayipRes || {};
+    el.kayipRangeStart.value = rangeRes.start;
+    el.kayipRangeEnd.value = rangeRes.end;
+    populateKayipCellSelect();
+
+    el.kayip2RangeStart.value = rangeRes.start;
+    el.kayip2RangeEnd.value = rangeRes.end;
+    populateKayip2LossTypeSelect();
+
+    el.kayip2LossTypeSelect.addEventListener("change", () => {
+      state.kayip2.lossType = el.kayip2LossTypeSelect.value;
+      renderKayip2Detail();
+    });
+
+    el.kayip2RangeStart.addEventListener("change", async () => {
+      state.oee.dateRange.start = el.kayip2RangeStart.value;
+      el.oeeRangeStart.value = el.kayip2RangeStart.value;
+      el.arizaRangeStart.value = el.kayip2RangeStart.value;
+      el.kayipRangeStart.value = el.kayip2RangeStart.value;
+      scheduleOeeRangeSave();
+      await loadKayip2Detail();
+    });
+
+    el.kayip2RangeEnd.addEventListener("change", async () => {
+      state.oee.dateRange.end = el.kayip2RangeEnd.value;
+      el.oeeRangeEnd.value = el.kayip2RangeEnd.value;
+      el.arizaRangeEnd.value = el.kayip2RangeEnd.value;
+      el.kayipRangeEnd.value = el.kayip2RangeEnd.value;
+      scheduleOeeRangeSave();
+      await loadKayip2Detail();
+    });
   }
 
   function scheduleOeeRangeSave() {
@@ -183,11 +238,15 @@
     state.oee.dateRange = { start, end };
     el.arizaRangeStart.value = start;
     el.arizaRangeEnd.value = end;
+    el.kayipRangeStart.value = start;
+    el.kayipRangeEnd.value = end;
     scheduleOeeRangeSave();
     if (state.oee.cell) await loadOeeCellDetail(state.oee.cell);
     else renderOeeDetail();
     if (state.ariza.cell) await loadArizaCellDetail(state.ariza.cell);
     else renderArizaDetail();
+    if (state.kayip.cell) await loadKayipCellDetail(state.kayip.cell);
+    else renderKayipDetail();
   }
 
   el.oeeRangeStart.addEventListener("change", handleOeeRangeChange);
@@ -202,15 +261,40 @@
     state.oee.dateRange = { start, end };
     el.oeeRangeStart.value = start;
     el.oeeRangeEnd.value = end;
+    el.kayipRangeStart.value = start;
+    el.kayipRangeEnd.value = end;
     scheduleOeeRangeSave();
     if (state.ariza.cell) await loadArizaCellDetail(state.ariza.cell);
     else renderArizaDetail();
     if (state.oee.cell) await loadOeeCellDetail(state.oee.cell);
     else renderOeeDetail();
+    if (state.kayip.cell) await loadKayipCellDetail(state.kayip.cell);
+    else renderKayipDetail();
   }
 
   el.arizaRangeStart.addEventListener("change", handleArizaRangeChange);
   el.arizaRangeEnd.addEventListener("change", handleArizaRangeChange);
+
+  async function handleKayipRangeChange() {
+    const start = el.kayipRangeStart.value;
+    const end = el.kayipRangeEnd.value;
+    if (!start || !end || start > end) return;
+    state.oee.dateRange = { start, end };
+    el.oeeRangeStart.value = start;
+    el.oeeRangeEnd.value = end;
+    el.arizaRangeStart.value = start;
+    el.arizaRangeEnd.value = end;
+    scheduleOeeRangeSave();
+    if (state.kayip.cell) await loadKayipCellDetail(state.kayip.cell);
+    else renderKayipDetail();
+    if (state.oee.cell) await loadOeeCellDetail(state.oee.cell);
+    else renderOeeDetail();
+    if (state.ariza.cell) await loadArizaCellDetail(state.ariza.cell);
+    else renderArizaDetail();
+  }
+
+  el.kayipRangeStart.addEventListener("change", handleKayipRangeChange);
+  el.kayipRangeEnd.addEventListener("change", handleKayipRangeChange);
 
   function populateOeeCellSelect() {
     el.oeeCellSelect.innerHTML = state.cells
@@ -267,6 +351,62 @@
   el.arizaCellSelect.addEventListener("change", () => {
     loadArizaCellDetail(el.arizaCellSelect.value);
   });
+
+  function populateKayipCellSelect() {
+    el.kayipCellSelect.innerHTML = state.cells
+      .map((c) => `<option value="${c}">${c.replace(" Hücresi", "")}</option>`)
+      .join("");
+    el.kayipCellSelect.value = state.cells[0];
+    loadKayipCellDetail(state.cells[0]);
+  }
+
+  function populateKayip2LossTypeSelect() {
+    const categories = [
+      "Mekanik Arıza",
+      "Elektrik Arıza",
+      "Akışkan Arıza",
+      "Setup / Ayar",
+      "Takım / Kalıp Değişimi",
+      "Yardımcı Süreç Kayıpları",
+      "Müşteri Kaynaklı",
+      "Kalite Kaynaklı",
+      "Diğer"
+    ];
+    el.kayip2LossTypeSelect.innerHTML = categories
+      .map(c => `<option value="${c}">${c}</option>`)
+      .join("");
+    state.kayip2.lossType = categories[0];
+  }
+
+  async function loadKayipCellDetail(cell) {
+    state.kayip.cell = cell;
+    el.kayipGrid.innerHTML = `<p class="hint-text">Yükleniyor…</p>`;
+    const params = new URLSearchParams({ cell });
+    if (state.oee.dateRange) {
+      params.set("start", state.oee.dateRange.start);
+      params.set("end", state.oee.dateRange.end);
+    }
+    const httpRes = await fetch(`/api/cell-detail?${params.toString()}`);
+    const res = await httpRes.json();
+    if (!httpRes.ok) throw new Error(res.error || `Sunucu hatası (${httpRes.status})`);
+    state.kayip.detailByDate = res.byDate;
+    renderKayipDetail();
+  }
+
+  el.kayipCellSelect.addEventListener("change", () => {
+    loadKayipCellDetail(el.kayipCellSelect.value);
+  });
+
+  function scheduleKayipSave() {
+    clearTimeout(state.kayip.saveTimer);
+    state.kayip.saveTimer = setTimeout(async () => {
+      await fetch("/api/kayip-analizi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(state.kayip.overrides),
+      });
+    }, 500);
+  }
 
   function scheduleArizaLinksSave() {
     clearTimeout(state.ariza.saveTimer);
@@ -791,9 +931,12 @@
 
   // Bir saatlik satırda oluşan duruşları okunabilir tek satırlık özet haline getirir:
   // "Arıza 30dk (M — Calor konveyör kaynaklı duruş); Mola 10dk" gibi.
-  function buildDurusSummary(row) {
+  function buildDurusSummary(row, excludeMola = false, excludeBekleme = false, excludeKasaAlma = false) {
     const parts = [];
     state.oee.downtimeFields.forEach(({ key, label, turKey, aciklamaKey }) => {
+      if (excludeMola && key === "mola") return;
+      if (excludeBekleme && key === "onceki_istasyon_bekleme") return;
+      if (excludeKasaAlma && key === "planli_durus" && row.planli_durus_turu === "Kasa Alma - Bırakma") return;
       const minutes = row[key];
       if (!minutes) return;
       const extra = [];
@@ -1147,6 +1290,526 @@
     updateArizaLiveSummary();
   }
 
+  function isYardimciSurec(row) {
+    const searchStr = [
+      row.ariza_aciklamasi,
+      row.planli_durus_aciklamasi,
+      row.planli_durus_turu,
+      row.ariza_turu,
+      row.ariza_turu_detay,
+      row.durus_detayi
+    ].join(" ").toLowerCase();
+    return searchStr.includes("talaş arabası dolu") || searchStr.includes("bor yağı bitti");
+  }
+
+  function getDefaultCategory(row) {
+    if (isYardimciSurec(row)) return "Yardımcı Süreç Kayıpları";
+    if (row.ariza > 0) {
+      const t = row.ariza_turu || "";
+      if (t === "E" || t.includes("Elektrik")) return "Elektrik Arıza";
+      if (t === "M" || t.includes("Mekanik")) return "Mekanik Arıza";
+      if (t === "A" || t.includes("Akışkan")) return "Akışkan Arıza";
+      return "Mekanik Arıza";
+    }
+    if (row.setup_ve_ayar > 0) return "Setup / Ayar";
+    if (row.takim_degisimi > 0 || row.kalip_demontaj > 0 || row.kalip_montaj > 0) return "Takım / Kalıp Değişimi";
+    if (row.mola > 0) return "Mola";
+    if (row.onceki_istasyon_bekleme > 0) return "Önceki İstasyon Bekleme";
+    if (row.musteri_kaynakli_durus > 0) return "Müşteri Kaynaklı";
+    if (row.kalite_kaynakli_durus > 0) return "Kalite Kaynaklı";
+    return "Diğer";
+  }
+
+  function splitDowntimeRow(cell, date, row) {
+    const fields = [
+      "ariza",
+      "planli_durus",
+      "setup_ve_ayar",
+      "takim_degisimi",
+      "kalip_demontaj",
+      "kalip_montaj",
+      "musteri_kaynakli_durus",
+      "kalite_kaynakli_durus"
+    ];
+
+    const getFieldValue = (r, field) => {
+      if (field === "planli_durus" && r.planli_durus_turu === "Kasa Alma - Bırakma") return 0;
+      return r[field] || 0;
+    };
+
+    const activeDowntimes = fields.filter(f => getFieldValue(row, f) > 0);
+    if (activeDowntimes.length === 0) return [];
+
+    return activeDowntimes.map(field => {
+      const virtualRow = {
+        zaman_dilimi: row.zaman_dilimi,
+        sira_no: row.sira_no,
+        ariza: 0,
+        planli_durus: 0,
+        setup_ve_ayar: 0,
+        takim_degisimi: 0,
+        kalip_demontaj: 0,
+        kalip_montaj: 0,
+        musteri_kaynakli_durus: 0,
+        kalite_kaynakli_durus: 0,
+      };
+      
+      virtualRow[field] = row[field];
+      if (field === "ariza") {
+        virtualRow.ariza_turu = row.ariza_turu;
+        virtualRow.ariza_aciklama = row.ariza_aciklama;
+      } else if (field === "planli_durus") {
+        virtualRow.planli_durus_turu = row.planli_durus_turu;
+        virtualRow.planli_durus_aciklama = row.planli_durus_aciklama;
+      } else if (field === "setup_ve_ayar") {
+        virtualRow.setup_turu = row.setup_turu;
+        virtualRow.setup_aciklama = row.setup_aciklama;
+      } else if (field === "takim_degisimi") {
+        virtualRow.takim_degisim_turu = row.takim_degisim_turu;
+      } else if (field === "kalip_demontaj") {
+        virtualRow.kalip_demontaj_turu = row.kalip_demontaj_turu;
+      } else if (field === "kalip_montaj") {
+        virtualRow.kalip_montaj_turu = row.kalip_montaj_turu;
+      } else if (field === "musteri_kaynakli_durus") {
+        virtualRow.musteri_durus_turu = row.musteri_durus_turu;
+        virtualRow.musteri_durus_aciklama = row.musteri_durus_aciklama;
+      }
+
+      const key = `${cell}||${date}||${row.zaman_dilimi}||${field}`;
+      return {
+        field,
+        key,
+        row: virtualRow
+      };
+    });
+  }
+
+  function renderKayipDetail() {
+    const cell = state.kayip.cell;
+    const byDate = state.kayip.detailByDate;
+    const range = state.oee.dateRange;
+    const minDate = "2026-06-13"; // Sadece 13.06.2026 ve sonrası
+    const dates = Object.keys(byDate)
+      .filter((d) => d >= minDate && (!range || (d >= range.start && d <= range.end)))
+      .sort();
+
+    const container = document.createElement("div");
+    container.className = "oee-detail";
+    let anyDowntime = false;
+
+    const categories = [
+      "Mekanik Arıza",
+      "Elektrik Arıza",
+      "Akışkan Arıza",
+      "Setup / Ayar",
+      "Takım / Kalıp Değişimi",
+      "Yardımcı Süreç Kayıpları",
+      "Müşteri Kaynaklı",
+      "Kalite Kaynaklı",
+      "Diğer"
+    ];
+
+    dates.forEach((date) => {
+      const rows = byDate[date];
+      const downtimeRows = [];
+      rows.forEach((row) => {
+        const splits = splitDowntimeRow(cell, date, row);
+        downtimeRows.push(...splits);
+      });
+      if (downtimeRows.length === 0) return;
+      anyDowntime = true;
+
+      const dayDiv = document.createElement("div");
+      dayDiv.className = "oee-day";
+
+      const header = document.createElement("div");
+      header.className = "oee-day-header";
+      header.innerHTML = `<span class="oee-day-chevron">▶</span> <strong>${date}</strong> <span class="oee-day-badge">${downtimeRows.length} duruş kaydı</span>`;
+      dayDiv.appendChild(header);
+
+      const table = document.createElement("table");
+      table.className = "oee-detail-table hidden";
+      table.innerHTML = `<thead><tr><th style="width: 6%">Dahil</th><th style="width: 8%">Saat</th><th style="width: 28%">Duruş Detayı</th><th style="width: 18%">Kategori</th><th style="width: 20%">Kök Neden</th><th style="width: 20%">Önleyici Aksiyon</th></tr></thead>`;
+      const tbody = document.createElement("tbody");
+
+      downtimeRows.forEach((item) => {
+        const { row, key, field } = item;
+        const tr = document.createElement("tr");
+
+        const oldKey = slotKey(cell, date, row.zaman_dilimi);
+        const override = state.kayip.overrides[key] || state.kayip.overrides[oldKey] || {};
+        const isIncluded = override.dahilEt !== false;
+        tr.classList.toggle("excluded", !isIncluded);
+
+        // Dahil Et Checkbox
+        const dahilTd = document.createElement("td");
+        dahilTd.className = "ariza-link-cell";
+        dahilTd.innerHTML = `<input type="checkbox" ${isIncluded ? "checked" : ""} />`;
+        dahilTd.querySelector("input").addEventListener("change", (e) => {
+          if (!state.kayip.overrides[key]) state.kayip.overrides[key] = {};
+          state.kayip.overrides[key].dahilEt = e.target.checked;
+          tr.classList.toggle("excluded", !e.target.checked);
+          scheduleKayipSave();
+          updateKayipLiveSummary();
+        });
+        tr.appendChild(dahilTd);
+
+        const saatTd = document.createElement("td");
+        saatTd.textContent = row.zaman_dilimi;
+        tr.appendChild(saatTd);
+
+        const detayTd = document.createElement("td");
+        detayTd.className = "oee-summary-cell";
+        detayTd.textContent = buildDurusSummary(row, true, true, true);
+        tr.appendChild(detayTd);
+
+        // Kategori Dropdown
+        const katTd = document.createElement("td");
+        const select = document.createElement("select");
+        select.style.width = "100%";
+        select.style.padding = "4px";
+        select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join("");
+        
+        // Varsayılan kategori tespiti
+        const defaultCat = getDefaultCategory(row);
+        select.value = override.kategori || defaultCat;
+        
+        select.addEventListener("change", () => {
+          if (!state.kayip.overrides[key]) state.kayip.overrides[key] = {};
+          state.kayip.overrides[key].kategori = select.value;
+          scheduleKayipSave();
+          updateKayipLiveSummary();
+        });
+        katTd.appendChild(select);
+        tr.appendChild(katTd);
+
+        // Kök Neden Input
+        const kokTd = document.createElement("td");
+        const kokInput = document.createElement("input");
+        kokInput.type = "text";
+        kokInput.style.width = "95%";
+        kokInput.style.padding = "4px";
+        kokInput.placeholder = "Kök neden yazın...";
+        kokInput.value = override.kokNeden || "";
+        kokInput.addEventListener("input", () => {
+          if (!state.kayip.overrides[key]) state.kayip.overrides[key] = {};
+          state.kayip.overrides[key].kokNeden = kokInput.value;
+          scheduleKayipSave();
+        });
+        kokTd.appendChild(kokInput);
+        tr.appendChild(kokTd);
+
+        // Önleyici Aksiyon Input
+        const aksTd = document.createElement("td");
+        const aksInput = document.createElement("input");
+        aksInput.type = "text";
+        aksInput.style.width = "95%";
+        aksInput.style.padding = "4px";
+        aksInput.placeholder = "Önleyici aksiyon yazın...";
+        aksInput.value = override.onleyiciAksiyon || "";
+        aksInput.addEventListener("input", () => {
+          if (!state.kayip.overrides[key]) state.kayip.overrides[key] = {};
+          state.kayip.overrides[key].onleyiciAksiyon = aksInput.value;
+          scheduleKayipSave();
+        });
+        aksTd.appendChild(aksInput);
+        tr.appendChild(aksTd);
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      dayDiv.appendChild(table);
+      container.appendChild(dayDiv);
+
+      header.addEventListener("click", () => {
+        const isHidden = table.classList.toggle("hidden");
+        header.querySelector(".oee-day-chevron").textContent = isHidden ? "▶" : "▼";
+      });
+    });
+
+    if (!anyDowntime) {
+      el.kayipGrid.innerHTML = `<p class="hint-text">13.06.2026 sonrası duruş kaydı bulunamadı.</p>`;
+    } else {
+      el.kayipGrid.innerHTML = "";
+      el.kayipGrid.appendChild(container);
+    }
+    updateKayipLiveSummary();
+  }
+
+  function updateKayipLiveSummary() {
+    const cell = state.kayip.cell;
+    const byDate = state.kayip.detailByDate;
+    const range = state.oee.dateRange;
+    const minDate = "2026-06-13";
+    if (!cell) { el.kayipLiveSummary.innerHTML = ""; return; }
+    
+    let totalDowntimeMinutes = 0;
+    let categorizedCount = 0;
+    let totalDowntimeCount = 0;
+    let excludedCount = 0;
+
+    Object.entries(byDate).forEach(([date, rows]) => {
+      if (date < minDate || (range && (date < range.start || date > range.end))) return;
+      rows.forEach(row => {
+        const splits = splitDowntimeRow(cell, date, row);
+        splits.forEach(item => {
+          totalDowntimeCount += 1;
+          totalDowntimeMinutes += item.row[item.field] || 0;
+
+          const oldKey = slotKey(cell, date, row.zaman_dilimi);
+          const override = state.kayip.overrides[item.key] || state.kayip.overrides[oldKey] || {};
+          if (override.dahilEt === false) {
+            excludedCount += 1;
+          }
+          if (override.kategori || override.kokNeden || override.onleyiciAksiyon) {
+            categorizedCount += 1;
+          }
+        });
+      });
+    });
+
+    const exclNote = excludedCount ? ` (${excludedCount} hariç tutuldu)` : "";
+    el.kayipLiveSummary.textContent = `${totalDowntimeCount} duruş kalemi (~${Math.round(totalDowntimeMinutes)} dk)${exclNote} · ${categorizedCount} adedi özelleştirildi`;
+  }
+
+  async function loadKayip2Detail() {
+    el.kayip2Grid.innerHTML = `<p class="hint-text">Tüm hücre verileri yükleniyor…</p>`;
+    const activeCells = state.cells.filter(c => c !== "Fosfat Hücresi" && c !== "Boya Hücresi");
+    
+    try {
+      const fetchPromises = activeCells.map(async (cell) => {
+        const params = new URLSearchParams({ cell });
+        if (state.oee.dateRange) {
+          params.set("start", state.oee.dateRange.start);
+          params.set("end", state.oee.dateRange.end);
+        }
+        const httpRes = await fetch(`/api/cell-detail?${params.toString()}`);
+        const res = await httpRes.json();
+        return { cell, byDate: res.byDate || {} };
+      });
+      
+      const results = await Promise.all(fetchPromises);
+      
+      const allData = [];
+      results.forEach(({ cell, byDate }) => {
+        Object.entries(byDate).forEach(([date, rows]) => {
+          rows.forEach(row => {
+            allData.push({ cell, date, row });
+          });
+        });
+      });
+      
+      state.kayip2.allData = allData;
+      renderKayip2Detail();
+    } catch (e) {
+      el.kayip2Grid.innerHTML = `<p class="hint-text error">Veri yüklenirken hata oluştu: ${e.message}</p>`;
+    }
+  }
+
+  function renderKayip2Detail() {
+    const selectedType = state.kayip2.lossType;
+    const allData = state.kayip2.allData || [];
+    const minDate = "2026-06-13";
+    const range = state.oee.dateRange;
+
+    // Her satırı split edip düzleştirelim (flatten)
+    const flattened = [];
+    allData.forEach(({ cell, date, row }) => {
+      if (date < minDate || (range && (date < range.start || date > range.end))) return;
+      const splits = splitDowntimeRow(cell, date, row);
+      splits.forEach(item => {
+        flattened.push({
+          cell,
+          date,
+          row: item.row,
+          key: item.key,
+          field: item.field
+        });
+      });
+    });
+
+    // Seçilen kayıp türüne uyan kayıtları süz
+    const filtered = flattened.filter(({ cell, date, row, key }) => {
+      const oldKey = `${cell}||${date}||${row.zaman_dilimi}`;
+      const override = state.kayip.overrides[key] || state.kayip.overrides[oldKey] || {};
+      const category = override.kategori || getDefaultCategory(row);
+      return category === selectedType;
+    });
+
+    if (filtered.length === 0) {
+      el.kayip2Grid.innerHTML = `<p class="hint-text">Bu kayıp türüne uyan duruş kaydı bulunamadı.</p>`;
+      updateKayip2LiveSummary(filtered);
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.className = "oee-detail-table";
+
+    const thead = document.createElement("thead");
+    thead.innerHTML = `
+      <tr>
+        <th style="width: 50px; text-align: center;">Dahil</th>
+        <th style="width: 130px;">Hücre</th>
+        <th style="width: 100px;">Tarih</th>
+        <th style="width: 80px;">Saat</th>
+        <th style="width: 250px;">Duruş Detayı</th>
+        <th style="width: 180px;">Kategori</th>
+        <th style="width: 220px;">Kök Neden</th>
+        <th style="width: 220px;">Önleyici Aksiyon</th>
+      </tr>
+    `;
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    
+    // Tarihe göre tersten, sonra saate göre sırala
+    filtered.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return a.row.zaman_dilimi.localeCompare(b.row.zaman_dilimi);
+    });
+
+    filtered.forEach(({ cell, date, row, key, field }) => {
+      const oldKey = `${cell}||${date}||${row.zaman_dilimi}`;
+      const override = state.kayip.overrides[key] || state.kayip.overrides[oldKey] || {};
+      const isExcluded = override.dahilEt === false;
+
+      const tr = document.createElement("tr");
+      if (isExcluded) tr.classList.add("excluded");
+
+      // Checkbox
+      const chkTd = document.createElement("td");
+      chkTd.className = "oee-check-cell";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = !isExcluded;
+      checkbox.addEventListener("change", () => {
+        if (!state.kayip.overrides[key]) state.kayip.overrides[key] = {};
+        state.kayip.overrides[key].dahilEt = checkbox.checked;
+        tr.classList.toggle("excluded", !checkbox.checked);
+        scheduleKayipSave();
+        updateKayip2LiveSummary(filtered);
+      });
+      chkTd.appendChild(checkbox);
+      tr.appendChild(chkTd);
+
+      // Hücre
+      const cellTd = document.createElement("td");
+      cellTd.textContent = cell.replace(" Hücresi", "");
+      tr.appendChild(cellTd);
+
+      // Tarih
+      const dateTd = document.createElement("td");
+      const parts = date.split("-");
+      dateTd.textContent = `${parts[2]}.${parts[1]}.${parts[0]}`;
+      tr.appendChild(dateTd);
+
+      // Saat
+      const saatTd = document.createElement("td");
+      saatTd.textContent = row.zaman_dilimi;
+      tr.appendChild(saatTd);
+
+      // Duruş Detayı
+      const detayTd = document.createElement("td");
+      detayTd.className = "oee-summary-cell";
+      detayTd.textContent = buildDurusSummary(row, true, true, true);
+      tr.appendChild(detayTd);
+
+      // Kategori Dropdown
+      const katTd = document.createElement("td");
+      const select = document.createElement("select");
+      select.style.width = "100%";
+      select.style.padding = "4px";
+      const categories = [
+        "Mekanik Arıza",
+        "Elektrik Arıza",
+        "Akışkan Arıza",
+        "Setup / Ayar",
+        "Takım / Kalıp Değişimi",
+        "Yardımcı Süreç Kayıpları",
+        "Müşteri Kaynaklı",
+        "Kalite Kaynaklı",
+        "Diğer"
+      ];
+      select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join("");
+      const currentCategory = override.kategori || getDefaultCategory(row);
+      select.value = currentCategory;
+      select.addEventListener("change", () => {
+        if (!state.kayip.overrides[key]) state.kayip.overrides[key] = {};
+        state.kayip.overrides[key].kategori = select.value;
+        scheduleKayipSave();
+        
+        // Listeden anında kaybolup yeni kategorisine geçsin
+        renderKayip2Detail();
+      });
+      katTd.appendChild(select);
+      tr.appendChild(katTd);
+
+      // Kök Neden
+      const knTd = document.createElement("td");
+      const knInput = document.createElement("input");
+      knInput.type = "text";
+      knInput.style.width = "95%";
+      knInput.style.padding = "4px";
+      knInput.placeholder = "Kök neden yazın...";
+      knInput.value = override.kokNeden || "";
+      knInput.addEventListener("input", () => {
+        if (!state.kayip.overrides[key]) state.kayip.overrides[key] = {};
+        state.kayip.overrides[key].kokNeden = knInput.value;
+        scheduleKayipSave();
+      });
+      knTd.appendChild(knInput);
+      tr.appendChild(knTd);
+
+      // Önleyici Aksiyon
+      const aksTd = document.createElement("td");
+      const aksInput = document.createElement("input");
+      aksInput.type = "text";
+      aksInput.style.width = "95%";
+      aksInput.style.padding = "4px";
+      aksInput.placeholder = "Önleyici aksiyon yazın...";
+      aksInput.value = override.onleyiciAksiyon || "";
+      aksInput.addEventListener("input", () => {
+        if (!state.kayip.overrides[key]) state.kayip.overrides[key] = {};
+        state.kayip.overrides[key].onleyiciAksiyon = aksInput.value;
+        scheduleKayipSave();
+      });
+      aksTd.appendChild(aksInput);
+      tr.appendChild(aksTd);
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    el.kayip2Grid.innerHTML = "";
+    el.kayip2Grid.appendChild(table);
+    updateKayip2LiveSummary(filtered);
+  }
+
+  function updateKayip2LiveSummary(filteredRows) {
+    let totalDowntimeMinutes = 0;
+    let totalCount = filteredRows.length;
+    let excludedCount = 0;
+    let categorizedCount = 0;
+
+    filteredRows.forEach(({ cell, date, row, key, field }) => {
+      const val = row[field] || 0;
+      totalDowntimeMinutes += val;
+
+      const oldKey = `${cell}||${date}||${row.zaman_dilimi}`;
+      const override = state.kayip.overrides[key] || state.kayip.overrides[oldKey] || {};
+      if (override.dahilEt === false) {
+        excludedCount += 1;
+      }
+      if (override.kokNeden || override.onleyiciAksiyon) {
+        categorizedCount += 1;
+      }
+    });
+
+    const exclNote = excludedCount ? ` (${excludedCount} hariç tutuldu)` : "";
+    el.kayip2LiveSummary.textContent = `${totalCount} adet duruş (~${Math.round(totalDowntimeMinutes)} dk)${exclNote} · ${categorizedCount} adedi özelleştirildi`;
+  }
+
   el.modeTabs.forEach((btn) => {
     btn.addEventListener("click", () => {
       el.modeTabs.forEach((b) => b.classList.remove("active"));
@@ -1155,6 +1818,11 @@
       el.dataView.classList.toggle("hidden", state.mode !== "data");
       el.oeeView.classList.toggle("hidden", state.mode !== "oee");
       el.arizaView.classList.toggle("hidden", state.mode !== "ariza");
+      el.kayipView.classList.toggle("hidden", state.mode !== "kayip");
+      el.kayip2View.classList.toggle("hidden", state.mode !== "kayip2");
+      if (state.mode === "kayip2") {
+        loadKayip2Detail();
+      }
     });
   });
 

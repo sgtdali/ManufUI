@@ -587,8 +587,173 @@ async function computeTotalProductionData({ periods = DEFAULT_PERIODS, exclusion
   });
 }
 
+function isYardimciSurec(row) {
+  const searchStr = [
+    row.ariza_aciklamasi,
+    row.planli_durus_aciklamasi,
+    row.planli_durus_turu,
+    row.ariza_turu,
+    row.ariza_turu_detay,
+    row.durus_detayi
+  ].join(" ").toLowerCase();
+  return searchStr.includes("talaş arabası dolu") || searchStr.includes("bor yağı bitti");
+}
+
+function getDefaultCategory(row) {
+  if (isYardimciSurec(row)) return "Yardımcı Süreç Kayıpları";
+  if (row.ariza > 0) {
+    const t = row.ariza_turu || "";
+    if (t === "E" || t.includes("Elektrik")) return "Elektrik Arıza";
+    if (t === "M" || t.includes("Mekanik")) return "Mekanik Arıza";
+    if (t === "A" || t.includes("Akışkan")) return "Akışkan Arıza";
+    return "Mekanik Arıza";
+  }
+  if (row.setup_ve_ayar > 0) return "Setup / Ayar";
+  if (row.takim_degisimi > 0 || row.kalip_demontaj > 0 || row.kalip_montaj > 0) return "Takım / Kalıp Değişimi";
+  if (row.mola > 0) return "Mola";
+  if (row.onceki_istasyon_bekleme > 0) return "Önceki İstasyon Bekleme";
+  if (row.musteri_kaynakli_durus > 0) return "Müşteri Kaynaklı";
+  if (row.kalite_kaynakli_durus > 0) return "Kalite Kaynaklı";
+  return "Diğer";
+}
+
+async function computeKayipAnaliziData(kayipOverrides = {}) {
+  const rawByCell = await fetchRawSlots("2026-06-13", "2026-07-31");
+  const allDowntimes = [];
+
+  for (const [cell, dates] of Object.entries(rawByCell)) {
+    for (const [tarih, rows] of Object.entries(dates)) {
+      for (const row of rows) {
+        const key = slotKey(cell, tarih, row.zaman_dilimi);
+        const override = kayipOverrides[key] || {};
+        if (override.dahilEt === false) continue;
+
+        const activeFields = DOWNTIME_FIELDS.filter(f => f !== "mola" && f !== "onceki_istasyon_bekleme");
+        const getFieldValue = (r, field) => {
+          if (field === "planli_durus" && r.planli_durus_turu === "Kasa Alma - Bırakma") return 0;
+          return r[field] || 0;
+        };
+
+        activeFields.forEach(field => {
+          const val = getFieldValue(row, field);
+          if (val <= 0) return;
+
+          // Bu alana özel sanal row kopyası oluşturarak default category'yi hesaplayalım
+          const virtualRow = {
+            zaman_dilimi: row.zaman_dilimi,
+            ariza: 0,
+            planli_durus: 0,
+            setup_ve_ayar: 0,
+            takim_degisimi: 0,
+            kalip_demontaj: 0,
+            kalip_montaj: 0,
+            musteri_kaynakli_durus: 0,
+            kalite_kaynakli_durus: 0,
+          };
+          virtualRow[field] = val;
+          if (field === "ariza") {
+            virtualRow.ariza_turu = row.ariza_turu;
+            virtualRow.ariza_aciklama = row.ariza_aciklama;
+          } else if (field === "planli_durus") {
+            virtualRow.planli_durus_turu = row.planli_durus_turu;
+            virtualRow.planli_durus_aciklama = row.planli_durus_aciklama;
+          } else if (field === "setup_ve_ayar") {
+            virtualRow.setup_turu = row.setup_turu;
+            virtualRow.setup_aciklama = row.setup_aciklama;
+          } else if (field === "takim_degisimi") {
+            virtualRow.takim_degisim_turu = row.takim_degisim_turu;
+          } else if (field === "kalip_demontaj") {
+            virtualRow.kalip_demontaj_turu = row.kalip_demontaj_turu;
+          } else if (field === "kalip_montaj") {
+            virtualRow.kalip_montaj_turu = row.kalip_montaj_turu;
+          } else if (field === "musteri_kaynakli_durus") {
+            virtualRow.musteri_durus_turu = row.musteri_durus_turu;
+            virtualRow.musteri_durus_aciklama = row.musteri_durus_aciklama;
+          }
+
+          const keyWithField = `${cell}||${tarih}||${row.zaman_dilimi}||${field}`;
+          const oldKey = `${cell}||${tarih}||${row.zaman_dilimi}`;
+
+          const override = kayipOverrides[keyWithField] || kayipOverrides[oldKey] || {};
+          if (override.dahilEt === false) return;
+
+          let category = getDefaultCategory(virtualRow);
+          let kokNeden = override.kokNeden || "";
+          let onleyiciAksiyon = override.onleyiciAksiyon || "";
+          category = override.kategori || category;
+
+          allDowntimes.push({
+            key: keyWithField,
+            cell,
+            tarih,
+            zaman_dilimi: row.zaman_dilimi,
+            duration: val,
+            field,
+            category,
+            kokNeden,
+            onleyiciAksiyon
+          });
+        });
+      }
+    }
+  }
+
+  const categoriesMap = {};
+  allDowntimes.forEach(d => {
+    if (!categoriesMap[d.category]) {
+      categoriesMap[d.category] = {
+        category: d.category,
+        duration: 0,
+        eventCount: 0,
+        kokNedenler: new Set(),
+        onleyiciAksiyonlar: new Set(),
+        details: []
+      };
+    }
+    const cat = categoriesMap[d.category];
+    cat.duration += d.duration;
+    cat.eventCount += 1;
+    if (d.kokNeden.trim()) cat.kokNedenler.add(d.kokNeden.trim());
+    if (d.onleyiciAksiyon.trim()) cat.onleyiciAksiyonlar.add(d.onleyiciAksiyon.trim());
+    cat.details.push(d);
+  });
+
+  const pareto = Object.values(categoriesMap).sort((a, b) => b.duration - a.duration);
+  const totalDuration = pareto.reduce((sum, c) => sum + c.duration, 0);
+  let cumDuration = 0;
+
+  pareto.forEach(c => {
+    cumDuration += c.duration;
+    c.percentage = totalDuration > 0 ? (c.duration / totalDuration) * 100 : 0;
+    c.cumPercentage = totalDuration > 0 ? (cumDuration / totalDuration) * 100 : 0;
+    c.kokNedenList = Array.from(c.kokNedenler);
+    c.onleyiciAksiyonList = Array.from(c.onleyiciAksiyonlar);
+
+    c.details.sort((a, b) => b.duration - a.duration);
+    const topWithKok = c.details.find(d => d.kokNeden.trim() !== "");
+    c.topKokNeden = topWithKok ? topWithKok.kokNeden : (c.kokNedenList[0] || "");
+    const topWithAksiyon = c.details.find(d => d.onleyiciAksiyon.trim() !== "");
+    c.topOnleyiciAksiyon = topWithAksiyon ? topWithAksiyon.onleyiciAksiyon : (c.onleyiciAksiyonList[0] || "");
+  });
+
+  return {
+    pareto: pareto.map(c => ({
+      category: c.category,
+      duration: c.duration,
+      eventCount: c.eventCount,
+      percentage: Number(c.percentage.toFixed(1)),
+      cumPercentage: Number(c.cumPercentage.toFixed(1)),
+      topKokNeden: c.topKokNeden,
+      topOnleyiciAksiyon: c.topOnleyiciAksiyon,
+      kokNedenList: c.kokNedenList,
+      onleyiciAksiyonList: c.onleyiciAksiyonList
+    })),
+    allDowntimes
+  };
+}
+
 module.exports = {
   CELLS, DEFAULT_PERIODS, fetchRawSlots, slotKey, computeOverviewData, computeOeeMtbfMttrData,
   DOWNTIME_FIELDS, DOWNTIME_FIELD_LABELS, DOWNTIME_FIELD_DETAIL_KEYS, CELL_OEE_RULES, fetchCellDetailSlots,
-  NON_BREAKDOWN_ARIZA_TYPES, computeTotalProductionData,
+  NON_BREAKDOWN_ARIZA_TYPES, computeTotalProductionData, computeKayipAnaliziData, getDefaultCategory
 };
