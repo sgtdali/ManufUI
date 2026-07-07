@@ -1683,14 +1683,16 @@
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !isExcluded;
-      checkbox.addEventListener("change", () => {
+      chkTd.appendChild(checkbox);
+      chkTd.addEventListener("click", () => {
+        const nowExcluded = checkbox.checked; // Since checkbox is still checked before we toggle, click toggles it
         if (!state.kayip.overrides[key]) state.kayip.overrides[key] = {};
-        state.kayip.overrides[key].dahilEt = checkbox.checked;
-        tr.classList.toggle("excluded", !checkbox.checked);
+        state.kayip.overrides[key].dahilEt = !nowExcluded;
+        tr.classList.toggle("excluded", nowExcluded);
+        checkbox.checked = !nowExcluded;
         scheduleKayipSave();
         updateKayip2LiveSummary(filtered);
       });
-      chkTd.appendChild(checkbox);
       tr.appendChild(chkTd);
 
       // Hücre

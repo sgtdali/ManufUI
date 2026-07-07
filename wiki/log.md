@@ -6,6 +6,21 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 ---
 
 
+## [2026-07-07] update | Üst Yönetim Sunumu: OEE Tarih Eşitleme, Kalite Sütunu Entegrasyonu ve Zincirleme OEE Hesabı
+
+**Yapılanlar:**
+- **OEE Canlı Hesaplama ve Tarih Eşitleme:** PPTX sunumu derleme aşamasında (`build.js`), OEE tablosu verilerini önbellekten okumak yerine veritabanından dinamik olarak hesaplayacak yapı kuruldu. Arayüzdeki güncel tarih aralığı (`oee-date-range.json`) ve saatlik duruş dışlamaları (`oee-slot-exclusions.json`) hesaplamaya tam olarak entegre edildi.
+- **Supabase Detay Sorgusu Düzeltmesi:** `dataService.js` içindeki `fetchRawSlots` fonksiyonunun veritabanından veri çekerken alt duruş detay kolonlarını (`setup_turu`, `takim_degisim_turu` vb.) çekmeyi atladığı tespit edildi. Bu durum nedeniyle Pres hücresinin OEE hesabını etkileyen *"IHU Rejim Bekleme"* gibi özel duruş kuralları uygulanamıyordu. Duruş detay kolonları sorguya eklenerek OEE uyuşmazlığı giderildi; seçim ekranındaki canlı OEE verileri ile sunumdaki değerler birebir eşitlendi.
+- **Kalite (Quality) Sütunu ve Zincirleme OEE Altyapısı:** OEE özet tablosuna Quality (Kalite) sütunu eklenerek, OEE hesabı 3 bileşenli çarpımsal formüle (`OEE = Availability × Performance × Quality`) geçirildi.
+- **Hücre Bazlı Iskartalar (Quality):** Kullanıcının ilettiği hücre bazlı gerçek ıskarta/red oranları `Quality = 100% - Red%` prensibine göre uygulandı: Pres %99.9, ETM %99.8, ROB108 %99.9, Flowform %96.4, N602-N603 %99.3, ROB109 %99.9, Quench %99.2, ROB110-111 %93.0 ve ROB104 %99.8.
+- **İstatistik Kartlarının Kaldırılması ve Tablo Genişletme:** Sağ tarafta yer alan OEE istatistik kartları tamamen kaldırılarak tablo 11.8 inç genişliğinde tam sayfa olarak yayıldı.
+- **HAT ORTALAMASI (Zincirleme) Satırı:** Tablonun en altına eklenen hat ortalaması satırı, basit aritmetik ortalama yerine hattın kümülatif fire yapısını doğru yansıtan zincirleme çarpım (**Rolled Throughput Yield**) esasına göre hesaplandı. Satır belirgin bir açık mavi arka plan (#DCE6F1) ve kalın lacivert yazı tipiyle stilize edildi.
+- **Açıklama Temizliği:** OEE slaytının en altında yer alan ve Quench/Fosfat/Boya durumlarını açıklayan italik dipnot metni tamamen kaldırıldı.
+- **Wiki Dokümantasyonu:** `wiki/systems/ust-yonetim-sunumu.md` ve `wiki/log.md` sayfaları bu güncellemeler doğrultusunda güncellendi.
+
+---
+
+
 ## [2026-07-06] update | Zamana Bağlı Ortalama Üretim Değişimi Trend Slaydı ve Çift Dışlama Entegrasyonu
 
 **Yapılanlar:**

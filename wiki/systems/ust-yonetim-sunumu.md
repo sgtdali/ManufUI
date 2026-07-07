@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-06
+updated: 2026-07-07
 sources: [docs/sunumlar/build/build.js, docs/sunumlar/build/tool/dataService.js, docs/sunumlar/build/tool/server.js, docs/sunumlar/build/tool/public/app.js, docs/sunumlar/build/tool/public/index.html, docs/sunumlar/build/tool/public/style.css, docs/sunumlar/2026-07-ust-yonetim-sunum-plani.md]
 ---
 
@@ -63,7 +63,7 @@ Tüm slaytlar aynı stil sistemini paylaşır (navy/ice renk paleti, Cambria ba�
 2. Genel Bakış — Amaç ve Kapsam (hücre sayısı artık `ACTIVE_CELLS.length` ile dinamik; "kısa özet." gibi taslak metinler gerçek cümlelerle değiştirildi)
 3. **Genel Bakış — 9 Hücre Özet Tablosu** (N602-N603 birleşik + Fosfat/Boya hariç; Nisan-Mayıs vs Haziran-Temmuz üretim karşılaştırması)
 4. **Zamana Bağlı Ortalama Üretim Değişimi** (Nisan–Mayıs ve Haziran–Temmuz yan yana iki trend grafiği)
-5. OEE — Ekipman Etkinliği (Haziran-Temmuz)
+5. OEE — Ekipman Etkinliği (Haziran-Temmuz) — 11.8 inç genişliğinde tam sayfa tablo, Quality sütunu eklenmiş ve en altına kümülatif zincirleme verimi yansıtan "HAT ORTALAMASI (Zincirleme)" satırı yerleştirilmiştir.
 6. **MTBF ve MTTR — Arıza Bazlı Güvenilirlik (sadece Haziran-Temmuz)** — tek tablo (Hücre, MTBF, MTTR, Arıza Kaydı), Nisan-Mayıs karşılaştırma kolonları kaldırıldı; düşük örnekli hücre uyarısı artık veriden otomatik hesaplanıyor
 7. Güvenilirlik Özeti — Hücre Kıyaslaması
 8. Darboğaz — Hücreler Arası Akış Sırası (Fosfat/Boya akış şemasından çıkarıldı)
@@ -99,9 +99,10 @@ Sunum aracındaki `OEE - Planlı Süre` bölümü hücre OEE'sini sunum özelind
 - `Çalışma Süresi = Planlı Süre - Availability kaybı sayılan duruş dakikaları`
 - `Performance = Gerçekleşen Üretim / Düzeltilmiş Hedef`
 - `Düzeltilmiş Hedef = Ham Hedef * ((60 - hedeften düşülecek dakika) / 60)`
-- `OEE = Availability * Performance`
+- `Quality = 100% - Red%` (Hücre bazlı fire/red oranları: Pres %0.1, ETM %0.2, ROB108 %0.1, Flowform %3.6, N602-N603 %0.7, ROB109 %0.1, Quench %0.8, ROB110-111 %7.0, ROB104 %0.2)
+- `OEE = Availability * Performance * Quality`
 
-Kalite bileşeni OEE'ye dahil edilmez. Çünkü bu 12 üretim hücresinde satır bazlı kalite/fire verisi tutulmaz; FF Preform ve Final Ölçüm ayrı ölçüm noktalarıdır.
+Kalite bileşeni sunumda OEE hesaplamasına hücre bazlı gerçek ıskarta/red oranları (Quality = 100% - Red%) üzerinden dahil edilmiştir. Hat Ortalaması satırında ise kümülatif fire yapısını doğru yansıtması için kümülatif zincirleme çarpım (Rolled Throughput Yield) esasına göre hesaplanır.
 
 ### Genel Kural Tablosu
 

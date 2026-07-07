@@ -21,7 +21,7 @@ async function fetchRawSlots(start, end) {
   const { data, error } = await supabase
     .from("manuf_production_records")
     .select(
-      "bolum, tarih, manuf_production_rows(zaman_dilimi, sira_no, uretim_adeti, hedef_uretim_adeti, onceki_istasyon_bekleme, mola, ariza, ariza_turu, planli_durus, planli_durus_turu, setup_ve_ayar, takim_degisimi, kalip_demontaj, kalip_montaj, musteri_kaynakli_durus, kalite_kaynakli_durus)"
+      "bolum, tarih, manuf_production_rows(zaman_dilimi, sira_no, uretim_adeti, hedef_uretim_adeti, onceki_istasyon_bekleme, mola, ariza, ariza_turu, planli_durus, planli_durus_turu, setup_ve_ayar, setup_turu, takim_degisimi, takim_degisim_turu, kalip_demontaj, kalip_demontaj_turu, kalip_montaj, kalip_montaj_turu, musteri_kaynakli_durus, musteri_durus_turu, kalite_kaynakli_durus)"
     )
     .in("bolum", CELLS)
     .gte("tarih", start)
@@ -49,11 +49,16 @@ async function fetchRawSlots(start, end) {
         ariza_turu: row.ariza_turu || null,
         planli_durus: row.planli_durus || 0,
         setup_ve_ayar: row.setup_ve_ayar || 0,
+        setup_turu: row.setup_turu || null,
         planli_durus_turu: row.planli_durus_turu || null,
         takim_degisimi: row.takim_degisimi || 0,
+        takim_degisim_turu: row.takim_degisim_turu || null,
         kalip_demontaj: row.kalip_demontaj || 0,
+        kalip_demontaj_turu: row.kalip_demontaj_turu || null,
         kalip_montaj: row.kalip_montaj || 0,
+        kalip_montaj_turu: row.kalip_montaj_turu || null,
         musteri_kaynakli_durus: row.musteri_kaynakli_durus || 0,
+        musteri_durus_turu: row.musteri_durus_turu || null,
         kalite_kaynakli_durus: row.kalite_kaynakli_durus || 0,
       });
     }
