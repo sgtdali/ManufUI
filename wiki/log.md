@@ -5,6 +5,17 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 
 ---
 
+## [2026-07-08] update | Üst Yönetim Sunumu: İngilizce Sunum Desteği, Çeviri Sözlüğü ve Çevrim Süreleri Slaydı
+
+**Yapılanlar:**
+- **İngilizce Sunum Derleyicisi (`build_en.js`):** `build.js` temel alınarak oluşturulan `build_en.js` scripti ile İngilizce sunum (`Repkon-HF901-Ust-Yonetim-Sunumu-2026-07-EN.pptx`) oluşturuldu. Slayt başlıkları, grafik serileri ve tablolar İngilizceye çevrildi.
+- **Dinamik Çeviri Sözlüğü (`dynamicTranslations`):** Veritabanından gelen Türkçe serbest metinli duruş sebepleri ve aksiyon planları için yerel bir sözlük kuruldu ve `translateText` yardımcısı ile tabloda otomatik çevrilmeleri sağlandı.
+- **İngilizce Slayt Sadeleştirmeleri:** İngilizce sunumdan talep doğrultusunda *"Distribution by Loss Types"* ve *"74 Items — General Status"* slaytları tamamen kaldırıldı (toplam sayfa sayısı 12'ye düşürüldü).
+- **Hücre Bazlı Çevrim Süreleri (Cycle Time) Slaydı:** Hem Türkçe hem İngilizce sunumlara standard çevrim sürelerini listeleyen yeni bir slayt eklendi. Tablo ortalanmış düzenle tasarlandı, sağ taraftaki açıklama kartı kullanıcı talebiyle kaldırıldı.
+- **Lokal Arayüz Arayüz Butonu:** Lokal web kontrol paneline (port 4590) "İngilizce Sunum Oluştur" butonu eklendi, `/api/generate-en` endpoint'i ile entegre edildi.
+
+---
+
 
 ## [2026-07-08] update | Üst Yönetim Sunumu: Kök Neden Slayt Kaldırma, Pareto ve Aksiyon Planı Ayrışımı, Durum Kolonu ve Sıralama Kuralları
 

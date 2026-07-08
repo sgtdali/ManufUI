@@ -270,7 +270,8 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
-    if (req.method === "POST" && url.pathname === "/api/generate") {
+    if (req.method === "POST" && (url.pathname === "/api/generate" || url.pathname === "/api/generate-en")) {
+      const isEnglish = url.pathname === "/api/generate-en";
       const sel = loadSelection();
       const plannedTimeExclusions = loadPlannedTimeExclusions();
       const oeeDateRange = loadOeeDateRange();
@@ -308,7 +309,8 @@ const server = http.createServer(async (req, res) => {
       fs.writeFileSync(TOTAL_PRODUCTION_PATH, JSON.stringify(totalProductionData, null, 2), "utf8");
       fs.writeFileSync(KAYIP_ANALIZI_DATA_PATH, JSON.stringify(kayipAnaliziData, null, 2), "utf8");
 
-      const child = spawn(process.execPath, ["build.js"], { cwd: BUILD_DIR });
+      const script = isEnglish ? "build_en.js" : "build.js";
+      const child = spawn(process.execPath, [script], { cwd: BUILD_DIR });
       let out = "";
       let err = "";
       child.stdout.on("data", (d) => (out += d));

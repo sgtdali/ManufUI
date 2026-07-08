@@ -1,6 +1,6 @@
 ---
 updated: 2026-07-08
-sources: [docs/sunumlar/build/build.js, docs/sunumlar/build/tool/dataService.js, docs/sunumlar/build/tool/server.js, docs/sunumlar/build/tool/public/app.js, docs/sunumlar/build/tool/public/index.html, docs/sunumlar/build/tool/public/style.css, docs/sunumlar/2026-07-ust-yonetim-sunum-plani.md]
+sources: [docs/sunumlar/build/build.js, docs/sunumlar/build/build_en.js, docs/sunumlar/build/tool/dataService.js, docs/sunumlar/build/tool/server.js, docs/sunumlar/build/tool/public/app.js, docs/sunumlar/build/tool/public/index.html, docs/sunumlar/build/tool/public/style.css, docs/sunumlar/2026-07-ust-yonetim-sunum-plani.md]
 ---
 
 # Üst Yönetim Sunumu (PPTX Üretim Sistemi)
@@ -12,12 +12,14 @@ Repkon üst yönetimine sunulan ManufUI performans raporu — `docs/sunumlar/` a
 ```
 docs/sunumlar/
   2026-07-ust-yonetim-sunum-plani.md   ← sayfa planı / karar günlüğü (elle yazılan tasarım dokümanı)
-  Repkon-HF901-Ust-Yonetim-Sunumu-2026-07.pptx   ← üretilen çıktı (build.js her çalıştığında overwrite eder)
+  Repkon-HF901-Ust-Yonetim-Sunumu-2026-07.pptx      ← Türkçe çıktı sunumu
+  Repkon-HF901-Ust-Yonetim-Sunumu-2026-07-EN.pptx   ← İngilizce çıktı sunumu
   build/
-    build.js              ← TÜM slayt tanımları burada — pptxgenjs ile programatik üretim
+    build.js              ← Türkçe slayt tanımları — pptxgenjs ile programatik üretim
+    build_en.js           ← İngilizce slayt tanımları ve yerel çeviri sözlüğü (kök neden/aksiyonlar için)
     package.json
     tool/
-      server.js            ← lokal hücre-seçim arayüzü (http://localhost:4590)
+      server.js            ← lokal hücre-seçim arayüzü (http://localhost:4590, Türkçe / İngilizce API desteği)
       dataService.js        ← Supabase'den ham veri çekme + Genel Bakış tablosu hesaplama mantığı
       env.js
       data/
@@ -28,52 +30,24 @@ docs/sunumlar/
 
 ## İki Bağımsız Katman
 
-**1. Lokal seçim aracı (`tool/server.js`, port 4590)** — kullanıcının "Öne Çıkan Sorunlar" gibi dinamik bölümler için hangi hücre/vakaların sunuma gireceğini seçtiği basit bir web arayüzü. `npm run tool` ile başlatılır (`docs/sunumlar/build/` içinden). Seçimler `tool/data/selection.json`'a yazılır. **Bu arayüzde 12 hücre ayrı ayrı listelenir** (N602 ve N603 dahil, birleştirilmeden) — küratörlük esnekliği için kasıtlı bir tasarım kararı.
+**1. Lokal seçim aracı (`tool/server.js`, port 4590)** — kullanıcının "Öne Çıkan Sorunlar" gibi dinamik bölümler için hangi hücre/vakaların sunuma gireceğini seçtiği basit bir web arayüzü. `npm run tool` ile başlatılır. Seçimler `tool/data/selection.json`'a yazılır. Arayüze eklenen **"İngilizce Sunum Oluştur"** butonu, `/api/generate-en` endpoint'i üzerinden doğrudan `build_en.js` derleyicisini tetikler.
 
-**2. `build.js`** — asıl PPTX üretim script'i. `node build.js` (yine `build/` içinden) çalıştırılınca `tool/data/selection.json` + Supabase'den taze çekilen veriyi kullanarak tüm slaytları pptxgenjs ile sıfırdan oluşturur ve `../Repkon-HF901-Ust-Yonetim-Sunumu-2026-07.pptx`'i overwrite eder.
-
-**Önemli ayrım:** Genel Bakış tablosundaki (Slayt 3-4) N602/N603 birleştirmesi **sadece build.js'in çıktı aşamasında** olur — `computeMergedCellAverage()` (`dataService.js`) iki hücrenin ham slot verisini gün-birleşimi (union of active days) üzerinden toplayıp tek "N602-N603 Hücresi" satırına indirger. Seçim aracının grid'i bundan etkilenmez, hâlâ 12 hücre gösterir. Bu ikilik bilinçli: küratörlük ayrı hücre bazında yapılabilsin, ama üst yönetime giden final tabloda N602/N603 fiziksel olarak aynı hat segmentini paylaştığı için birleşik görünsün.
+**2. `build.js` & `build_en.js`** — asıl PPTX üretim script'leri. `node build.js` veya `node build_en.js` çalıştırılınca `tool/data/selection.json` + Supabase'den taze çekilen veriyi kullanarak tüm slaytları pptxgenjs ile sıfırdan oluşturur ve ilgili PPTX çıktısını yazar.
+- **`build_en.js` Çeviri Altyapısı**: Hücre adlarını dinamik çeviren `translateCell` fonksiyonunun yanı sıra veritabanından gelen serbest metinli kök nedenleri ve aksiyon planlarını İngilizceleştiren bir `dynamicTranslations` yerel sözlüğü ve `translateText` yardımcısı barındırır.
 
 ## Hücre Hariç Tutma (`EXCLUDED_CELLS`, 2026-07-05)
 
-`build.js` başında (IIFE'den önce) tanımlı `EXCLUDED_CELLS = ["Fosfat", "Boya"]` listesi ve `isExcludedCell(name)` yardımcısı, bu iki hücreyi **sadece üretilen PPTX'ten** çıkarır — `tool/dataService.js` (`CELLS` listesi, canlı Supabase sorguları) ve lokal seçim aracı (`tool/server.js`, port 4590) tamamen etkilenmez, orada hâlâ 12 hücre ayrı ayrı listelenir. Geri eklemek için tek yapılması gereken listeyi boşaltmak.
-
-Bu filtre şu noktalara uygulanır: `overviewData`/`oeeData` dizileri (yükleme sonrası `.filter()`), Slayt 2'deki kapsam çipleri (`ACTIVE_CELLS`), Slayt 3/4 başlıklarındaki hücre sayısı (artık `${overviewData.length} Hücre` şeklinde dinamik), Slayt 8'deki akış şeması ikinci satırı, Slayt 13'teki yoğunluk tablosu satırları. `fosfatBoyaExcluded` bayrağı (her iki hücre de hariçse `true`) birkaç anlatı metnini (Slayt 4/5 dipnotları, Slayt 17 adım metni, "Müşteriden Talep Edilecekler" örneği) ve **"Boya & Fosfat Hücreleri — Veri Boşluğu"** özel slaydını tamamen koşullu hale getirir (hücreler hariçken bu slayt atlanır).
+`build.js` ve `build_en.js` başında tanımlı `EXCLUDED_CELLS = ["Fosfat", "Boya"]` listesi ve `isExcludedCell(name)` yardımcısı, bu iki hücreyi **sadece üretilen PPTX'ten** çıkarır.
 
 ## Veri Kaynağı
 
-**Tek gerçek kaynak:** Supabase projesi `jxijtnwwmjjgyovxgnkk` (region eu-west-3), tablo `manuf_production_rows` (+ `manuf_production_records` join, `bolum`/`tarih` üzerinden) ve `manuf_action_items` (aksiyon takibi verisi, 74 madde). Ayrıntılı kolon dökümü için bkz. [Duruşlar](duruslar.md).
-
-`ariza_turu` kod çözümleme tablosu (standart hücreler: `E`=Elektrik, `A`=Akışkan, `M`=Mekanik, `O`=Ortak, `Kalite`, `Belirsiz`; Pres lokasyon bazlı `Pres Öncesi`/`Pres`/`Pres Sonrası`; ETM/ROB104/ROB108/ROB109 tam-kelime taksonomisi) [Duruşlar](duruslar.md)'da belgelenmiştir — build.js'de Pareto/neden analizlerinde bu tabloya göre kod birleştirme yapılıyor.
+**Tek gerçek kaynak:** Supabase projesi `jxijtnwwmjjgyovxgnkk` (region eu-west-3), tablo `manuf_production_rows` (+ `manuf_production_records` join) ve `manuf_action_items` (aksiyon takibi verisi, 74 madde).
 
 ## build.js Yapısı ve Ortak Yardımcılar
 
 Tüm slaytlar aynı stil sistemini paylaşır (navy/ice renk paleti, Cambria başlık + Calibri gövde fontu):
 - `newContentSlide()` — yeni slayt ekler, arka plan rengini ve sayfa numarasını ayarlar
 - `addHeader(slide, {icon, eyebrow, title, ...})` / `addFooter(slide, sectionLabel)`
-- `badge(slide, {x,y,w,label,type})` — durum rozetleri (done/progress/decision)
-- `styledTable(slide, header, rows, opts)` — navy başlık satırı, zebra gövde, hücre bazlı renk/bold override
-- `fmtPct(from, to, decimals)` — tüm "Değişim" kolonlarında kullanılan yüzde formatlayıcı
-- İkonlar (`icons.tools`, `icons.chartBar`, `icons.warning`, vb.) build.js başında bir kez base64 PNG olarak render edilip anahtar üzerinden tekrar kullanılıyor — yeni slayt eklerken önce mevcut ikon setine bakmak gerekir.
-- pptxgenjs grafik API'si: `pres.charts.BAR` (`barDir: "col"|"bar"`, `barGrouping: "stacked"`) ve `pres.charts.DOUGHNUT` (`holeSize`) — build.js'de birden çok slaytta tekrar kullanılan pattern'ler.
-
-## Slayt Envanteri (2026-07-08 itibarıyla, 25 sayfa)
-
-1. Kapak (başlık artık sadece **"Performans Raporu"** — "ve Aksiyon / Yatırım Talebi" kaldırıldı)
-2. Genel Bakış — Amaç ve Kapsam (hücre sayısı artık `ACTIVE_CELLS.length` ile dinamik; "kısa özet." gibi taslak metinler gerçek cümlelerle değiştirildi)
-3. **Genel Bakış — 9 Hücre Özet Tablosu** (N602-N603 birleşik + Fosfat/Boya hariç; Nisan-Mayıs vs Haziran-Temmuz üretim karşılaştırması)
-4. **Zamana Bağlı Ortalama Üretim Değişimi** (Nisan–Mayıs ve Haziran–Temmuz yan yana iki trend grafiği)
-5. OEE — Ekipman Etkinliği (Haziran-Temmuz) — 11.8 inç genişliğinde tam sayfa tablo, Quality sütunu eklenmiş ve en altına kümülatif zincirleme verimi yansıtan "HAT ORTALAMASI (Zincirleme)" satırı yerleştirilmiştir.
-6. **MTBF ve MTTR — Arıza Bazlı Güvenilirlik (sadece Haziran-Temmuz)** — tek tablo (Hücre, MTBF, MTTR, Arıza Kaydı), Nisan-Mayıs karşılaştırma kolonları kaldırıldı; düşük örnekli hücre uyarısı artık veriden otomatik hesaplanıyor
-7. Güvenilirlik Özeti — Hücre Kıyaslaması
-8. Darboğaz — Hücreler Arası Akış Sırası (Fosfat/Boya akış şemasından çıkarıldı)
-9-15. **Duruş Analizi** — Genel Bakış KPI kartları → Kategori Dağılımı (stacked bar) → Üretime Oranlı Yoğunluk (tablo) → Kayıp Analizi (Pareto) (bar/çizgi combo grafik) → Kayıp Analizi — Detay Kırılım (tablo; sadece kullanıcı tanımlı kök nedenleri listeleyen, payı oranını gösteren ve statü kolonu barındıran tablo) → Tekrarlayan Somut Sorunlar (tablo) → Kayıt Takip Disiplini (doughnut)
-16-19. Öne Çıkan Sorunlar (N603/Quench/Flowform/Pres — seçim aracından gelen dinamik vaka seçimi)
-20-21. Aksiyon Takibi (74 madde durumu, Haziran-Temmuz'da kapananlar)
-22-24. Talep / Karar (yatırım + müşteri talepleri, sonraki adımlar)
-
-**Kaldırılan slaytlar (2026-07-05):** "Önceki İstasyon Bekleme Süresi" (Genel Bakış'ın ikinci sayfası, KPI kartlarıyla birlikte) ve "Önceki İstasyon Bekleme Trendi" (dk/gün bar chart, Darboğaz bölümü) tamamen build.js'den silindi — geri eklemek için git geçmişinden kod bloğu geri alınmalı (EXCLUDED_CELLS gibi tek bayrakla geri açılabilen bir mekanizma değil). "Boya & Fosfat Hücreleri — Veri Boşluğu" (Öne Çıkan Sorunlar) slaydı silinmedi, sadece `fosfatBoyaExcluded` bayrağına göre koşullu atlanıyor.
-**Kaldırılan slaytlar (2026-07-08):** "Kök Neden Özeti ve Alınan Aksiyonlar" slaydı sunumdan tamamen kaldırılmıştır.
 
 ### Duruş Analizi Bölümü (Slayt 9-15) — Tasarım Notları
 

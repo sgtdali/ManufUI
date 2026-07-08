@@ -42,10 +42,10 @@ async function iconPng(IconComponent, color, size = 256) {
 }
 
 function turkishUpper(s) {
-  return s.replace(/i/g, "İ").replace(/ı/g, "I").toUpperCase();
+  return s.toUpperCase();
 }
 function fmtInt(n) {
-  return Math.round(n).toLocaleString("tr-TR");
+  return Math.round(n).toLocaleString("en-US");
 }
 function fmtPct(from, to, decimals = 0) {
   if (from === 0) return "—";
@@ -96,7 +96,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   let pres = new pptxgen();
   pres.layout = "LAYOUT_WIDE"; // 13.3 x 7.5
   pres.author = "Repkon HF901";
-  pres.title = "Repkon HF901 Seri Üretim — Performans Raporu ve Aksiyon Talebi";
+  pres.title = "Repkon HF901 Serial Production — Performance Report";
 
   const PW = 13.333, PH = 7.5;
   let pageNum = 0;
@@ -110,7 +110,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
   function addFooter(slide, sectionLabel) {
-    slide.addText(sectionLabel || "Repkon HF901 Seri Üretim", {
+    slide.addText(sectionLabel || "Repkon HF901 Serial Production", {
       x: 0.6, y: PH - 0.42, w: 7, h: 0.3,
       fontFace: FONT_BODY, fontSize: 9, color: COLORS.slateLight, margin: 0,
     });
@@ -213,11 +213,11 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     });
     slide.addImage({ data: icons.industry, x: 1.12, y: 1.22, w: 0.46, h: 0.46 });
 
-    slide.addText("REPKON HF901 · SERİ ÜRETİM", {
+    slide.addText("REPKON HF901 · SERIAL PRODUCTION", {
       x: 0.9, y: 2.3, w: 10, h: 0.4, margin: 0,
       fontFace: FONT_BODY, fontSize: 14, color: COLORS.ice, bold: true, charSpacing: 3,
     });
-    slide.addText("Performans Raporu", {
+    slide.addText("Performance Report", {
       x: 0.85, y: 2.75, w: 11, h: 2.0, margin: 0,
       fontFace: FONT_HEAD, fontSize: 44, color: COLORS.white, bold: true, lineSpacing: 50,
     });
@@ -513,26 +513,83 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
   // ==================================================================
-  // OEE / MTBF / MTTR — yardımcılar
+  // OEE / MTBF / MTTR — helpers
   // ==================================================================
+  const cellTranslations = {
+    "Pres Hücresi": "Press Cell",
+    "ETM Hücresi": "ETM Cell",
+    "ROB108 Hücresi": "ROB108 Cell",
+    "Flowform Hücresi": "Flowform Cell",
+    "ROB104 Hücresi": "ROB104 Cell",
+    "N602-N603 Hücresi": "N602-N603 Cell",
+    "ROB109 Hücresi": "ROB109 Cell",
+    "Quench Hücresi": "Quench Cell",
+    "ROB110-111 Hücresi": "ROB110-111 Cell",
+    "Fosfat Hücresi": "Phosphate Cell",
+    "Boya Hücresi": "Paint Cell",
+    "Pres": "Press",
+    "Boya & Fosfat Hücreleri": "Paint & Phosphate Cells",
+    "Boya & Fosfat": "Paint & Phosphate",
+    "N602-603": "N602-603",
+  };
+
+  const dynamicTranslations = {
+    // Root Causes
+    "Kalıp Montaj/Demontaj": "Mold Assembly/Disassembly",
+    "Hidrolik Yağ Sıcaklığı Alarmı": "Hydraulic Oil Temperature Alarm",
+    "Oransal Valf Kaynaklı Duruşlar": "Proportional Valve Downtimes",
+    "Tırnaklı Değişim/Salgı Kontrolleri/Offset Ayarlama": "Collet Change / Runout Control / Offset Adjustment",
+    "Lubrication Kaynaklı Sorunlar": "Lubrication Problems",
+    "İç Kumlama Makinesi Kaynaklı Duruş": "Internal Shot Peening Machine Downtime",
+    "Punta Kaynak Makinesi Kaynaklı Duruş": "Spot Welding Machine Downtime",
+    "Haberleşme Sorunu": "Communication Problem",
+    "Shuttle Konveyör Motor Arızası": "Shuttle Conveyor Motor Failure",
+    "CNC Rulman aşınması ve yatak boşluğu": "CNC bearing wear and housing backlash",
+    "Operatörlerin duruş kodu girmemesi": "Operators not entering downtime codes",
+    "Gürültülü hatlarda I/O modül haberleşme kaybı": "I/O module communication loss in noisy electrical environments",
+    "Eşanjör tıkanıklığı ve yetersiz soğutma debisi": "Heat exchanger clogging and insufficient cooling flow rate",
+    "Minör arızalar ve mikro duruşlar": "Minor breakdowns and micro stoppages",
+
+    // Action Plans
+    "Hatalı sensör değişimi/ braket eklenmesi ve dağıtıcı blok değişimi yapılmıştır. Sorunlar çözülmüştür.": "Faulty sensor replaced / bracket added and distributor block replaced. Issues resolved.",
+    "Parça yükleme ve kumlama yapamama sorunlar yapılan ayarlar sonrasında giderilmiştir.": "Part loading and peening failure issues resolved after adjustments.",
+    "Kaynak yapmama sorunu çözümü için kart siparişi verildi. Sahaya ulaşması akabinde değişim ve testler yapılacaktır.": "Card ordered to resolve welding failure. Replacement and testing will proceed upon arrival at site.",
+    "Ezilen kablo tespit edilerek yenisi ile değiştirilmiştir. Sorun kalıcı olarak giderilmiştir.": "Crushed cable detected and replaced. Issue permanently resolved.",
+    "Motor yenisi ile değiştirilmiş, hata tekrarlanmaması adına shuttle yavaşlama otomasyonu güncellenmiştir.": "Motor replaced with new one, shuttle deceleration automation updated to prevent recurrence.",
+    "Haftalık rulman titreşim analizi ve periyodik yağlama kontrolü": "Weekly bearing vibration analysis and periodic lubrication check",
+    "Duruş giriş ekranında 10 dk üzeri kayıtlarda kod zorunluluğu": "Mandatory codes on the downtime input screen for entries > 10 min",
+    "Haberleşme kablolarının ekranlı kablo ile değişimi ve topraklama": "Replacing communication cables with shielded ones and proper grounding",
+    "Kritik hücrelerin eşanjör temizliği ve soğutma suyu debi takibi": "Heat exchanger cleaning for critical cells and cooling water flow rate tracking",
+    "Aksiyon takip listesi üzerinden takip ve analiz": "Tracking and analysis via action item list"
+  };
+
+  function translateText(text) {
+    if (!text) return "—";
+    const trimmed = text.trim();
+    return dynamicTranslations[trimmed] || trimmed;
+  }
+  function translateCell(name) {
+    return cellTranslations[name] || name.replace(" Hücresi", " Cell");
+  }
   function shortCell(name) {
-    return name.replace(" Hücresi", "");
+    const enName = translateCell(name);
+    return enName.replace(" Cell", "");
   }
   function pctCell(v, opts = {}) {
-    if (v === null || v === undefined) return { text: "veri yok", color: COLORS.red, bold: true };
+    if (v === null || v === undefined) return { text: "no data", color: COLORS.red, bold: true };
     return { text: `${v.toFixed(1)}%`, ...opts };
   }
   function dkCell(v) {
-    if (v === null || v === undefined) return { text: "veri yok", color: COLORS.red, bold: true };
+    if (v === null || v === undefined) return { text: "no data", color: COLORS.red, bold: true };
     return v.toFixed(1);
   }
 
   // ==================================================================
-  // SLIDE — GÖRESEL HÜCRE BAZLI ÜRETİM ADETLERİ (13.06.2026 - 11.07.2026)
+  // SLIDE — CELL PRODUCTION VOLUMES (JUNE–JULY)
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.chartBar, eyebrow: "Genel Bakış", title: "Hücre Bazlı Üretim Adetleri (Haziran–Temmuz)" });
+    addHeader(slide, { icon: icons.chartBar, eyebrow: "Overview", title: "Cell Production Volumes (June–July)" });
 
     let finalProductionData = [];
 
@@ -602,14 +659,14 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const chartFlowOrder = [...finalProductionData].reverse();
     slide.addChart(
       pres.charts.BAR,
-      [{ name: "Üretim (adet)", labels: chartFlowOrder.map((d) => shortCell(d.cell)), values: chartFlowOrder.map((d) => d.total) }],
+      [{ name: "Production (pcs)", labels: chartFlowOrder.map((d) => shortCell(d.cell)), values: chartFlowOrder.map((d) => d.total) }],
       {
         x: 0.6, y: 1.55, w: 12.1, h: 4.95, barDir: "bar", barGapWidthPct: 30,
         chartColors: [COLORS.navy],
         chartArea: { fill: { color: COLORS.white }, roundedCorners: true },
         catAxisLabelColor: COLORS.slate, catAxisLabelFontSize: 11,
         valAxisLabelColor: COLORS.slateLight, valAxisLabelFontSize: 10,
-        valAxisTitle: "adet", showValAxisTitle: true, valAxisTitleFontSize: 10, valAxisTitleColor: COLORS.slateLight,
+        valAxisTitle: "pcs", showValAxisTitle: true, valAxisTitleFontSize: 10, valAxisTitleColor: COLORS.slateLight,
         valGridLine: { color: COLORS.border, size: 0.5 },
         catGridLine: { style: "none" },
         showValue: true, dataLabelPosition: "outEnd", dataLabelFontSize: 10, dataLabelColor: COLORS.slate,
@@ -617,15 +674,15 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       }
     );
 
-    addFooter(slide, "Genel Bakış");
+    addFooter(slide, "Overview");
   }
 
   // ==================================================================
-  // SLIDE 3 — GENEL BAKIŞ: ÜRETİM TABLOSU
+  // SLIDE 3 — OVERVIEW: DAILY AVERAGE PRODUCTION VOLUME
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.chartBar, eyebrow: "Genel Bakış", title: `Günlük Ortalama Üretim Adedi` });
+    addHeader(slide, { icon: icons.chartBar, eyebrow: "Overview", title: `Daily Average Production Volume` });
 
 
     // Legend Container on the Right (satır satır, alt alta - biraz yukarı ve sağda)
@@ -637,7 +694,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: legendX, y: 3.86, w: 0.12, h: 0.12,
       fill: { color: COLORS.ice }, line: { type: "none" }
     });
-    slide.addText("Nisan–Mayıs", {
+    slide.addText("April–May", {
       x: legendTextX, y: 3.80, w: 1.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slate
     });
@@ -647,7 +704,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: legendX, y: 4.21, w: 0.12, h: 0.12,
       fill: { color: COLORS.navy }, line: { type: "none" }
     });
-    slide.addText("Haziran–Temmuz", {
+    slide.addText("June–July", {
       x: legendTextX, y: 4.15, w: 1.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slate
     });
@@ -657,7 +714,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: legendX, y: 4.56, w: 0.12, h: 0.12,
       fill: { color: COLORS.red }, line: { type: "none" }
     });
-    slide.addText("Hedef (Günlük 200)", {
+    slide.addText("Target (200 pcs/day)", {
       x: legendTextX, y: 4.50, w: 2.1, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slate
     });
@@ -681,7 +738,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         line: { color: COLORS.border, width: 1, type: "solid" }
       });
       // X-axis label
-      const labelText = val === 200 ? "200 adet/gün" : String(val);
+      const labelText = val === 200 ? "200 pcs/day" : String(val);
       slide.addText(labelText, {
         x: valX - (val === 200 ? 0.8 : 0.4), y: gridBottom + 0.05, w: (val === 200 ? 1.6 : 0.8), h: 0.3,
         fontFace: FONT_BODY, fontSize: 10, color: COLORS.slate, align: val === 200 ? "left" : "center", margin: 0
@@ -692,9 +749,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const rowSpacing = 0.38;
 
     function chartCellName(name) {
-      let s = name.replace(" Hücresi", "");
-      if (s === "N602-N603") return "N602-603";
-      return s;
+      return shortCell(name);
     }
 
     overviewData.forEach((d, i) => {
@@ -707,7 +762,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       });
 
       if (d.ht === null) {
-        // "veri yok" case
+        // "no data" case
         const x1 = scaleX(d.nm);
         // Gray dot at Nisan-Mayıs value
         slide.addShape(pres.shapes.OVAL, {
@@ -720,8 +775,8 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
           x: x1, y: cellY, w: lineW, h: 0,
           line: { color: "94A3B8", width: 1.5, dashType: "dash" }
         });
-        // "veri yok" text
-        slide.addText("veri yok", {
+        // "no data" text
+        slide.addText("no data", {
           x: x1 + lineW + 0.1, y: cellY - 0.12, w: 1.5, h: 0.3, margin: 0,
           fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.red, bold: true
         });
@@ -796,11 +851,11 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
   // ==================================================================
-  // SLIDE — ZAMANA BAĞLI ORTALAMA ÜRETİM DEĞİŞİMİ
+  // SLIDE — RELATIONSHIP BETWEEN LOSS REDUCTION & PRODUCTION INCREASE
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.chartLine, eyebrow: "Genel Bakış", title: "Kayıp Azalışı ile Üretim Artışı İlişkisi (Haziran–Temmuz)" });
+    addHeader(slide, { icon: icons.chartLine, eyebrow: "Overview", title: "Relationship Between Loss Reduction & Production Increase (June–July)" });
 
     let nmTrendData = [];
     let htTrendData = [];
@@ -979,7 +1034,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const avgLossDuration = lossValues.length > 0 ? Math.round(totalLossDuration / lossValues.length) : 0;
     const maxLossVal = lossValues.length > 0 ? Math.max(...lossValues) : 0;
 
-    slide.addText("GÜNLÜK TOPLAM KAYIP TRENDİ", {
+    slide.addText("DAILY TOTAL LOSS TREND", {
       x: 0.5, y: 1.8, w: 5.9, h: 0.3, margin: 0,
       fontFace: FONT_HEAD, fontSize: 13, bold: true, color: COLORS.navy, align: "center"
     });
@@ -988,12 +1043,12 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       pres.charts.LINE,
       [
         {
-          name: "Günlük Kayıp Süresi (dk)",
+          name: "Daily Loss Duration (min)",
           labels: lossLabels,
           values: lossValues
         },
         {
-          name: "Genel Trend",
+          name: "Overall Trend",
           labels: lossLabels,
           values: calculateTrendLine(lossValues)
         }
@@ -1008,14 +1063,14 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         catAxisLabelColor: COLORS.slate, catAxisLabelFontSize: 8.5,
         catLabelInterval: 6,
         valAxisLabelColor: COLORS.slateLight, valAxisLabelFontSize: 8.5,
-        valAxisTitle: "dk", showValAxisTitle: true, valAxisTitleFontSize: 8.5, valAxisTitleColor: COLORS.slateLight,
+        valAxisTitle: "min", showValAxisTitle: true, valAxisTitleFontSize: 8.5, valAxisTitleColor: COLORS.slateLight,
         valGridLine: { color: COLORS.border, size: 0.5 },
         catGridLine: { style: "none" },
         showValue: false
       }
     );
 
-    const lossStatsText = `En Yüksek: ${maxLossVal} dk  ·  Günlük Ort: ${avgLossDuration} dk`;
+    const lossStatsText = `Peak: ${maxLossVal} min  ·  Daily Avg: ${avgLossDuration} min`;
     slide.addText(lossStatsText, {
       x: 0.5, y: 6.3, w: 5.9, h: 0.3, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, bold: true, color: COLORS.slate, align: "center"
@@ -1027,7 +1082,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       const htMax = Math.max(...htValues);
       const htAvg = htValues.reduce((a, b) => a + b, 0) / htValues.length;
 
-      slide.addText("GÜNLÜK ORTALAMA ÜRETİM TRENDİ", {
+      slide.addText("DAILY AVERAGE PRODUCTION TREND", {
         x: 6.9, y: 1.8, w: 5.9, h: 0.3, margin: 0,
         fontFace: FONT_HEAD, fontSize: 13, bold: true, color: COLORS.navy, align: "center"
       });
@@ -1036,12 +1091,12 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         pres.charts.LINE,
         [
           {
-            name: "Ortalama Üretim (adet/gün)",
+            name: "Average Production (pcs/day)",
             labels: htTrendData.map(d => formatChartDate(d.date)),
             values: htValues
           },
           {
-            name: "Genel Trend",
+            name: "Overall Trend",
             labels: htTrendData.map(d => formatChartDate(d.date)),
             values: calculateTrendLine(htValues)
           }
@@ -1056,47 +1111,50 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
           catAxisLabelColor: COLORS.slate, catAxisLabelFontSize: 8.5,
           catLabelInterval: 3,
           valAxisLabelColor: COLORS.slateLight, valAxisLabelFontSize: 8.5,
-          valAxisTitle: "adet/gün", showValAxisTitle: true, valAxisTitleFontSize: 8.5, valAxisTitleColor: COLORS.slateLight,
+          valAxisTitle: "pcs/day", showValAxisTitle: true, valAxisTitleFontSize: 8.5, valAxisTitleColor: COLORS.slateLight,
           valGridLine: { color: COLORS.border, size: 0.5 },
           catGridLine: { style: "none" },
           showValue: false
         }
       );
 
-      const htStatsText = `En Yüksek Ort: ${htMax.toFixed(1)}  ·  Dönem Ort: ${htAvg.toFixed(1)}`;
+      const htStatsText = `Peak Avg: ${htMax.toFixed(1)}  ·  Period Avg: ${htAvg.toFixed(1)}`;
       slide.addText(htStatsText, {
         x: 6.9, y: 6.3, w: 5.9, h: 0.3, margin: 0,
         fontFace: FONT_BODY, fontSize: 10.5, bold: true, color: COLORS.slate, align: "center"
       });
     } else {
-      slide.addText("Hesaplanmış Haziran–Temmuz verisi bulunamadı.", {
+      slide.addText("No calculated June-July data found.", {
         x: 6.9, y: 3.5, w: 5.9, h: 1, align: "center",
         fontFace: FONT_BODY, fontSize: 14, color: COLORS.red
       });
     }
 
-    addFooter(slide, "Genel Bakış");
+    addFooter(slide, "Overview");
   }
 
   // ==================================================================
-  // SLIDE — HÜCRE BAZLI ÇEVRİM SÜRELERİ (CYCLE TIME)
+  // SLIDE — CELL-BASED CYCLE TIMES
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.clockAmber, eyebrow: "OEE, MTBF & MTTR", title: "Hücre Bazlı Çevrim Süreleri (Cycle Time)" });
+    addHeader(slide, { icon: icons.clockAmber, eyebrow: "OEE, MTBF & MTTR", title: "Cell-Based Cycle Times" });
 
-    const header = ["Hücre", "Standart Çevrim Süresi (Cycle Time)"];
+    const header = ["Cell", "Standard Cycle Time"];
     const rows = [
-      ["Pres Hücresi", "3 dk 00 sn"],
-      ["ETM Hücresi", "2 dk 00 sn"],
-      ["ROB108 Hücresi", "3 dk 00 sn"],
-      ["Flowform Hücresi", "3 dk 58 sn"],
-      ["ROB104 Hücresi", "2 dk 30 sn"],
-      ["N602-N603 Hücresi", "2 dk 00 sn"],
-      ["ROB109 Hücresi", "3 dk 00 sn"],
-      ["Quench Hücresi", "2 dk 00 sn"],
-      ["ROB110-111 Hücresi", "3 dk 10 sn"]
-    ].filter((d) => !isExcludedCell(d[0]));
+      ["Pres Hücresi", "3 min 00 sec"],
+      ["ETM Hücresi", "2 min 00 sec"],
+      ["ROB108 Hücresi", "3 min 00 sec"],
+      ["Flowform Hücresi", "3 min 58 sec"],
+      ["ROB104 Hücresi", "2 min 30 sec"],
+      ["N602-N603 Hücresi", "2 min 00 sec"],
+      ["ROB109 Hücresi", "3 min 00 sec"],
+      ["Quench Hücresi", "2 min 00 sec"],
+      ["ROB110-111 Hücresi", "3 min 10 sec"]
+    ].filter((d) => !isExcludedCell(d[0])).map((row) => [
+      translateCell(row[0]),
+      row[1]
+    ]);
 
     styledTable(slide, header, rows, {
       x: 3.1,
@@ -1110,19 +1168,16 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
   // ==================================================================
-  // SLIDE 5 — OEE: EKİPMAN ETKİNLİĞİ
+  // SLIDE 5 — OEE: EQUIPMENT EFFECTIVENESS
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.chartBar, eyebrow: "OEE, MTBF & MTTR", title: "OEE — Ekipman Etkinliği (Haziran–Temmuz)" });
-    slide.addText("OEE (Ekipman Etkinlik Oranı); kullanılabilirlik (Availability), performans (Performance) ve kalite (Quality) bileşenlerini birleştirerek hattın net verimliliğini ölçer.", {
+    addHeader(slide, { icon: icons.chartBar, eyebrow: "OEE, MTBF & MTTR", title: "OEE — Equipment Effectiveness (June–July)" });
+    slide.addText("OEE (Overall Equipment Effectiveness) measures the net efficiency of the line by combining Availability, Performance, and Quality components.", {
       x: 0.6, y: 1.45, w: 11.8, h: 0.65, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.slateLight, lineSpacing: 13,
     });
 
-    // oeeData hat akış sırasındadır (Pres → ... → son aktif hücre, dataService.js CELLS ile aynı;
-    // EXCLUDED_CELLS'teki hücreler burada filtrelenmiş durumda) —
-    // tablo bu sırayla gösterilir (OEE'ye göre sıralanmaz).
     const QUALITY_REDS = {
       "Pres Hücresi": 0.1,
       "ETM Hücresi": 0.2,
@@ -1135,7 +1190,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       "ROB104 Hücresi": 0.2
     };
 
-    const header = ["Hücre", "Availability", "Performance", "Quality", "OEE", "Potansiyel Ort. (OEE %100)*"];
+    const header = ["Cell", "Availability", "Performance", "Quality", "OEE", "Potential Avg. (OEE 100%)*"];
     let totalQualitySum = 0;
     let totalQualityCount = 0;
 
@@ -1150,7 +1205,6 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         ? Number(((d.availabilityHt / 100) * (d.performanceHt / 100) * (qHt / 100) * 100).toFixed(1))
         : null;
 
-      // Sonraki hesaplamaların etkilenmesi için d.oeeHt değerini güncelliyoruz
       d.oeeHt = calculatedOeeHt;
 
       const ov = overviewData.find((o) => o.cell === d.cell);
@@ -1190,10 +1244,9 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const avgProdAllHt = activeProds.length ? activeProds.reduce((sum, o) => sum + o.ht, 0) / activeProds.length : 0;
     const avgPotentialAvg = (avgOee && avgOee > 0) ? (avgProdAllHt / (avgOee / 100)) : 0;
 
-    // Görünümü farklı hat ortalaması satırını ekle (açık mavi/gri arka plan, kalın lacivert yazı)
-    const rowFill = { color: "#DCE6F1" }; // Belirgin farklı arka plan
+    const rowFill = { color: "#DCE6F1" };
     rows.push([
-      { text: "HAT ORTALAMASI (Zincirleme)", bold: true, color: COLORS.navy, fill: rowFill },
+      { text: "LINE AVERAGE (Rolled)", bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgAvail.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgPerf.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgQuality.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
@@ -1203,7 +1256,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
 
     styledTable(slide, header, rows, { x: 0.6, y: 2.25, w: 11.8, colW: [2.8, 1.8, 1.8, 1.8, 1.8, 2.0], rowH: 0.32 });
 
-    slide.addText("* Hücrenin Haziran–Temmuz dönemi gerçekleşen günlük ortalama üretim adedi ve hesaplanan OEE verimliliği baz alınarak, OEE %100 olsaydı ulaşabileceği teorik günlük ortalama üretimi gösterir.", {
+    slide.addText("* Shows the theoretical daily average production that could be achieved if OEE were 100%, based on the actual daily average production and calculated OEE efficiency for the June–July period.", {
       x: 0.6, y: 5.9, w: 11.8, h: 0.4, margin: 0,
       fontFace: FONT_BODY, fontSize: 9.5, italic: true, color: COLORS.slate
     });
@@ -1212,22 +1265,22 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
   // ==================================================================
-  // SLIDE 6 — MTBF ve MTTR
+  // SLIDE 6 — MTBF and MTTR
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.hourglass, eyebrow: "OEE, MTBF & MTTR", title: "MTBF ve MTTR — Arıza Bazlı Güvenilirlik (Haziran–Temmuz)" });
-    slide.addText("MTBF, ekipmanın iki arıza arasında ortalama ne kadar süre durmaksızın çalıştığını gösteren güvenilirlik metriğidir. MTTR ise meydana gelen bir arızanın giderilmesi için geçen ortalama tamir süresini ifade eder.", {
+    addHeader(slide, { icon: icons.hourglass, eyebrow: "OEE, MTBF & MTTR", title: "MTBF & MTTR — Breakdown-Based Reliability (June–July)" });
+    slide.addText("MTBF (Mean Time Between Failures) is a reliability metric showing how long on average the equipment runs continuously between two breakdowns. MTTR (Mean Time To Repair) represents the average time taken to resolve a breakdown.", {
       x: 0.6, y: 1.45, w: 11.8, h: 0.5, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight, lineSpacing: 13,
     });
 
-    const mtbfMttrHeader = ["Hücre", "MTBF (dk)", "MTTR (dk)", "Arıza Kaydı"];
+    const mtbfMttrHeader = ["Cell", "MTBF (min)", "MTTR (min)", "Breakdown Log"];
     const mtbfMttrRows = oeeData.map((d) => [
       shortCell(d.cell),
       dkCell(d.mtbfHt),
       dkCell(d.mttrHt),
-      d.arizaEventsHt === null ? { text: "veri yok", color: COLORS.red, bold: true } : String(d.arizaEventsHt),
+      d.arizaEventsHt === null ? { text: "no data", color: COLORS.red, bold: true } : String(d.arizaEventsHt),
     ]);
     styledTable(slide, mtbfMttrHeader, mtbfMttrRows, { x: 0.6, y: 2.05, w: 11.8, colW: [4.0, 2.6, 2.6, 2.6], rowH: 0.4 });
 
@@ -1235,16 +1288,16 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
   // ==================================================================
-  // SLIDE — FİNAL ÖLÇÜM SONRASI KALİTE DURUMU
+  // SLIDE — QUALITY STATUS AFTER FINAL MEASUREMENT
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.checkWhite, eyebrow: "Kalite Analizi", title: "Final Ölçüm Sonrası Kalite Durumu" });
+    addHeader(slide, { icon: icons.checkWhite, eyebrow: "Quality Analysis", title: "Quality Status after Final Measurement" });
 
     // Sol Taraf: Pasta/Doughnut Grafik
     slide.addChart(
       pres.charts.DOUGHNUT,
-      [{ name: "Kalite Durumu", labels: ["Uygun", "Rework", "Ret"], values: [783, 212, 120] }],
+      [{ name: "Quality Status", labels: ["Approved", "Rework", "Reject"], values: [783, 212, 120] }],
       {
         x: 0.5, y: 1.6, w: 4.6, h: 4.3,
         chartColors: [COLORS.green, COLORS.amber, COLORS.red],
@@ -1253,63 +1306,63 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         showTitle: false, holeSize: 55,
       }
     );
-    slide.addText("1.115", {
+    slide.addText("1,115", {
       x: 0.5, y: 3.15, w: 4.6, h: 0.7, margin: 0, align: "center",
       fontFace: FONT_HEAD, fontSize: 36, bold: true, color: COLORS.navy,
     });
-    slide.addText("KONTROL EDİLEN", {
+    slide.addText("CHECKED PARTS", {
       x: 0.5, y: 3.75, w: 4.6, h: 0.3, margin: 0, align: "center",
       fontFace: FONT_BODY, fontSize: 10, bold: true, color: COLORS.slateLight, charSpacing: 2,
     });
 
     // Sağ Taraf: Detay Tablosu
-    const header = ["Tür", "Hata Tanımı / Detayı", "Hata Kaynağı", "Adet", "Oran %"];
+    const header = ["Type", "Error Definition / Details", "Error Source", "Qty", "Ratio %"];
     const rows = [
       // Reworks
       [
         { text: "Rework", color: COLORS.amber, bold: true, fill: { color: COLORS.amberBg } },
-        "Dış Geçer Taraf", "Final Torna", "114", "%10.22"
+        "Outer Passed Side", "Final Lathe", "114", "10.22%"
       ],
       [
         { text: "Rework", color: COLORS.amber, bold: true, fill: { color: COLORS.amberBg } },
-        "İç Kumlama", "İç Kumlama", "64", "%5.74"
+        "Internal Shot Peening", "Internal Shot Peening", "64", "5.74%"
       ],
       [
         { text: "Rework", color: COLORS.amber, bold: true, fill: { color: COLORS.amberBg } },
-        "Angle at rear of rotating band relief groove missing", "Final Torna", "34", "%3.05"
+        "Angle at rear of rotating band relief groove missing", "Final Lathe", "34", "3.05%"
       ],
       // Rejects
       [
         { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
-        "Borrelet Çapı", "Final Torna", "42", "%3.77"
+        "Bourrelet Diameter", "Final Lathe", "42", "3.77%"
       ],
       [
         { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
-        "Et Kalınlığı İnce", "Flowform", "25", "%2.24"
+        "Thin Wall Thickness", "Flowform", "25", "2.24%"
       ],
       [
         { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
-        "Dip İşlenmemiş", "Final Torna", "12", "%1.08"
+        "Bottom Unmachined", "Final Lathe", "12", "1.08%"
       ],
       [
         { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
-        "Et Kalınlığı Dağılımı", "Flowform", "8", "%0.72"
+        "Wall Thickness Distribution", "Flowform", "8", "0.72%"
       ],
       [
         { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
-        "Takım Kırılması", "Final Torna", "6", "%0.54"
+        "Tool Breakage", "Final Lathe", "6", "0.54%"
       ],
       [
         { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
-        "Ogive İşlenmemiş", "Hot Spinning", "6", "%0.54"
+        "Ogive Unmachined", "Hot Spinning", "6", "0.54%"
       ],
       [
         { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
-        "Et Kalınlığı İnce + Dağılımı", "Flowform", "6", "%0.54"
+        "Thin Wall Thickness + Distribution", "Flowform", "6", "0.54%"
       ],
       [
         { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
-        "Diğer Sebepler (5 başlık)", "Çeşitli", "15", "%1.35"
+        "Other Causes (5 categories)", "Various", "15", "1.35%"
       ],
     ];
 
@@ -1321,15 +1374,15 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       rowH: 0.36
     });
 
-    addFooter(slide, "Kalite Analizi");
+    addFooter(slide, "Quality Analysis");
   }
 
   // ==================================================================
-  // SLIDE — ZAMANA BAĞLI UYGUNLUK (OKEY + REWORK) ORANI DEĞİŞİMİ
+  // SLIDE — TIMELINE COMPLIANCE (OK + REWORK) RATIO TREND
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.chartLine, eyebrow: "Kalite Analizi", title: "Zamana Bağlı Uygunluk (Okey + Rework) Oranı Değişimi" });
+    addHeader(slide, { icon: icons.chartLine, eyebrow: "Quality Analysis", title: "Timeline Compliance (OK + Rework) Ratio Trend" });
 
     function calculateTrendLine(data) {
       const N = data.length;
@@ -1354,12 +1407,12 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       pres.charts.LINE,
       [
         {
-          name: "Uygunluk (Okey + Rework) Oranı %",
+          name: "Compliance (OK + Rework) Ratio %",
           labels: labels,
           values: values
         },
         {
-          name: "Genel Trend",
+          name: "Overall Trend",
           labels: labels,
           values: calculateTrendLine(values)
         }
@@ -1381,15 +1434,15 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       }
     );
 
-    addFooter(slide, "Kalite Analizi");
+    addFooter(slide, "Quality Analysis");
   }
 
   // ==================================================================
-  // SLIDE 14B — DURUŞ ANALİZİ: KAYIP ANALİZİ (PARETO) - 13.06.2026 VE SONRASI
+  // SLIDE 14B — DOWNTIME ANALYSIS: LOSS ANALYSIS (PARETO) - 13.06.2026 AND AFTER
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.warning, eyebrow: "Duruş Analizi", title: "Kayıp Analizi (Pareto)" });
+    addHeader(slide, { icon: icons.warning, eyebrow: "Downtime Analysis", title: "Loss Analysis (Pareto)" });
 
     const rawPareto = activePareto.length > 0 ? activePareto : [
       { category: "Pres", duration: 1850, eventCount: 84 },
@@ -1409,7 +1462,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       item.cumPercentage = totalDuration > 0 ? Math.round((cum / totalDuration) * 100) : 0;
     });
 
-    const labels = paretoSource.map((item) => item.category);
+    const labels = paretoSource.map((item) => cellTranslations[item.category] || item.category);
     
     // Combo chart formatı
     const chartTypes = [
@@ -1417,7 +1470,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         type: pres.charts.BAR,
         data: [
           {
-            name: "Duruş Süresi (dk)",
+            name: "Downtime Duration (min)",
             labels: labels,
             values: paretoSource.map((item) => item.duration),
           }
@@ -1432,7 +1485,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         type: pres.charts.LINE,
         data: [
           {
-            name: "Olay Sayısı",
+            name: "Event Count",
             labels: labels,
             values: paretoSource.map((item) => item.eventCount),
           }
@@ -1451,7 +1504,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       showTitle: false,
       valAxes: [
         {
-          valAxisTitle: "Duruş Süresi (dk)",
+          valAxisTitle: "Downtime Duration (min)",
           showValAxisTitle: true,
           valAxisTitleFontSize: 9.5,
           valAxisTitleColor: COLORS.slateLight,
@@ -1460,7 +1513,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
           valGridLine: { color: COLORS.border, size: 0.5 },
         },
         {
-          valAxisTitle: "Olay Sayısı (Adet)",
+          valAxisTitle: "Event Count (Qty)",
           showValAxisTitle: true,
           valAxisTitleFontSize: 9.5,
           valAxisTitleColor: COLORS.slateLight,
@@ -1486,36 +1539,36 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const top3Percentage = totalDuration > 0 ? Math.round((top3Duration / totalDuration) * 100) : 0;
 
     const isDynamic = activePareto.length > 0;
-    const footerText = `Grafik: Pareto duruş süresi (bar, sol eksen) ve Duruş sıklığı (turuncu çizgi, sağ eksen), ilk 3 neden vurgulu. İlk 3 neden toplam duruş süresinin %${top3Percentage}'ini oluşturmaktadır. ` + (isDynamic 
-      ? "Veriler 13.06.2026 sonrası seçili hücrelerin kategorize edilmiş duruş verileridir."
-      : "Veriler 13.06.2026 sonrası dönemi kapsayan taslak (dummy) verilerdir.");
+    const footerText = `Chart: Pareto downtime duration (bar, left axis) and downtime frequency (orange line, right axis), top 3 causes highlighted. The top 3 causes account for ${top3Percentage}% of total downtime duration. ` + (isDynamic 
+      ? "Data represents categorized downtime records for selected cells after 13.06.2026."
+      : "Data represents draft (dummy) downtime records covering the period after 13.06.2026.");
 
     slide.addText(footerText, {
       x: 0.6, y: 6.0, w: 12.1, h: 0.65, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight,
     });
     
-    addFooter(slide, "Duruş Analizi");
+    addFooter(slide, "Downtime Analysis");
   }
 
   // ==================================================================
-  // SLIDE 14C — DURUŞ ANALİZİ: KAYIP ANALİZİ AKSİYON PLANI
+  // SLIDE 14C — DOWNTIME ANALYSIS: LOSS ANALYSIS ACTION PLAN
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.checkWhite, eyebrow: "Duruş Analizi", title: "Kayıp Analizi — Detay Kırılım" });
+    addHeader(slide, { icon: icons.checkWhite, eyebrow: "Downtime Analysis", title: "Loss Analysis — Action Plan Details" });
 
     const rawPareto = actionPlanPareto.length > 0 ? actionPlanPareto : [
-      { category: "Pres", duration: 1850, eventCount: 84, cumPercentage: 35, topKokNeden: "CNC Rulman aşınması ve yatak boşluğu", topOnleyiciAksiyon: "Haftalık rulman titreşim analizi ve periyodik yağlama kontrolü" },
-      { category: "N602", duration: 1450, eventCount: 52, cumPercentage: 62, topKokNeden: "Operatörlerin duruş kodu girmemesi", topOnleyiciAksiyon: "Duruş giriş ekranında 10 dk üzeri kayıtlarda kod zorunluluğu" },
-      { category: "ROB109", duration: 1100, eventCount: 65, cumPercentage: 83, topKokNeden: "Gürültülü hatlarda I/O modül haberleşme kaybı", topOnleyiciAksiyon: "Haberleşme kablolarının ekranlı kablo ile değişimi ve topraklama" },
-      { category: "Quench", duration: 750, eventCount: 22, cumPercentage: 97, topKokNeden: "Eşanjör tıkanıklığı ve yetersiz soğutma debisi", topOnleyiciAksiyon: "Kritik hücrelerin eşanjör temizliği ve soğutma suyu debi takibi" },
-      { category: "Flowform", duration: 150, eventCount: 15, cumPercentage: 100, topKokNeden: "Minör arızalar ve mikro duruşlar", topOnleyiciAksiyon: "Aksiyon takip listesi üzerinden takip ve analiz" }
+      { category: "Pres", duration: 1850, eventCount: 84, cumPercentage: 35, topKokNeden: "CNC bearing wear and housing backlash", topOnleyiciAksiyon: "Weekly bearing vibration analysis and periodic lubrication check" },
+      { category: "N602", duration: 1450, eventCount: 52, cumPercentage: 62, topKokNeden: "Operators not entering downtime codes", topOnleyiciAksiyon: "Mandatory codes on the downtime input screen for entries > 10 min" },
+      { category: "ROB109", duration: 1100, eventCount: 65, cumPercentage: 83, topKokNeden: "I/O module communication loss in noisy electrical environments", topOnleyiciAksiyon: "Replacing communication cables with shielded ones and proper grounding" },
+      { category: "Quench", duration: 750, eventCount: 22, cumPercentage: 97, topKokNeden: "Heat exchanger clogging and insufficient cooling flow rate", topOnleyiciAksiyon: "Heat exchanger cleaning for critical cells and cooling water flow rate tracking" },
+      { category: "Flowform", duration: 150, eventCount: 15, cumPercentage: 100, topKokNeden: "Minor breakdowns and micro stoppages", topOnleyiciAksiyon: "Tracking and analysis via action item list" }
     ];
 
     const actionList = rawPareto.slice(0, 10);
 
-    const header = ["Hücre", "Toplam Süre", "Payı %", "Duruş Sebebi", "Aksiyon", "Durum"];
+    const header = ["Cell", "Total Time", "Share %", "Root Cause / Reason", "Action Plan", "Status"];
     const rows = actionList.map((item) => {
       let statusObj = { text: "●", color: COLORS.amber, bold: true };
       const kok = item.topKokNeden || "";
@@ -1526,19 +1579,30 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
          aks.includes("çözül") || 
          aks.includes("değiştiril") || 
          aks.includes("güncellen") || 
-         kok.includes("Rulman")) && 
+         kok.includes("Rulman") ||
+         kok.toLowerCase().includes("completed") ||
+         kok.toLowerCase().includes("resolved") ||
+         kok.toLowerCase().includes("fixed") ||
+         aks.toLowerCase().includes("completed") ||
+         aks.toLowerCase().includes("resolved") ||
+         aks.toLowerCase().includes("fixed") ||
+         aks.toLowerCase().includes("changed") ||
+         aks.toLowerCase().includes("updated") ||
+         kok.includes("bearing") ||
+         kok.includes("Bearing")) && 
         !kok.includes("Montaj") && 
-        !kok.includes("Demontaj")
+        !kok.includes("Demontaj") &&
+        !kok.toLowerCase().includes("assembly")
       );
       if (isCompleted) {
         statusObj = { text: "✔", color: COLORS.green, bold: true };
       }
       return [
-        item.category,
-        `${fmtInt(item.duration)} dk`,
-        `%${item.ratio !== undefined ? item.ratio : item.cumPercentage}`,
-        item.topKokNeden || "—",
-        item.topOnleyiciAksiyon || "—",
+        cellTranslations[item.category] || item.category,
+        `${fmtInt(item.duration)} min`,
+        `${item.ratio !== undefined ? item.ratio : item.cumPercentage}%`,
+        translateText(item.topKokNeden),
+        translateText(item.topOnleyiciAksiyon),
         statusObj
       ];
     });
@@ -1553,94 +1617,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       rowH: rowH
     });
 
-    addFooter(slide, "Duruş Analizi");
-  }
-
-  // ==================================================================
-  // SLIDE 15B — DURUŞ ANALİZİ: KAYIP TÜRLERİNE GÖRE DAĞILIM
-  // ==================================================================
-  {
-    const slide = newContentSlide();
-    addHeader(slide, { icon: icons.chartLine, eyebrow: "Duruş Analizi", title: "Kayıp Türlerine Göre Dağılım — 13.06.2026 ve Sonrası" });
-
-    const rawLossTypes = activeLossTypes.length > 0 ? activeLossTypes : [
-      { category: "Mekanik Arıza", duration: 3500, eventCount: 145, percentage: 38 },
-      { category: "Setup / Ayar", duration: 2200, eventCount: 85, percentage: 24 },
-      { category: "Elektrik Arıza", duration: 1500, eventCount: 45, percentage: 16 },
-      { category: "Takım / Kalıp Değişimi", duration: 1100, eventCount: 30, percentage: 12 },
-      { category: "Akışkan Arıza", duration: 600, eventCount: 18, percentage: 7 },
-      { category: "Yardımcı Süreç Kayıpları", duration: 250, eventCount: 12, percentage: 3 }
-    ];
-
-    const labels = rawLossTypes.map((item) => item.category);
-    const values = rawLossTypes.map((item) => item.duration);
-
-    // Pasta grafik için kurumsal renk paleti
-    const pieColors = [
-      COLORS.navy,      // En büyük pay
-      COLORS.amber,     // İkinci pay
-      COLORS.green,     // Üçüncü pay
-      "475569",         // Koyu gri
-      "94A3B8",         // Orta gri
-      "CBD5E1",         // Açık gri
-      "E2E8F0"
-    ];
-
-    // Sol Taraf (Pie Chart)
-    slide.addChart(
-      pres.charts.PIE,
-      [
-        {
-          name: "Kayıp Süresi (dk)",
-          labels: labels,
-          values: values,
-        }
-      ],
-      {
-        x: 0.6,
-        y: 1.6,
-        w: 5.8,
-        h: 4.3,
-        showLegend: true,
-        legendPos: "b", // altta gösterilsin
-        legendFontSize: 9.5,
-        legendColor: COLORS.slate,
-        showPercent: true,
-        showValue: false,
-        chartColors: pieColors,
-        dataLabelFontSize: 10,
-        dataLabelColor: "FFFFFF"
-      }
-    );
-
-    // Sağ Taraf (Detay Tablosu)
-    const header = ["Kayıp Türü", "Toplam Süre", "Duruş Sayısı", "Pay (%)"];
-    const rows = rawLossTypes.map((item) => [
-      item.category,
-      `${fmtInt(item.duration)} dk`,
-      String(item.eventCount),
-      `%${item.percentage}`
-    ]);
-
-    styledTable(slide, header, rows, {
-      x: 6.8,
-      y: 1.6,
-      w: 5.9,
-      colW: [2.5, 1.2, 1.2, 1.0], // Toplam: 2.5 + 1.2 + 1.2 + 1.0 = 5.9
-      rowH: 0.65
-    });
-
-    const isDynamic = activeLossTypes.length > 0;
-    const footerText = `Grafik: Kayıp kategorilerinin toplam duruş sürelerine göre yüzde dağılımı. ` + (isDynamic
-      ? "Veriler 13.06.2026 sonrası seçili hücrelerin kategorize edilmiş duruş verileridir."
-      : "Veriler 13.06.2026 sonrası dönemi kapsayan taslak (dummy) verilerdir.");
-
-    slide.addText(footerText, {
-      x: 0.6, y: 6.0, w: 12.1, h: 0.65, margin: 0,
-      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.slateLight,
-    });
-
-    addFooter(slide, "Duruş Analizi");
+    addFooter(slide, "Downtime Analysis");
   }
 
 
@@ -1649,8 +1626,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
 
 
 
+
+
   // ==================================================================
-  // ÖNE ÇIKAN SORUNLAR — helper for case slides
+  // FEATURED ISSUES — helper for case slides
   // ==================================================================
   function caseSlide({ eyebrow, cellTitle, statusType, statusLabel, evidence, description, actionLabel, action }) {
     const slide = newContentSlide();
@@ -1663,7 +1642,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 0.6, y: 1.8, w: 3.6, h: 3.4, rectRadius: 0.08,
       fill: { color: COLORS.navy }, line: { type: "none" },
     });
-    slide.addText("VERİ KANITI", {
+    slide.addText("DATA EVIDENCE", {
       x: 0.9, y: 2.1, w: 3.0, h: 0.3, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.ice, bold: true, charSpacing: 2,
     });
@@ -1685,7 +1664,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       fill: { color: COLORS.white }, line: { type: "none" },
       shadow: { type: "outer", color: "1E2761", blur: 8, offset: 3, angle: 90, opacity: 0.1 },
     });
-    slide.addText("SORUN TANIMI", {
+    slide.addText("ISSUE DESCRIPTION", {
       x: 4.8, y: 2.05, w: 6.9, h: 0.3, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slateLight, bold: true, charSpacing: 2,
     });
@@ -1718,65 +1697,22 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   // hücreler geri eklendiğinde (EXCLUDED_CELLS boşaltıldığında) otomatik döner.
   if (!fosfatBoyaExcluded) {
     const slide = caseSlide({
-      eyebrow: "Öne Çıkan Sorunlar",
-      cellTitle: "Boya & Fosfat Hücreleri — Veri Boşluğu",
+      eyebrow: "Featured Issues",
+      cellTitle: "Paint & Phosphate Cells — Data Gap",
       statusType: "decision",
-      statusLabel: "Karar Bekliyor",
+      statusLabel: "Decision Pending",
       evidence: [
-        { big: "7 Mayıs", small: "Son kayıtlı üretim/duruş\nverisi tarihi" },
-        { big: "~2 ay", small: "Veri girişi olmayan\nsüre" },
+        { big: "May 7", small: "Last recorded production/downtime\ndata date" },
+        { big: "~2 months", small: "Period without data\nentry" },
       ],
-      description: "Boya ve Fosfat hücrelerinde 7 Mayıs 2026'dan bu yana günlük üretim formuna veri girişi yapılmamış. Sebep netleştirilmedi: hat mı durdu, veri girişi mi kesildi, sorumlu değişikliği mi yaşandı bilinmiyor.",
-      actionLabel: "Gerekli Karar",
-      action: "Üst yönetimden bu iki hücrenin güncel operasyonel durumu ve veri girişinin neden kesildiğine dair yönlendirme isteniyor.",
+      description: "No data has been entered into the daily production form for Paint and Phosphate cells since May 7, 2026. The reason remains unclear: whether the line stopped, data entry was interrupted, or a change in responsibility occurred is unknown.",
+      actionLabel: "Required Decision",
+      action: "Guidance is requested from senior management regarding the current operational status of these two cells and the reason for the data entry disruption.",
     });
-    addFooter(slide, "Öne Çıkan Sorunlar");
+    addFooter(slide, "Featured Issues");
   }
 
-  // ==================================================================
-  // SLIDE 13 — AKSİYON TAKİBİ: GENEL DURUM
-  // ==================================================================
-  {
-    const slide = newContentSlide();
-    addHeader(slide, { icon: icons.tasks, eyebrow: "Aksiyon Takibi", title: "74 Madde — Genel Durum" });
 
-    slide.addChart(
-      pres.charts.DOUGHNUT,
-      [{ name: "Durum", labels: ["Açık", "Tamamlandı"], values: [60, 14] }],
-      {
-        x: 0.5, y: 1.5, w: 4.6, h: 4.3,
-        chartColors: [COLORS.amber, COLORS.green],
-        showLegend: true, legendPos: "b", legendColor: COLORS.slate, legendFontSize: 12,
-        showValue: true, showPercent: true, dataLabelColor: COLORS.white, dataLabelFontSize: 12, dataLabelFontFace: FONT_BODY,
-        showTitle: false, holeSize: 55,
-      }
-    );
-    slide.addText("74", {
-      x: 0.5, y: 3.05, w: 4.6, h: 0.7, margin: 0, align: "center",
-      fontFace: FONT_HEAD, fontSize: 36, bold: true, color: COLORS.navy,
-    });
-    slide.addText("TOPLAM MADDE", {
-      x: 0.5, y: 3.65, w: 4.6, h: 0.3, margin: 0, align: "center",
-      fontFace: FONT_BODY, fontSize: 10, bold: true, color: COLORS.slateLight, charSpacing: 2,
-    });
-
-    const header = ["Hücre", "Tamamlandı", "Açık", "Toplam"];
-    const rows = [
-      ["Pres Hücresi", "3", "29", "32"],
-      ["Flowform Hücresi", "6", "10", "16"],
-      ["N602-N603 Hücresi", "3", "10", "13"],
-      ["Final Ölçüm", "2", "9", "11"],
-      ["Quench Hücresi", "0", "1", "1"],
-      ["ETM Hücresi", "0", "1", "1"],
-    ];
-    styledTable(slide, header, rows, { x: 5.5, y: 1.55, w: 7.3, colW: [3.4, 1.3, 1.3, 1.3], rowH: 0.42 });
-
-    slide.addText("Nisan-Mayıs döneminde tamamlanan madde sayısı sıfırdı; 14 maddenin tamamı Haziran-Temmuz'da kapatıldı.", {
-      x: 5.5, y: 4.55, w: 7.3, h: 0.5, margin: 0,
-      fontFace: FONT_BODY, fontSize: 11.5, italic: true, color: COLORS.slateLight,
-    });
-    addFooter(slide, "Aksiyon Takibi");
-  }
 
   // ==================================================================
   // SLIDE 15-16 — TALEP / KARAR (placeholder)
@@ -1789,8 +1725,8 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 0.6, y: 1.75, w: 11.8, h: 4.4, rectRadius: 0.08,
       fill: { color: COLORS.white }, line: { color: COLORS.border, width: 1.25, dashType: "dash" },
     });
-    badge(slide, { x: 0.95, y: 2.05, w: 2.85, label: "İçerik Bekliyor", type: "decision" });
-    slide.addText("Bu bölümün madde listesi henüz kesinleşmedi. Sunum hazırlığı sırasında ilgili paydaşlarla birlikte netleştirilecek.", {
+    badge(slide, { x: 0.95, y: 2.05, w: 2.85, label: "Awaiting Content", type: "decision" });
+    slide.addText("The list of items for this section has not been finalized yet. It will be clarified with relevant stakeholders during presentation preparation.", {
       x: 0.95, y: 2.6, w: 11.1, h: 0.5, margin: 0,
       fontFace: FONT_BODY, fontSize: 12.5, color: COLORS.slate,
     });
@@ -1807,17 +1743,18 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
 
 
   placeholderSlide({
-    eyebrow: "Talep / Karar",
-    title: "Müşteriden Talep Edilecekler",
-    promptLabel: "Doldurulacak Şablon",
+    eyebrow: "Request / Decision",
+    title: "Customer Demands",
+    promptLabel: "Template to Fill",
     promptExample: fosfatBoyaExcluded
-      ? "[Talep Konusu]  —  Gerekçe  —  Beklenen Katkı\n\nÖrnek aday (bu oturumda netleşmedi): sunum hazırlığı sırasında ilgili paydaşlarla netleştirilecek."
-      : "[Talep Konusu]  —  Gerekçe  —  Beklenen Katkı\n\nÖrnek aday (bu oturumda netleşmedi): Boya ve Fosfat hücrelerindeki operasyonel durumun ve veri girişi kesintisinin netleştirilmesi için müşteri/saha koordinasyonu.",
+      ? "[Request Topic]  —  Reasoning  —  Expected Contribution\n\nExample candidate (not finalized this session): to be determined with relevant stakeholders during presentation preparation."
+      : "[Request Topic]  —  Reasoning  —  Expected Contribution\n\nExample candidate (not finalized this session): Coordination with customer/site to clarify the operational status and data entry gaps in Paint and Phosphate cells.",
   });
 
 
 
-  const outPath = "C:\\Users\\tvural.REPKON\\Desktop\\HF901\\Serial Production\\ManufUI\\docs\\sunumlar\\Repkon-HF901-Ust-Yonetim-Sunumu-2026-07.pptx";
+  const outPath = "C:\\Users\\tvural.REPKON\\Desktop\\HF901\\Serial Production\\ManufUI\\docs\\sunumlar\\Repkon-HF901-Ust-Yonetim-Sunumu-2026-07-EN.pptx";
   await pres.writeFile({ fileName: outPath });
   console.log("done:", outPath, "pages:", pageNum + 1);
+  return; // End execution correctly
 })();

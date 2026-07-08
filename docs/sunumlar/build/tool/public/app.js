@@ -134,6 +134,7 @@
     summaryBar: document.getElementById("summaryBar"),
     status: document.getElementById("status"),
     generateBtn: document.getElementById("generateBtn"),
+    generateEnBtn: document.getElementById("generateEnBtn"),
     resultPanel: document.getElementById("resultPanel"),
     resultTable: document.getElementById("resultTable"),
     buildLog: document.getElementById("buildLog"),
@@ -2153,6 +2154,26 @@
       setStatus("Hata: " + e.message, "error");
     } finally {
       el.generateBtn.disabled = false;
+    }
+  });
+
+  el.generateEnBtn.addEventListener("click", async () => {
+    el.generateEnBtn.disabled = true;
+    setStatus("İngilizce sunum oluşturuluyor, bu birkaç saniye sürebilir…");
+    await saveSelection();
+    try {
+      const res = await fetch("/api/generate-en", { method: "POST" }).then((r) => r.json());
+      if (res.ok) {
+        setStatus("İngilizce sunum güncellendi.", "ok");
+        showResult(res.overviewData, res.log);
+      } else {
+        setStatus("Hata: " + (res.error || "bilinmeyen hata"), "error");
+        showResult(null, res.log + "\n" + (res.error || ""));
+      }
+    } catch (e) {
+      setStatus("Hata: " + e.message, "error");
+    } finally {
+      el.generateEnBtn.disabled = false;
     }
   });
 
