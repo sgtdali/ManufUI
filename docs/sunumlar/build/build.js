@@ -1203,7 +1203,155 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     addFooter(slide, "OEE, MTBF & MTTR");
   }
 
+  // ==================================================================
+  // SLIDE — FİNAL ÖLÇÜM SONRASI KALİTE DURUMU
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.checkWhite, eyebrow: "Kalite Analizi", title: "Final Ölçüm Sonrası Kalite Durumu" });
 
+    // Sol Taraf: Pasta/Doughnut Grafik
+    slide.addChart(
+      pres.charts.DOUGHNUT,
+      [{ name: "Kalite Durumu", labels: ["Uygun", "Rework", "Ret"], values: [783, 212, 120] }],
+      {
+        x: 0.5, y: 1.6, w: 4.6, h: 4.3,
+        chartColors: [COLORS.green, COLORS.amber, COLORS.red],
+        showLegend: true, legendPos: "b", legendColor: COLORS.slate, legendFontSize: 12,
+        showValue: true, showPercent: true, dataLabelColor: COLORS.white, dataLabelFontSize: 12, dataLabelFontFace: FONT_BODY,
+        showTitle: false, holeSize: 55,
+      }
+    );
+    slide.addText("1.115", {
+      x: 0.5, y: 3.15, w: 4.6, h: 0.7, margin: 0, align: "center",
+      fontFace: FONT_HEAD, fontSize: 36, bold: true, color: COLORS.navy,
+    });
+    slide.addText("KONTROL EDİLEN", {
+      x: 0.5, y: 3.75, w: 4.6, h: 0.3, margin: 0, align: "center",
+      fontFace: FONT_BODY, fontSize: 10, bold: true, color: COLORS.slateLight, charSpacing: 2,
+    });
+
+    // Sağ Taraf: Detay Tablosu
+    const header = ["Tür", "Hata Tanımı / Detayı", "Hata Kaynağı", "Adet", "Oran %"];
+    const rows = [
+      // Reworks
+      [
+        { text: "Rework", color: COLORS.amber, bold: true, fill: { color: COLORS.amberBg } },
+        "Dış Geçer Taraf", "Final Torna", "114", "%10.22"
+      ],
+      [
+        { text: "Rework", color: COLORS.amber, bold: true, fill: { color: COLORS.amberBg } },
+        "İç Kumlama", "İç Kumlama", "64", "%5.74"
+      ],
+      [
+        { text: "Rework", color: COLORS.amber, bold: true, fill: { color: COLORS.amberBg } },
+        "Angle at rear of rotating band relief groove missing", "Final Torna", "34", "%3.05"
+      ],
+      // Rejects
+      [
+        { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
+        "Borrelet Çapı", "Final Torna", "42", "%3.77"
+      ],
+      [
+        { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
+        "Et Kalınlığı İnce", "Flowform", "25", "%2.24"
+      ],
+      [
+        { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
+        "Dip İşlenmemiş", "Final Torna", "12", "%1.08"
+      ],
+      [
+        { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
+        "Et Kalınlığı Dağılımı", "Flowform", "8", "%0.72"
+      ],
+      [
+        { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
+        "Takım Kırılması", "Final Torna", "6", "%0.54"
+      ],
+      [
+        { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
+        "Ogive İşlenmemiş", "Hot Spinning", "6", "%0.54"
+      ],
+      [
+        { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
+        "Et Kalınlığı İnce + Dağılımı", "Flowform", "6", "%0.54"
+      ],
+      [
+        { text: "Reject", color: COLORS.red, bold: true, fill: { color: COLORS.redBg } },
+        "Diğer Sebepler (5 başlık)", "Çeşitli", "15", "%1.35"
+      ],
+    ];
+
+    styledTable(slide, header, rows, {
+      x: 5.5,
+      y: 1.55,
+      w: 7.3,
+      colW: [1.0, 2.6, 1.6, 1.0, 1.1],
+      rowH: 0.36
+    });
+
+    addFooter(slide, "Kalite Analizi");
+  }
+
+  // ==================================================================
+  // SLIDE — ZAMANA BAĞLI UYGUNLUK (OKEY + REWORK) ORANI DEĞİŞİMİ
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.chartLine, eyebrow: "Kalite Analizi", title: "Zamana Bağlı Uygunluk (Okey + Rework) Oranı Değişimi" });
+
+    function calculateTrendLine(data) {
+      const N = data.length;
+      if (N < 2) return data.map(() => null);
+      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+      for (let i = 0; i < N; i++) {
+        sumX += i;
+        sumY += data[i];
+        sumXY += i * data[i];
+        sumXX += i * i;
+      }
+      const slope = (N * sumXY - sumX * sumY) / (N * sumXX - sumX * sumX);
+      const intercept = (sumY - slope * sumX) / N;
+      return data.map((_, i) => Math.round((slope * i + intercept) * 10) / 10);
+    }
+
+    const labels = ["17.06", "21.06", "25.06", "26.06", "27.06", "28.06", "29.06", "30.06", "01.07", "02.07", "04.07", "05.07", "06.07", "07.07"];
+    const values = [71.4, 81.8, 91.2, 92.0, 76.0, 50.5, 93.5, 93.3, 87.7, 94.7, 95.0, 95.3, 97.1, 98.1];
+
+    // Uygunluk Oranı Çizgi Grafiği (Tam Genişlik)
+    slide.addChart(
+      pres.charts.LINE,
+      [
+        {
+          name: "Uygunluk (Okey + Rework) Oranı %",
+          labels: labels,
+          values: values
+        },
+        {
+          name: "Genel Trend",
+          labels: labels,
+          values: calculateTrendLine(values)
+        }
+      ],
+      {
+        x: 0.6, y: 1.6, w: 12.1, h: 4.95,
+        chartColors: [COLORS.navy, COLORS.amber],
+        lineSize: 2.5,
+        showLegend: true,
+        legendPos: "b",
+        showTitle: false,
+        catAxisLabelColor: COLORS.slate, catAxisLabelFontSize: 9,
+        valAxisLabelColor: COLORS.slateLight, valAxisLabelFontSize: 9,
+        valAxisTitle: "%", showValAxisTitle: true, valAxisTitleFontSize: 9, valAxisTitleColor: COLORS.slateLight,
+        valGridLine: { color: COLORS.border, size: 0.5 },
+        catGridLine: { style: "none" },
+        showValue: false,
+        valAxisMaxVal: 100
+      }
+    );
+
+    addFooter(slide, "Kalite Analizi");
+  }
 
   // ==================================================================
   // SLIDE 14B — DURUŞ ANALİZİ: KAYIP ANALİZİ (PARETO) - 13.06.2026 VE SONRASI
@@ -1468,61 +1616,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
 
 
 
-  // ==================================================================
-  // SLIDE 17 — DURUŞ ANALİZİ: KAYIT TAKİP DİSİPLİNİ
-  // ==================================================================
-  {
-    const slide = newContentSlide();
-    addHeader(slide, { icon: icons.clockAmber, eyebrow: "Duruş Analizi", title: "Arıza Kayıtlarında Çözüm Takibi" });
 
-    slide.addChart(
-      pres.charts.DOUGHNUT,
-      [{ name: "Durum", labels: ["İşaretlenmemiş", "Giderildi"], values: [295, 23] }],
-      {
-        x: 0.5, y: 1.6, w: 4.6, h: 4.3,
-        chartColors: [COLORS.slateLight, COLORS.green],
-        showLegend: true, legendPos: "b", legendColor: COLORS.slate, legendFontSize: 12,
-        showValue: true, showPercent: true, dataLabelColor: COLORS.white, dataLabelFontSize: 12, dataLabelFontFace: FONT_BODY,
-        showTitle: false, holeSize: 55,
-      }
-    );
-    slide.addText("318", {
-      x: 0.5, y: 3.15, w: 4.6, h: 0.7, margin: 0, align: "center",
-      fontFace: FONT_HEAD, fontSize: 36, bold: true, color: COLORS.navy,
-    });
-    slide.addText("TOPLAM ARIZA OLAYI", {
-      x: 0.5, y: 3.75, w: 4.6, h: 0.3, margin: 0, align: "center",
-      fontFace: FONT_BODY, fontSize: 10, bold: true, color: COLORS.slateLight, charSpacing: 2,
-    });
-
-    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-      x: 5.5, y: 1.6, w: 6.9, h: 2.0, rectRadius: 0.08,
-      fill: { color: COLORS.white }, line: { type: "none" },
-      shadow: { type: "outer", color: "1E2761", blur: 8, offset: 3, angle: 90, opacity: 0.1 },
-    });
-    slide.addText("GÖZLEM", {
-      x: 5.85, y: 1.85, w: 6.2, h: 0.3, margin: 0,
-      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slateLight, bold: true, charSpacing: 2,
-    });
-    slide.addText("Sistemde \"arıza giderildi\" alanı mevcut ancak sahada tutarlı doldurulmuyor: 318 arıza olayının sadece 23'ü (%7) çözüm olarak işaretlenmiş (957 / 9.610 dk). Bu, arızaların çözülmediği anlamına gelmiyor — takip alanının disiplinli kullanılmadığını gösteriyor.", {
-      x: 5.85, y: 2.2, w: 6.2, h: 1.3, margin: 0,
-      fontFace: FONT_BODY, fontSize: 12, color: COLORS.slate, lineSpacing: 15,
-    });
-
-    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-      x: 5.5, y: 3.8, w: 6.9, h: 1.1, rectRadius: 0.08,
-      fill: { color: COLORS.iceTint }, line: { type: "none" },
-    });
-    slide.addText("ÖNERİ", {
-      x: 5.85, y: 4.03, w: 6.2, h: 0.3, margin: 0,
-      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true, charSpacing: 2,
-    });
-    slide.addText("Belirli bir süre üzerindeki arızalarda \"giderildi\" alanı ve çözüm açıklaması zorunlu hale getirilebilir; bu hem takip disiplinini hem de kök neden veri kalitesini artırır.", {
-      x: 5.85, y: 4.35, w: 6.2, h: 0.5, margin: 0,
-      fontFace: FONT_BODY, fontSize: 11.5, color: COLORS.slate, lineSpacing: 14,
-    });
-    addFooter(slide, "Duruş Analizi");
-  }
 
   // ==================================================================
   // ÖNE ÇIKAN SORUNLAR — helper for case slides
