@@ -6,6 +6,24 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 ---
 
 
+## [2026-07-08] update | Üst Yönetim Sunumu: Kök Neden Slayt Kaldırma, Pareto ve Aksiyon Planı Ayrışımı, Durum Kolonu ve Sıralama Kuralları
+
+**Yapılanlar:**
+- **"Kök Neden Özeti ve Alınan Aksiyonlar" Slaydının Kaldırılması:** Slayt 10 sunumdan tamamen çıkarıldı, plan dokümanı (`2026-07-ust-yonetim-sunum-plani.md`) ve sayfa footer sayacındaki dinamik numaralandırma güncellendi.
+- **Kayıp Analizi Pareto Grafik Sayfası (Slayt 14B) Eski Haline Getirildi**: Pareto grafik sayfasındaki etiketler ve değerler orijinal hücre bazlı toplam duruş sürelerine ve kümülatif Pareto eğrisine geri döndürüldü.
+- **Kayıp Analizi Detay Kırılım Tablosu (Slayt 14C) Ayrıştırması ve Özelleştirilmesi**:
+  - Grafik sayfasından ayrıştırılarak yalnızca kullanıcının manuel girdiği kök nedenleri gösteren özel bir veri yapısına (`actionPlanPareto`) bağlandı.
+  - Tablodaki **Duruş Sayısı** sütunu kaldırıldı ve toplam tablo genişliği (`12.1 inç`) korunarak sütun genişlikleri optimize edildi.
+  - Tabloya kök nedenlerin hücre toplam duruş süresine oranını yansıtan **"Payı %"** sütunu eklendi.
+  - Tablonun sağ tarafına **"Durum"** (Status) sütunu eklenerek, maddelerin durumları metin yerine yeşil tik (**✔**) ve amber daire (**●**) ikonlarıyla gösterildi.
+  - İkon eşleme kuralları güncellenerek; kalıp montaj/demontaj gibi süreçlerin devam ediyor (amber) gösterilmesi, çözülmüş ve güncellenmiş motor arızası gibi süreçlerin ise tamamlanmış (yeşil tik) olarak gösterilmesi sağlandı.
+  - Satır sayısı sınırı 10'a çıkarıldı ve dikey taşmayı önlemek amacıyla satır sayısı 5'ten fazlaysa satır yüksekliği dinamik olarak `0.45 inç` değerine çekildi.
+  - Tablo sıralaması sırasıyla **Pres**, **Flowform**, **N602**, **ROB110-111** hücre önceliğine göre ve hücrelerin kendi içinde azalan süreye göre olacak şekilde yapılandırıldı.
+- **Wiki ve Plan Güncellemesi:** Yapılan tüm sunum slayt değişiklikleri `wiki/systems/ust-yonetim-sunumu.md` ve `2026-07-ust-yonetim-sunum-plani.md` dosyalarına işlendi.
+
+---
+
+
 ## [2026-07-07] update | Üst Yönetim Sunumu: OEE Tarih Eşitleme, Kalite Sütunu Entegrasyonu ve Zincirleme OEE Hesabı
 
 **Yapılanlar:**

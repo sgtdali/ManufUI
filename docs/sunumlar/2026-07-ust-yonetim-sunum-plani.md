@@ -50,10 +50,9 @@ ManufUI verisi (manuf_production_records/rows, 2026-04-02 – 2026-07-01) hazira
 - Kapak / sunum amacı ve kapsamı
 - 12 hücre özet tablosu — Haziran öncesi vs sonrası KPI karşılaştırması (üretim adedi, toplam duruş dakikası)
 
-### 2. Darboğaz & Kök Neden Analizi (3 sayfa)
+### 2. Darboğaz & Kök Neden Analizi (2 sayfa)
 - ETM/Pres upstream ilişkisi (akış şeması ile)
 - "Önceki istasyon bekleme" trendi — Nisan'dan Temmuz'a düşüş grafiği
-- Kök neden özeti ve alınan aksiyon
 
 ### 3. Öne Çıkan Sorunlar (4-5 sayfa, dinamik)
 - Hücre başına 1 sayfa — sorun tanımı, veri kanıtı, durum (çözüldü / devam ediyor / karar bekliyor)

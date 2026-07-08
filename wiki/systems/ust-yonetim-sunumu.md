@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-07
+updated: 2026-07-08
 sources: [docs/sunumlar/build/build.js, docs/sunumlar/build/tool/dataService.js, docs/sunumlar/build/tool/server.js, docs/sunumlar/build/tool/public/app.js, docs/sunumlar/build/tool/public/index.html, docs/sunumlar/build/tool/public/style.css, docs/sunumlar/2026-07-ust-yonetim-sunum-plani.md]
 ---
 
@@ -57,7 +57,7 @@ Tüm slaytlar aynı stil sistemini paylaşır (navy/ice renk paleti, Cambria ba�
 - İkonlar (`icons.tools`, `icons.chartBar`, `icons.warning`, vb.) build.js başında bir kez base64 PNG olarak render edilip anahtar üzerinden tekrar kullanılıyor — yeni slayt eklerken önce mevcut ikon setine bakmak gerekir.
 - pptxgenjs grafik API'si: `pres.charts.BAR` (`barDir: "col"|"bar"`, `barGrouping: "stacked"`) ve `pres.charts.DOUGHNUT` (`holeSize`) — build.js'de birden çok slaytta tekrar kullanılan pattern'ler.
 
-## Slayt Envanteri (2026-07-06 itibarıyla, 26 sayfa)
+## Slayt Envanteri (2026-07-08 itibarıyla, 25 sayfa)
 
 1. Kapak (başlık artık sadece **"Performans Raporu"** — "ve Aksiyon / Yatırım Talebi" kaldırıldı)
 2. Genel Bakış — Amaç ve Kapsam (hücre sayısı artık `ACTIVE_CELLS.length` ile dinamik; "kısa özet." gibi taslak metinler gerçek cümlelerle değiştirildi)
@@ -67,17 +67,19 @@ Tüm slaytlar aynı stil sistemini paylaşır (navy/ice renk paleti, Cambria ba�
 6. **MTBF ve MTTR — Arıza Bazlı Güvenilirlik (sadece Haziran-Temmuz)** — tek tablo (Hücre, MTBF, MTTR, Arıza Kaydı), Nisan-Mayıs karşılaştırma kolonları kaldırıldı; düşük örnekli hücre uyarısı artık veriden otomatik hesaplanıyor
 7. Güvenilirlik Özeti — Hücre Kıyaslaması
 8. Darboğaz — Hücreler Arası Akış Sırası (Fosfat/Boya akış şemasından çıkarıldı)
-9. Kök Neden Özeti ve Alınan Aksiyonlar
-10-16. **Duruş Analizi** — Genel Bakış KPI kartları → Kategori Dağılımı (stacked bar) → Üretime Oranlı Yoğunluk (tablo) → Neden Pareto'su (bar chart) → Hücre Bazlı Baskın Neden (tablo) → Tekrarlayan Somut Sorunlar (tablo) → Kayıt Takip Disiplini (doughnut)
-17-20. Öne Çıkan Sorunlar (N603/Quench/Flowform/Pres — seçim aracından gelen dinamik vaka seçimi)
-21-22. Aksiyon Takibi (74 madde durumu, Haziran-Temmuz'da kapananlar)
-23-25. Talep / Karar (yatırım + müşteri talepleri, sonraki adımlar)
+9-15. **Duruş Analizi** — Genel Bakış KPI kartları → Kategori Dağılımı (stacked bar) → Üretime Oranlı Yoğunluk (tablo) → Kayıp Analizi (Pareto) (bar/çizgi combo grafik) → Kayıp Analizi — Detay Kırılım (tablo; sadece kullanıcı tanımlı kök nedenleri listeleyen, payı oranını gösteren ve statü kolonu barındıran tablo) → Tekrarlayan Somut Sorunlar (tablo) → Kayıt Takip Disiplini (doughnut)
+16-19. Öne Çıkan Sorunlar (N603/Quench/Flowform/Pres — seçim aracından gelen dinamik vaka seçimi)
+20-21. Aksiyon Takibi (74 madde durumu, Haziran-Temmuz'da kapananlar)
+22-24. Talep / Karar (yatırım + müşteri talepleri, sonraki adımlar)
 
 **Kaldırılan slaytlar (2026-07-05):** "Önceki İstasyon Bekleme Süresi" (Genel Bakış'ın ikinci sayfası, KPI kartlarıyla birlikte) ve "Önceki İstasyon Bekleme Trendi" (dk/gün bar chart, Darboğaz bölümü) tamamen build.js'den silindi — geri eklemek için git geçmişinden kod bloğu geri alınmalı (EXCLUDED_CELLS gibi tek bayrakla geri açılabilen bir mekanizma değil). "Boya & Fosfat Hücreleri — Veri Boşluğu" (Öne Çıkan Sorunlar) slaydı silinmedi, sadece `fosfatBoyaExcluded` bayrağına göre koşullu atlanıyor.
+**Kaldırılan slaytlar (2026-07-08):** "Kök Neden Özeti ve Alınan Aksiyonlar" slaydı sunumdan tamamen kaldırılmıştır.
 
-### Duruş Analizi Bölümü (Slayt 8-14) — Tasarım Notları
+### Duruş Analizi Bölümü (Slayt 9-15) — Tasarım Notları
 
-Bu bölüm 2026-07-02'de eklendi; önceki halde sunumda sadece istasyon-bekleme trendi ve birkaç spesifik arıza vakası vardı. Yeni sayfalar tamamen `manuf_production_rows`'daki tüm duruş kolonlarından (arıza, planlı duruş, setup, takım/kalıp, önceki istasyon bekleme, mola, müşteri/kalite kaynaklı) canlı Supabase sorgularıyla üretildi — **fabrikasyon veri yok**.
+Bu bölüm 2026-07-02'de eklendi. Slayt 12 ("Kayıp Analizi (Pareto)") ve Slayt 13 ("Kayıp Analizi — Detay Kırılım") olarak iki önemli duruş analiz sayfası barındırır:
+- **Slayt 12 (Kayıp Analizi (Pareto))**: Hücre bazlı toplam duruş sürelerini ve kümülatif yüzdeyi gösteren combo grafiktir.
+- **Slayt 13 (Kayıp Analizi — Detay Kırılım)**: Sadece kullanıcının manuel girdiği kök nedenleri listeler. Duruş ve aksiyon süreleri bu kök neden bazında toplanır. Sütunlar arasında duruş sayısı bulunmaz, bunun yerine **"Payı %"** sütunu (o kök nedenin hücre toplam duruşundaki yüzdesi) ve **"Durum"** sütunu (tamamlananlar yeşil ✔, devam edenler turuncu ● olarak) bulunur. Satırlar Pres, Flowform, N602, ROB110-111 öncelik sıralamasına göre gruplanmıştır. Sayfa altındaki açıklama kaldırılmış ve maksimum satır sayısı 10'a çıkarılmıştır. Sayfa yüksekliğine sığması için 5 satırdan fazla veri varsa satır yüksekliği dinamik olarak `0.45 inç` değerine ölçeklenir.
 
 **Kritik tasarım kararı — normalize KPI:** Ham "arıza dakikası/gün" yerine **"arıza dakikası / 100 adet üretim"** kullanıldı (arıza dakikasını `computeOverviewData()`'daki üretim adedine oranlayarak). Bunun nedeni: ham dakikalar doğal olarak üretim hacmiyle birlikte artıyor; oranlanmadan bakınca çoğu hücrenin "kötüleştiği" gibi yanlış bir izlenim oluşuyordu. Normalize edilince hikaye tersine döndü — çoğu hücre aslında **iyileşmiş**; gerçek regresyon sadece **ROB104 (+444%)**, **ROB110-111 (+204%)** ve **Quench** (0 → 86.3, yeni ortaya çıkan sorun) için geçerli.
 
