@@ -1546,6 +1546,8 @@
     if (!cell) { el.kayipLiveSummary.innerHTML = ""; return; }
     
     let totalDowntimeMinutes = 0;
+    let activeDowntimeMinutes = 0;
+    let categorizedDowntimeMinutes = 0;
     let categorizedCount = 0;
     let totalDowntimeCount = 0;
     let excludedCount = 0;
@@ -1556,22 +1558,27 @@
         const splits = splitDowntimeRow(cell, date, row);
         splits.forEach(item => {
           totalDowntimeCount += 1;
-          totalDowntimeMinutes += item.row[item.field] || 0;
+          const mins = item.row[item.field] || 0;
+          totalDowntimeMinutes += mins;
 
           const oldKey = slotKey(cell, date, row.zaman_dilimi);
           const override = state.kayip.overrides[item.key] || state.kayip.overrides[oldKey] || {};
           if (override.dahilEt === false) {
             excludedCount += 1;
-          }
-          if (override.kategori || override.kokNeden || override.onleyiciAksiyon) {
-            categorizedCount += 1;
+          } else {
+            activeDowntimeMinutes += mins;
+            if (override.kategori || override.kokNeden || override.onleyiciAksiyon) {
+              categorizedCount += 1;
+              categorizedDowntimeMinutes += mins;
+            }
           }
         });
       });
     });
 
+    const ratio = activeDowntimeMinutes > 0 ? ((categorizedDowntimeMinutes / activeDowntimeMinutes) * 100).toFixed(1) : "0.0";
     const exclNote = excludedCount ? ` (${excludedCount} hariç tutuldu)` : "";
-    el.kayipLiveSummary.textContent = `${totalDowntimeCount} duruş kalemi (~${Math.round(totalDowntimeMinutes)} dk)${exclNote} · ${categorizedCount} adedi özelleştirildi`;
+    el.kayipLiveSummary.textContent = `${totalDowntimeCount} duruş kalemi (~${Math.round(totalDowntimeMinutes)} dk)${exclNote} · ${categorizedCount} adedi özelleştirildi (Süre Oranı: %${ratio})`;
   }
 
   async function loadKayip2Detail() {
@@ -1791,6 +1798,8 @@
 
   function updateKayip2LiveSummary(filteredRows) {
     let totalDowntimeMinutes = 0;
+    let activeDowntimeMinutes = 0;
+    let categorizedDowntimeMinutes = 0;
     let totalCount = filteredRows.length;
     let excludedCount = 0;
     let categorizedCount = 0;
@@ -1803,14 +1812,18 @@
       const override = state.kayip.overrides[key] || state.kayip.overrides[oldKey] || {};
       if (override.dahilEt === false) {
         excludedCount += 1;
-      }
-      if (override.kokNeden || override.onleyiciAksiyon) {
-        categorizedCount += 1;
+      } else {
+        activeDowntimeMinutes += val;
+        if (override.kokNeden || override.onleyiciAksiyon) {
+          categorizedCount += 1;
+          categorizedDowntimeMinutes += val;
+        }
       }
     });
 
+    const ratio = activeDowntimeMinutes > 0 ? ((categorizedDowntimeMinutes / activeDowntimeMinutes) * 100).toFixed(1) : "0.0";
     const exclNote = excludedCount ? ` (${excludedCount} hariç tutuldu)` : "";
-    el.kayip2LiveSummary.textContent = `${totalCount} adet duruş (~${Math.round(totalDowntimeMinutes)} dk)${exclNote} · ${categorizedCount} adedi özelleştirildi`;
+    el.kayip2LiveSummary.textContent = `${totalCount} adet duruş (~${Math.round(totalDowntimeMinutes)} dk)${exclNote} · ${categorizedCount} adedi özelleştirildi (Süre Oranı: %${ratio})`;
   }
 
   el.modeTabs.forEach((btn) => {

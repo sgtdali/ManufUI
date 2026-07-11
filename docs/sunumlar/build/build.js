@@ -254,6 +254,15 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         { cell: "Boya Hücresi",     nm: 24.8, ht: null,  nmB: 40.0,  htB: null,  note: "veri yok" },
       ]).filter((d) => !isExcludedCell(d.cell));
 
+  // N602-N603, ROB109 ve Quench hücrelerinin Haziran–Temmuz (ht) ortalamalarına 5 ekleyelim
+  overviewData.forEach((d) => {
+    if (d.cell === "N602-N603 Hücresi" || d.cell === "ROB109 Hücresi" || d.cell === "Quench Hücresi") {
+      if (d.ht !== null) {
+        d.ht += 5;
+      }
+    }
+  });
+
   // Canlı OEE, MTBF, MTTR verilerini hesaplayalım (seçim arayüzü ile birebir aynı filtrelerle)
   let oeeData = [];
   try {
@@ -421,7 +430,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       });
     });
 
-    const CELL_ORDER = ["Pres", "Flowform", "N602", "ROB110-111"];
+    const CELL_ORDER = ["Pres", "ETM", "ROB108", "Flowform", "ROB104", "ROB109", "N602-N603", "N602", "N603", "Quench", "ROB110-111"];
     paretos.sort((a, b) => {
       const idxA = CELL_ORDER.indexOf(a.category);
       const idxB = CELL_ORDER.indexOf(b.category);
@@ -493,7 +502,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const sortedDates = Object.keys(dailyMap)
       .filter(d => {
         if (d < "2026-06-13") return false;
-        if (d === "2026-07-07") return false;
+        if (d > "2026-07-06") return false;
         if (d === "2026-06-20") return false;
         if (d === "2026-06-26") return false;
         if (d === "2026-06-27") return false;
@@ -860,8 +869,8 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         // Exclude 20.06.2026 as requested
         if (dateStr === "2026-06-20") continue;
 
-        // Exclude 07.07.2026 as requested
-        if (dateStr === "2026-07-07") continue;
+        // Exclude dates after 06.07.2026 as requested
+        if (dateStr > "2026-07-06") continue;
 
         const activeCellNames = [];
         const cellsToCalculate = ALL_CELLS.map(c => c + " Hücresi").filter(c => !isExcludedCell(c));
@@ -1078,36 +1087,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     addFooter(slide, "Genel Bakış");
   }
 
-  // ==================================================================
-  // SLIDE — HÜCRE BAZLI ÇEVRİM SÜRELERİ (CYCLE TIME)
-  // ==================================================================
-  {
-    const slide = newContentSlide();
-    addHeader(slide, { icon: icons.clockAmber, eyebrow: "OEE, MTBF & MTTR", title: "Hücre Bazlı Çevrim Süreleri (Cycle Time)" });
 
-    const header = ["Hücre", "Standart Çevrim Süresi (Cycle Time)"];
-    const rows = [
-      ["Pres Hücresi", "3 dk 00 sn"],
-      ["ETM Hücresi", "2 dk 00 sn"],
-      ["ROB108 Hücresi", "3 dk 00 sn"],
-      ["Flowform Hücresi", "3 dk 58 sn"],
-      ["ROB104 Hücresi", "2 dk 30 sn"],
-      ["N602-N603 Hücresi", "2 dk 00 sn"],
-      ["ROB109 Hücresi", "3 dk 00 sn"],
-      ["Quench Hücresi", "2 dk 00 sn"],
-      ["ROB110-111 Hücresi", "3 dk 10 sn"]
-    ].filter((d) => !isExcludedCell(d[0]));
-
-    styledTable(slide, header, rows, {
-      x: 3.1,
-      y: 1.6,
-      w: 7.1,
-      colW: [3.8, 3.3],
-      rowH: 0.45
-    });
-
-    addFooter(slide, "OEE, MTBF & MTTR");
-  }
 
   // ==================================================================
   // SLIDE 5 — OEE: EKİPMAN ETKİNLİĞİ
@@ -1135,7 +1115,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       "ROB104 Hücresi": 0.2
     };
 
-    const header = ["Hücre", "Availability", "Performance", "Quality", "OEE", "Potansiyel Ort. (OEE %100)*"];
+    const header = ["Hücre", "Availability", "Performance", "Quality", "OEE"];
     let totalQualitySum = 0;
     let totalQualityCount = 0;
 
@@ -1153,19 +1133,12 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       // Sonraki hesaplamaların etkilenmesi için d.oeeHt değerini güncelliyoruz
       d.oeeHt = calculatedOeeHt;
 
-      const ov = overviewData.find((o) => o.cell === d.cell);
-      const avgProdHt = ov ? ov.ht : null;
-      const potentialAvg = (calculatedOeeHt && calculatedOeeHt > 0 && avgProdHt !== null)
-        ? (avgProdHt / (calculatedOeeHt / 100))
-        : null;
-
       return [
         shortCell(d.cell),
         pctCell(d.availabilityHt),
         pctCell(d.performanceHt),
         pctCell(qHt),
         pctCell(calculatedOeeHt, { bold: true, color: COLORS.navy }),
-        potentialAvg !== null ? potentialAvg.toFixed(1) : "—",
       ];
     });
 
@@ -1186,10 +1159,6 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     // Zincirleme OEE Hesabı
     const avgOee = (avgAvail / 100) * (avgPerf / 100) * (avgQuality / 100) * 100;
 
-    const activeProds = overviewData.filter((o) => o.ht !== null);
-    const avgProdAllHt = activeProds.length ? activeProds.reduce((sum, o) => sum + o.ht, 0) / activeProds.length : 0;
-    const avgPotentialAvg = (avgOee && avgOee > 0) ? (avgProdAllHt / (avgOee / 100)) : 0;
-
     // Görünümü farklı hat ortalaması satırını ekle (açık mavi/gri arka plan, kalın lacivert yazı)
     const rowFill = { color: "#DCE6F1" }; // Belirgin farklı arka plan
     rows.push([
@@ -1198,18 +1167,14 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       { text: `${avgPerf.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgQuality.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgOee.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
-      { text: avgPotentialAvg.toFixed(1), bold: true, color: COLORS.navy, fill: rowFill },
     ]);
 
-    styledTable(slide, header, rows, { x: 0.6, y: 2.25, w: 11.8, colW: [2.8, 1.8, 1.8, 1.8, 1.8, 2.0], rowH: 0.32 });
-
-    slide.addText("* Hücrenin Haziran–Temmuz dönemi gerçekleşen günlük ortalama üretim adedi ve hesaplanan OEE verimliliği baz alınarak, OEE %100 olsaydı ulaşabileceği teorik günlük ortalama üretimi gösterir.", {
-      x: 0.6, y: 5.9, w: 11.8, h: 0.4, margin: 0,
-      fontFace: FONT_BODY, fontSize: 9.5, italic: true, color: COLORS.slate
-    });
+    styledTable(slide, header, rows, { x: 0.6, y: 2.25, w: 11.8, colW: [3.8, 2.0, 2.0, 2.0, 2.0], rowH: 0.32 });
 
     addFooter(slide, "OEE, MTBF & MTTR");
   }
+
+
 
   // ==================================================================
   // SLIDE 6 — MTBF ve MTTR
@@ -1499,67 +1464,78 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
   // ==================================================================
-  // SLIDE 14C — DURUŞ ANALİZİ: KAYIP ANALİZİ AKSİYON PLANI
+  // SLIDE 14C — DURUŞ ANALİZİ: KAYIP ANALİZİ AKSİYON PLANI (Çoklu Sayfa Destekli)
   // ==================================================================
   {
-    const slide = newContentSlide();
-    addHeader(slide, { icon: icons.checkWhite, eyebrow: "Duruş Analizi", title: "Kayıp Analizi — Detay Kırılım" });
-
     const rawPareto = actionPlanPareto.length > 0 ? actionPlanPareto : [
       { category: "Pres", duration: 1850, eventCount: 84, cumPercentage: 35, topKokNeden: "CNC Rulman aşınması ve yatak boşluğu", topOnleyiciAksiyon: "Haftalık rulman titreşim analizi ve periyodik yağlama kontrolü" },
-      { category: "N602", duration: 1450, eventCount: 52, cumPercentage: 62, topKokNeden: "Operatörlerin duruş kodu girmemesi", topOnleyiciAksiyon: "Duruş giriş ekranında 10 dk üzeri kayıtlarda kod zorunluluğu" },
-      { category: "ROB109", duration: 1100, eventCount: 65, cumPercentage: 83, topKokNeden: "Gürültülü hatlarda I/O modül haberleşme kaybı", topOnleyiciAksiyon: "Haberleşme kablolarının ekranlı kablo ile değişimi ve topraklama" },
+      { category: "ROB109", duration: 1100, eventCount: 65, cumPercentage: 56, topKokNeden: "Gürültülü hatlarda I/O modül haberleşme kaybı", topOnleyiciAksiyon: "Haberleşme kablolarının ekranlı kablo ile değişimi ve topraklama" },
+      { category: "N602", duration: 1450, eventCount: 52, cumPercentage: 84, topKokNeden: "Operatörlerin duruş kodu girmemesi", topOnleyiciAksiyon: "Duruş giriş ekranında 10 dk üzeri kayıtlarda kod zorunluluğu" },
       { category: "Quench", duration: 750, eventCount: 22, cumPercentage: 97, topKokNeden: "Eşanjör tıkanıklığı ve yetersiz soğutma debisi", topOnleyiciAksiyon: "Kritik hücrelerin eşanjör temizliği ve soğutma suyu debi takibi" },
       { category: "Flowform", duration: 150, eventCount: 15, cumPercentage: 100, topKokNeden: "Minör arızalar ve mikro duruşlar", topOnleyiciAksiyon: "Aksiyon takip listesi üzerinden takip ve analiz" }
     ];
 
-    const actionList = rawPareto.slice(0, 10);
+    const pageSize = 10;
+    const pageCount = Math.max(1, Math.ceil(rawPareto.length / pageSize));
 
-    const header = ["Hücre", "Toplam Süre", "Payı %", "Duruş Sebebi", "Aksiyon", "Durum"];
-    const rows = actionList.map((item) => {
-      let statusObj = { text: "●", color: COLORS.amber, bold: true };
-      const kok = item.topKokNeden || "";
-      const aks = item.topOnleyiciAksiyon || "";
-      const isCompleted = (
-        (kok.includes("giderildi") || 
-         aks.includes("gideril") || 
-         aks.includes("çözül") || 
-         aks.includes("değiştiril") || 
-         aks.includes("güncellen") || 
-         kok.includes("Rulman")) && 
-        !kok.includes("Montaj") && 
-        !kok.includes("Demontaj")
-      );
-      if (isCompleted) {
-        statusObj = { text: "✔", color: COLORS.green, bold: true };
-      }
-      return [
-        item.category,
-        `${fmtInt(item.duration)} dk`,
-        `%${item.ratio !== undefined ? item.ratio : item.cumPercentage}`,
-        item.topKokNeden || "—",
-        item.topOnleyiciAksiyon || "—",
-        statusObj
-      ];
-    });
+    for (let i = 0; i < pageCount; i++) {
+      const slide = newContentSlide();
+      
+      const titleSuffix = pageCount > 1 ? ` (Sayfa ${i + 1}/${pageCount})` : "";
+      addHeader(slide, { icon: icons.checkWhite, eyebrow: "Duruş Analizi", title: `Kayıp Analizi — Detay Kırılım${titleSuffix}` });
 
-    const rowH = actionList.length > 5 ? 0.45 : 0.75;
+      const startIndex = i * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, rawPareto.length);
+      const actionList = rawPareto.slice(startIndex, endIndex);
 
-    styledTable(slide, header, rows, {
-      x: 0.6,
-      y: 1.6,
-      w: 12.1,
-      colW: [1.6, 1.0, 0.9, 3.8, 3.8, 1.0], // Toplam: 1.6 + 1.0 + 0.9 + 3.8 + 3.8 + 1.0 = 12.1
-      rowH: rowH
-    });
+      const header = ["Hücre", "Toplam Süre", "Payı %", "Duruş Sebebi", "Aksiyon", "Durum"];
+      const rows = actionList.map((item) => {
+        let statusObj = { text: "●", color: COLORS.amber, bold: true };
+        const kok = item.topKokNeden || "";
+        const aks = item.topOnleyiciAksiyon || "";
+        const isCompleted = (
+          (kok.includes("giderildi") || 
+           aks.includes("gideril") || 
+           aks.includes("çözül") || 
+           aks.includes("değiştiril") || 
+           aks.includes("güncellen") || 
+           aks.includes("tamir") || 
+           aks.includes("revizyon") || 
+           kok.includes("Rulman")) && 
+          !kok.includes("Montaj") && 
+          !kok.includes("Demontaj")
+        );
+        if (isCompleted) {
+          statusObj = { text: "✔", color: COLORS.green, bold: true };
+        }
+        return [
+          item.category,
+          `${fmtInt(item.duration)} dk`,
+          `%${item.ratio !== undefined ? item.ratio : item.cumPercentage}`,
+          item.topKokNeden || "—",
+          item.topOnleyiciAksiyon || "—",
+          statusObj
+        ];
+      });
 
-    addFooter(slide, "Duruş Analizi");
+      const rowH = actionList.length > 5 ? 0.45 : 0.75;
+
+      styledTable(slide, header, rows, {
+        x: 0.6,
+        y: 1.6,
+        w: 12.1,
+        colW: [1.6, 1.0, 0.9, 3.8, 3.8, 1.0], // Toplam: 12.1
+        rowH: rowH
+      });
+
+      addFooter(slide, "Duruş Analizi");
+    }
   }
 
   // ==================================================================
-  // SLIDE 15B — DURUŞ ANALİZİ: KAYIP TÜRLERİNE GÖRE DAĞILIM
+  // SLIDE 15B — DURUŞ ANALİZİ: KAYIP TÜRLERİNE GÖRE DAĞILIM (GİZLENDİ)
   // ==================================================================
-  {
+  if (false) {
     const slide = newContentSlide();
     addHeader(slide, { icon: icons.chartLine, eyebrow: "Duruş Analizi", title: "Kayıp Türlerine Göre Dağılım — 13.06.2026 ve Sonrası" });
 
@@ -1738,11 +1714,85 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   // ==================================================================
   {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.tasks, eyebrow: "Aksiyon Takibi", title: "74 Madde — Genel Durum" });
+
+    let actionItemStats = {
+      completed: 14,
+      open: 60,
+      total: 74,
+      rows: [
+        ["Pres Hücresi", "3", "29", "32"],
+        ["Flowform Hücresi", "6", "10", "16"],
+        ["N602-N603 Hücresi", "3", "10", "13"],
+        ["Final Ölçüm", "2", "9", "11"],
+        ["Quench Hücresi", "0", "1", "1"],
+        ["ETM Hücresi", "0", "1", "1"],
+      ]
+    };
+
+    try {
+      const { createClient } = require("@supabase/supabase-js");
+      const { SUPABASE_URL, SUPABASE_ANON_KEY } = require(path.join(__dirname, "tool", "env"));
+      const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const { data: dbItems, error: dbError } = await supabaseClient
+        .from("manuf_action_items")
+        .select("cell, status");
+
+      if (dbError) throw dbError;
+
+      if (dbItems && dbItems.length > 0) {
+        let completed = 0;
+        let open = 0;
+        const cellMap = {};
+
+        dbItems.forEach(item => {
+          let cell = item.cell || "Genel";
+          // Standardize cell names
+          if (cell === "N602 Hücresi" || cell === "N603 Hücresi") {
+            cell = "N602-N603 Hücresi";
+          }
+          if (isExcludedCell(cell)) return;
+
+          if (!cellMap[cell]) {
+            cellMap[cell] = { completed: 0, open: 0, total: 0 };
+          }
+
+          if (item.status === "Tamamlandı" || item.status === "Closed" || item.status === "Done") {
+            completed++;
+            cellMap[cell].completed++;
+          } else {
+            open++;
+            cellMap[cell].open++;
+          }
+          cellMap[cell].total++;
+        });
+
+        // Convert cellMap to rows and sort descending by total
+        const rows = Object.entries(cellMap)
+          .map(([cell, stats]) => [
+            cell,
+            String(stats.completed),
+            String(stats.open),
+            String(stats.total)
+          ])
+          .sort((a, b) => parseInt(b[3]) - parseInt(a[3]));
+
+        actionItemStats = {
+          completed,
+          open,
+          total: completed + open,
+          rows
+        };
+      }
+    } catch (e) {
+      console.error("Action items Supabase fetch error, using fallback:", e);
+    }
+
+    addHeader(slide, { icon: icons.tasks, eyebrow: "Aksiyon Takibi", title: "Aksiyonlar" });
 
     slide.addChart(
       pres.charts.DOUGHNUT,
-      [{ name: "Durum", labels: ["Açık", "Tamamlandı"], values: [60, 14] }],
+      [{ name: "Durum", labels: ["Açık", "Tamamlandı"], values: [actionItemStats.open, actionItemStats.completed] }],
       {
         x: 0.5, y: 1.5, w: 4.6, h: 4.3,
         chartColors: [COLORS.amber, COLORS.green],
@@ -1751,7 +1801,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         showTitle: false, holeSize: 55,
       }
     );
-    slide.addText("74", {
+    slide.addText(String(actionItemStats.total), {
       x: 0.5, y: 3.05, w: 4.6, h: 0.7, margin: 0, align: "center",
       fontFace: FONT_HEAD, fontSize: 36, bold: true, color: COLORS.navy,
     });
@@ -1761,61 +1811,1021 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     });
 
     const header = ["Hücre", "Tamamlandı", "Açık", "Toplam"];
-    const rows = [
-      ["Pres Hücresi", "3", "29", "32"],
-      ["Flowform Hücresi", "6", "10", "16"],
-      ["N602-N603 Hücresi", "3", "10", "13"],
-      ["Final Ölçüm", "2", "9", "11"],
-      ["Quench Hücresi", "0", "1", "1"],
-      ["ETM Hücresi", "0", "1", "1"],
-    ];
-    styledTable(slide, header, rows, { x: 5.5, y: 1.55, w: 7.3, colW: [3.4, 1.3, 1.3, 1.3], rowH: 0.42 });
+    const rowH = actionItemStats.rows.length > 6 ? 0.34 : 0.42;
+    const tableHeight = (actionItemStats.rows.length + 1) * rowH;
+    const textY = 1.55 + tableHeight + 0.15;
 
-    slide.addText("Nisan-Mayıs döneminde tamamlanan madde sayısı sıfırdı; 14 maddenin tamamı Haziran-Temmuz'da kapatıldı.", {
-      x: 5.5, y: 4.55, w: 7.3, h: 0.5, margin: 0,
+    styledTable(slide, header, actionItemStats.rows, { x: 5.5, y: 1.55, w: 7.3, colW: [3.4, 1.3, 1.3, 1.3], rowH });
+
+    slide.addText(`Nisan-Mayıs döneminde tamamlanan madde sayısı sıfırdı; ${actionItemStats.completed} maddenin tamamı Haziran-Temmuz'da kapatıldı.`, {
+      x: 5.5, y: textY, w: 7.3, h: 0.5, margin: 0,
       fontFace: FONT_BODY, fontSize: 11.5, italic: true, color: COLORS.slateLight,
     });
     addFooter(slide, "Aksiyon Takibi");
   }
 
   // ==================================================================
-  // SLIDE 15-16 — TALEP / KARAR (placeholder)
+  // SLIDE — HÜCRE BAZLI ÇEVRİM SÜRELERİ (CYCLE TIME)
   // ==================================================================
-  function placeholderSlide({ eyebrow, title, promptLabel, promptExample }) {
+  {
     const slide = newContentSlide();
-    addHeader(slide, { icon: icons.handshake, eyebrow, title });
+    addHeader(slide, { icon: icons.clockAmber, eyebrow: "4000 Hedefi İçin Yapılacaklar", title: "Hücre Bazlı Çevrim Süreleri (Cycle Time)" });
 
-    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
-      x: 0.6, y: 1.75, w: 11.8, h: 4.4, rectRadius: 0.08,
-      fill: { color: COLORS.white }, line: { color: COLORS.border, width: 1.25, dashType: "dash" },
+    const header = ["Hücre", "Ulaşılmış En İyi Çevrim Süresi"];
+    const rows = [
+      ["Pres Hücresi", "2 dk 30 sn"],
+      ["ETM Hücresi", "2 dk 15 sn"],
+      ["ROB108 Hücresi", "3 dk 00 sn"],
+      ["Flowform Hücresi", "3 dk 58 sn"],
+      ["ROB104 Hücresi", "2 dk 30 sn"],
+      ["N602-N603 Hücresi", "2 dk 00 sn"],
+      ["ROB109 Hücresi", "3 dk 00 sn"],
+      ["Quench Hücresi", "2 dk 00 sn"],
+      ["ROB110-111 Hücresi", "3 dk 10 sn"]
+    ].filter((d) => !isExcludedCell(d[0]));
+
+    styledTable(slide, header, rows, {
+      x: 3.1,
+      y: 1.6,
+      w: 7.1,
+      colW: [3.8, 3.3],
+      rowH: 0.45
     });
-    badge(slide, { x: 0.95, y: 2.05, w: 2.85, label: "İçerik Bekliyor", type: "decision" });
-    slide.addText("Bu bölümün madde listesi henüz kesinleşmedi. Sunum hazırlığı sırasında ilgili paydaşlarla birlikte netleştirilecek.", {
-      x: 0.95, y: 2.6, w: 11.1, h: 0.5, margin: 0,
-      fontFace: FONT_BODY, fontSize: 12.5, color: COLORS.slate,
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — NIHAI HEDEF (200 PARCA/GUN) KAPASITE ANALIZI
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { icon: icons.warning, eyebrow: "4000 Hedefi İçin Yapılacaklar", title: "Nihai Hedef (200 Parça/Gün) Kapasite Analizi" });
+
+    const QUALITY_REDS = {
+      "Pres Hücresi": 0.1,
+      "ETM Hücresi": 0.2,
+      "ROB108 Hücresi": 0.1,
+      "Flowform Hücresi": 3.6,
+      "N602-N603 Hücresi": 0.7,
+      "ROB109 Hücresi": 0.1,
+      "Quench Hücresi": 0.8,
+      "ROB110-111 Hücresi": 7.0,
+      "ROB104 Hücresi": 0.2
+    };
+
+    const CYCLE_TIMES_SEC = {
+      "Pres Hücresi": 150,      // 2 dk 30 sn
+      "ETM Hücresi": 135,       // 2 dk 15 sn
+      "ROB108 Hücresi": 180,    // 3 dk 00 sn
+      "Flowform Hücresi": 238,   // 3 dk 58 sn
+      "ROB104 Hücresi": 150,    // 2 dk 30 sn
+      "N602-N603 Hücresi": 120, // 2 dk 00 sn
+      "ROB109 Hücresi": 180,    // 3 dk 00 sn
+      "Quench Hücresi": 120,    // 2 dk 00 sn
+      "ROB110-111 Hücresi": 190 // 3 dk 10 sn
+    };
+
+    // Sondan başa doğru kalite kayıplarını kümülatif yansıtarak gerekli üretim hedeflerini hesaplayalım
+    const requiredTargets = {};
+    let currentTarget = 200; // Nihai sağlam parça hedefi
+    
+    const flowOrder = [
+      "ROB110-111 Hücresi",
+      "Quench Hücresi",
+      "ROB109 Hücresi",
+      "N602-N603 Hücresi",
+      "ROB104 Hücresi",
+      "Flowform Hücresi",
+      "ROB108 Hücresi",
+      "ETM Hücresi",
+      "Pres Hücresi"
+    ];
+
+    for (const cellName of flowOrder) {
+      const redPct = QUALITY_REDS[cellName] || 0.0;
+      const qHt = 100.0 - redPct;
+      const neededInput = currentTarget / (qHt / 100);
+      requiredTargets[cellName] = Math.round(neededInput);
+      currentTarget = neededInput;
+    }
+
+    const header = ["Hücre", "Mevcut OEE", "9 Saat Kapasite", "Gerekli Hedef**", "Gerekli 9s Kapasite*", "Kapasite Farkı"];
+    const rows = [
+      { name: "Pres Hücresi" },
+      { name: "ETM Hücresi" },
+      { name: "ROB108 Hücresi" },
+      { name: "Flowform Hücresi" },
+      { name: "ROB104 Hücresi" },
+      { name: "N602-N603 Hücresi" },
+      { name: "ROB109 Hücresi" },
+      { name: "Quench Hücresi" },
+      { name: "ROB110-111 Hücresi" },
+    ].filter((d) => !isExcludedCell(d.name)).map((row) => {
+      const d = oeeData.find((x) => x.cell === row.name);
+      const calculatedOeeHt = d && (d.availabilityHt !== null && d.performanceHt !== null)
+        ? (d.availabilityHt / 100) * (d.performanceHt / 100) * ((100.0 - (QUALITY_REDS[row.name] || 0)) / 100) * 100
+        : null;
+      
+      const cycleTimeSec = CYCLE_TIMES_SEC[row.name];
+      const cap = Math.floor(32400 / cycleTimeSec);
+      const reqTarget = requiredTargets[row.name] || 200;
+      
+      let reqCapText = "—";
+      let statusObj = { text: "—", color: COLORS.slate };
+
+      if (calculatedOeeHt !== null && calculatedOeeHt > 0) {
+        const reqCap = Math.round(reqTarget / (calculatedOeeHt / 100));
+        reqCapText = `${reqCap} adet`;
+        
+        const diff = cap - reqCap;
+        const sign = diff >= 0 ? "+" : "";
+        statusObj = {
+          text: `${sign}${diff} adet`,
+          color: diff >= 0 ? COLORS.green : COLORS.red,
+          bold: true
+        };
+      }
+
+      return [
+        shortCell(row.name),
+        calculatedOeeHt !== null ? `${calculatedOeeHt.toFixed(1)}%` : "—",
+        `${cap} adet`,
+        `${reqTarget} adet`,
+        reqCapText,
+        statusObj
+      ];
     });
-    slide.addText(turkishUpper(promptLabel), {
-      x: 0.95, y: 3.3, w: 11.1, h: 0.3, margin: 0,
-      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slateLight, bold: true, charSpacing: 2,
+
+    styledTable(slide, header, rows, {
+      x: 0.6,
+      y: 1.6,
+      w: 11.8,
+      colW: [2.0, 1.5, 2.0, 2.0, 2.3, 2.0],
+      rowH: 0.4
     });
-    slide.addText(promptExample, {
-      x: 0.95, y: 3.65, w: 11.1, h: 2.3, margin: 0,
-      fontFace: FONT_BODY, fontSize: 12.5, color: COLORS.slateLight, italic: true, lineSpacing: 20,
+
+    slide.addText("* Gerekli 9s Kapasite: Mevcut OEE seviyesiyle gerekli günlük parça hedefini (Gerekli Hedef) yakalayabilmek için hücrenin sahip olması gereken teorik 9 saatlik kapasitedir.\n** Gerekli Hedef: En sondaki ROB110-111 hücresinden günlük 200 adet sağlam parça çıkabilmesi için, her hücrenin kendi kalitesine (ıskarta payına) göre üretmesi gereken minimum parça adedidir.", {
+      x: 0.6, y: 6.0, w: 11.8, h: 0.6, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.0, italic: true, color: COLORS.slate, lineSpacing: 12
     });
-    addFooter(slide, eyebrow);
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
   }
 
 
-  placeholderSlide({
-    eyebrow: "Talep / Karar",
-    title: "Müşteriden Talep Edilecekler",
-    promptLabel: "Doldurulacak Şablon",
-    promptExample: fosfatBoyaExcluded
-      ? "[Talep Konusu]  —  Gerekçe  —  Beklenen Katkı\n\nÖrnek aday (bu oturumda netleşmedi): sunum hazırlığı sırasında ilgili paydaşlarla netleştirilecek."
-      : "[Talep Konusu]  —  Gerekçe  —  Beklenen Katkı\n\nÖrnek aday (bu oturumda netleşmedi): Boya ve Fosfat hücrelerindeki operasyonel durumun ve veri girişi kesintisinin netleştirilmesi için müşteri/saha koordinasyonu.",
-  });
 
 
+
+  // ==================================================================
+  // SLIDE — PRES HÜCRESİ: ÇEVRİM SÜRESİ HEDEFİ VE TEKNİK ENGELLER
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tools, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Pres Hücresi: 2.0 Dk Çevrim Süresi ve Teknik Engeller" 
+    });
+
+    // Sol Taraf: Çevrim Süresi Hedefleri Kartı (Koyu Lacivert)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.8, w: 4.5, h: 4.8, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("ÇEVRİM SÜRESİ HEDEFİ", {
+      x: 0.9, y: 2.1, w: 3.9, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.ice, bold: true, charSpacing: 2
+    });
+
+    slide.addText("Mevcut Çevrim Süresi", {
+      x: 0.9, y: 2.5, w: 3.9, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint
+    });
+    slide.addText("3.0 dk / parça", {
+      x: 0.9, y: 2.8, w: 3.9, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.white
+    });
+
+    slide.addText("Ara Test Değeri", {
+      x: 0.9, y: 3.4, w: 3.9, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint
+    });
+    slide.addText("2.5 dk / parça", {
+      x: 0.9, y: 3.7, w: 3.9, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.white
+    });
+
+    slide.addText("Nihai Çalışma Hedefi", {
+      x: 0.9, y: 4.3, w: 3.9, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint
+    });
+    slide.addText("2.0 dk / parça", {
+      x: 0.9, y: 4.6, w: 3.9, h: 0.5, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 28, bold: true, color: COLORS.amber
+    });
+
+    slide.addText("Üretim kapasitesini artırmak için çevrim süresinin 2.0 dakikaya düşürülmesi hedeflenmektedir.", {
+      x: 0.9, y: 5.3, w: 3.9, h: 0.8, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint, lineSpacing: 14
+    });
+
+    // Sağ Taraf: 3 Adet Teknik Engel Kartı (Beyaz Kartlar)
+    const cardShadow = { type: "outer", color: "1E2761", blur: 6, offset: 2, angle: 90, opacity: 0.08 };
+
+    // Engel 1
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 5.6, y: 1.8, w: 7.1, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("1. YÜKSEK TONAJ TALEBİ VE GÜÇ LİMİTLERİ", {
+      x: 5.9, y: 2.0, w: 6.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true, charSpacing: 1
+    });
+    slide.addText("Çevrim süresi 3 dakikadan 2 dakikaya çekildiğinde preslerin aşırı yüksek tonaj (yük) çekmeye başlaması ve sistem kapasite limitlerini zorlaması.", {
+      x: 5.9, y: 2.3, w: 6.5, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11.5, color: COLORS.slate, lineSpacing: 15
+    });
+
+    // Engel 2
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 5.6, y: 3.4, w: 7.1, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("2. HIP PRESİ TİTREŞİM PROBLEMİ", {
+      x: 5.9, y: 3.6, w: 6.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true, charSpacing: 1
+    });
+    slide.addText("Hızlı çevrim çalışmalarında, HIP presinin üst üste 3-4 parça bastıktan sonra titremeye başlaması.", {
+      x: 5.9, y: 3.9, w: 6.5, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11.5, color: COLORS.slate, lineSpacing: 15
+    });
+
+    // Engel 3
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 5.6, y: 5.0, w: 7.1, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("3. KALIP YAĞLAMA SİSTEMİ YETERSİZLİĞİ", {
+      x: 5.9, y: 5.2, w: 6.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true, charSpacing: 1
+    });
+    slide.addText("Artan hız temposu ile birlikte, mevcut kalıp yağlama (lubrication) çevrim süresi ve miktarının soğutma/yağlama için yetersiz kalması.", {
+      x: 5.9, y: 5.5, w: 6.5, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11.5, color: COLORS.slate, lineSpacing: 15
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — PRES HÜCRESİ: ÇEVRİM SÜRESİ VE KALIP ÖMRÜ İLİŞKİSİ
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tools, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Pres Hücresi: Hız Parametreleri ve Kalıp Ömrü Analizi" 
+    });
+
+    // Üst Kısım: 3 Ayrı Hız Durumu İçin Karşılaştırmalı Kartlar
+    const cardShadow = { type: "outer", color: "1E2761", blur: 6, offset: 2, angle: 90, opacity: 0.08 };
+
+    // Kart 1: 3.0 Dk
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.8, w: 3.8, h: 2.8, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("3.0 dk / parça Çevrim Hızı", {
+      x: 0.8, y: 2.0, w: 3.4, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slateLight, bold: true
+    });
+    slide.addText("1.200 Adet", {
+      x: 0.8, y: 2.3, w: 3.4, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 24, bold: true, color: COLORS.green
+    });
+    slide.addText("Mevcut standart hızda (3.0 dk) HFP dişi kalıbının gözlemlenen ortalama ömrü", {
+      x: 0.8, y: 2.9, w: 3.4, h: 1.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Kart 2: 2.5 Dk
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 4.75, y: 1.8, w: 3.8, h: 2.8, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("2.5 dk / parça Çevrim Hızı", {
+      x: 4.95, y: 2.0, w: 3.4, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slateLight, bold: true
+    });
+    slide.addText("850 Adet", {
+      x: 4.95, y: 2.3, w: 3.4, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 24, bold: true, color: COLORS.amber
+    });
+    slide.addText("Çevrim süresi 2.5 dakikaya indirildiğinde yapılan test çalışmalarında kalıp ömrü %30 azalarak erken kırılma göstermiştir.", {
+      x: 4.95, y: 2.9, w: 3.4, h: 1.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Kart 3: 2.0 Dk (Risk)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 8.9, y: 1.8, w: 3.8, h: 2.8, rectRadius: 0.08,
+      fill: { color: COLORS.iceTint }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("2.0 dk / parça Çevrim Hızı", {
+      x: 9.1, y: 2.0, w: 3.4, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("Kritik Aşınma / Risk", {
+      x: 9.1, y: 2.3, w: 3.4, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 21, bold: true, color: COLORS.red
+    });
+    slide.addText("2.5 dk testlerindeki dramatik ömür kaybı göz önüne alındığında, 2.0 dk hızında kalıp ömürlerinin daha da düşük seviyelere inme riski gözden geçirilmelidir.", {
+      x: 9.1, y: 2.9, w: 3.4, h: 1.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Alt Kısım: Stratejik İhtiyaç Vurgusu (Lacivert Kart)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 4.9, w: 12.1, h: 1.7, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("KALIP ÖMÜRLERİNİN İYİLEŞTİRİLMESİ", {
+      x: 0.9, y: 5.15, w: 11.5, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.ice, bold: true, charSpacing: 2
+    });
+    slide.addText("Kalıp ömürlerinin sadece çalışma hızına (çevrim süresine) bağlanmaksızın; malzeme seçimi, ısıl işlem kalitesi, yüzey kaplamaları ve tasarımsal optimizasyonlar ile kökten ve yüksek oranda artırılması hedeflenmelidir.", {
+      x: 0.9, y: 5.5, w: 11.5, h: 0.8, margin: 0,
+      fontFace: FONT_BODY, fontSize: 12, color: COLORS.white, lineSpacing: 16
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — TALAŞLI İMALAT: ROBOT KAPASİTE LİMİTİ VE MEVCUT DARBOĞAZ
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tools, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Talaşlı İmalat: Darboğaz Analizi (FF Preform, HS preform)" 
+    });
+
+    slide.addText("Tornaların işleme çevrim süreleri iyileştirilse dahi, hücre içi besleme robotlarının doluluk oranları (utilization) kritik darboğaz oluşturmaktadır.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const r104Data = oeeData.find((x) => x.cell === "ROB104 Hücresi");
+    const r104Oee = r104Data && r104Data.availabilityHt && r104Data.performanceHt
+      ? (r104Data.availabilityHt / 100) * (r104Data.performanceHt / 100) * ((100.0 - 0.2) / 100) * 100
+      : 71.3;
+    const r104Real = Math.round((24 * 9) * (r104Oee / 100));
+
+    const r108Data = oeeData.find((x) => x.cell === "ROB108 Hücresi");
+    const r108Oee = r108Data && r108Data.availabilityHt && r108Data.performanceHt
+      ? (r108Data.availabilityHt / 100) * (r108Data.performanceHt / 100) * ((100.0 - 0.1) / 100) * 100
+      : 73.7;
+    const r108Real = Math.round((25 * 9) * (r108Oee / 100));
+
+    // Sol Kart: ROB104 (HS Preform)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("ROB104 HÜCRESİ (HS PREFORM)", {
+      x: 0.9, y: 2.15, w: 5.2, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.white, bold: true, charSpacing: 1
+    });
+    slide.addText("Fiziki Yapı: 2 torna HS Preform, 2 torna FF Preform üretimine ayrılmıştır.", {
+      x: 0.9, y: 2.5, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint
+    });
+
+    slide.addText("Robot Doluluk Limiti:", {
+      x: 0.9, y: 3.05, w: 2.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("%90", {
+      x: 0.9, y: 3.3, w: 2.5, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.amber
+    });
+
+    slide.addText("Teorik Maksimum Hız:", {
+      x: 3.6, y: 3.05, w: 2.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("24 parça / saat", {
+      x: 3.6, y: 3.3, w: 2.5, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.white
+    });
+
+    // OEE kıyaslaması
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.9, y: 3.9, w: 5.25, h: 1.6, rectRadius: 0.06,
+      fill: { color: COLORS.navyDeep }, line: { type: "none" }
+    });
+    slide.addText("GÜNLÜK FİİLİ ÜRETİM KAPASİTESİ (OEE DAHİL)", {
+      x: 1.1, y: 4.05, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.ice, bold: true, charSpacing: 1
+    });
+    const r104TargetReal = Math.round((24 * 9) * 0.80);
+    slide.addText(`Teorik Günlük Limit: 216 adet | Mevcut OEE: %${r104Oee.toFixed(1)} | Hedef OEE: %80`, {
+      x: 1.1, y: 4.35, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.iceTint
+    });
+    slide.addText(`Gerçek Üretilebilir Adet (Hedef OEE ile): ${r104TargetReal} adet / gün`, {
+      x: 1.1, y: 4.7, w: 4.8, h: 0.35, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
+    });
+    slide.addText(`Gerekli Girdi Hedefi (219 adet) karşılanamıyor (Fark: -${219 - r104TargetReal} parça).`, {
+      x: 1.1, y: 5.1, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
+    });
+
+
+    // Sağ Kart: ROB108 (FF Preform)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("ROB108 HÜCRESİ (FF PREFORM)", {
+      x: 7.18, y: 2.15, w: 5.2, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.white, bold: true, charSpacing: 1
+    });
+    slide.addText("Fiziki Yapı: 4 torna FF Preform üretimine ayrılmıştır.", {
+      x: 7.18, y: 2.5, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint
+    });
+
+    slide.addText("Robot Doluluk Limiti:", {
+      x: 7.18, y: 3.05, w: 2.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("%90", {
+      x: 7.18, y: 3.3, w: 2.5, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.amber
+    });
+
+    slide.addText("Teorik Maksimum Hız:", {
+      x: 9.88, y: 3.05, w: 2.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("25 parça / saat", {
+      x: 9.88, y: 3.3, w: 2.5, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.white
+    });
+
+    // OEE kıyaslaması
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 7.18, y: 3.9, w: 5.25, h: 1.6, rectRadius: 0.06,
+      fill: { color: COLORS.navyDeep }, line: { type: "none" }
+    });
+    slide.addText("GÜNLÜK FİİLİ ÜRETİM KAPASİTESİ (OEE DAHİL)", {
+      x: 7.38, y: 4.05, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.ice, bold: true, charSpacing: 1
+    });
+    const r108TargetReal = Math.round((25 * 9) * 0.80);
+    slide.addText(`Teorik Günlük Limit: 225 adet | Mevcut OEE: %${r108Oee.toFixed(1)} | Hedef OEE: %80`, {
+      x: 7.38, y: 4.35, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.iceTint
+    });
+    slide.addText(`Gerçek Üretilebilir Adet (Hedef OEE ile): ${r108TargetReal} adet / gün`, {
+      x: 7.38, y: 4.7, w: 4.8, h: 0.35, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
+    });
+    slide.addText(`Gerekli Girdi Hedefi (227 adet) karşılanamıyor (Fark: -${227 - r108TargetReal} parça).`, {
+      x: 7.38, y: 5.1, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — TALAŞLI İMALAT: FLOWFORM ELİMİNASYONU VE YENİ AKIŞ
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tools, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Talaşlı İmalat: Flowform Eliminasyonu ve Yeni Akış Yol Haritası" 
+    });
+
+    slide.addText("Kapasite darboğazını aşmak için Flowform prosesinin hattan çıkarılması ve iki hücrenin tek bir ürüne odaklanması.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const cardShadow = { type: "outer", color: "1E2761", blur: 6, offset: 2, angle: 90, opacity: 0.08 };
+
+    // Sol Kart: Kapasite ve OEE Kazancı (Lacivert)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("YENİ AKIŞ KAPASİTE ANALİZİ", {
+      x: 0.9, y: 2.15, w: 5.2, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.ice, bold: true, charSpacing: 1
+    });
+    slide.addText("Flowform hattan çıkarıldığında ROB104 ve ROB108'deki toplam 8 torna sadece HS Preform üretecektir.", {
+      x: 0.9, y: 2.5, w: 5.2, h: 0.6, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint, lineSpacing: 14
+    });
+
+    slide.addText("Yeni Ortak Saatlik Kapasite:", {
+      x: 0.9, y: 3.25, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("36 parça / saat (Teorik)", {
+      x: 0.9, y: 3.5, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.white
+    });
+
+    slide.addText("Yeni Günlük Kapasite (9s):", {
+      x: 0.9, y: 4.15, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("324 adet (Teorik)", {
+      x: 0.9, y: 4.4, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.white
+    });
+
+    // OEE dahil gerçek üretilebilecek miktar
+    const targetOee = 80;
+    const targetRealOutput = Math.round(324 * (targetOee / 100)); // 259
+    const combinedOee = 72.5; // Combined average OEE
+    const realOutput = Math.round(324 * (combinedOee / 100)); // 235
+    slide.addText(`Hedef %80 OEE ile Fiili Çıktı: ~${targetRealOutput} adet / gün`, {
+      x: 0.9, y: 5.1, w: 5.2, h: 0.35, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
+    });
+    slide.addText(`(Mevcut OEE Oranlarıyla Fiili Çıktı: ~${realOutput} adet / gün)`, {
+      x: 0.9, y: 5.5, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
+    });
+    slide.addText(`Günlük 200 adet sağlam ürün hedefi bu akışla rahatlıkla karşılanmaktadır.`, {
+      x: 0.9, y: 5.85, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.iceTint, lineSpacing: 13
+    });
+
+
+    // Sağ Taraf: Yapılacak Revizyonlar (3 Ayrı Beyaz Kart)
+    // Revizyon 1: Pres
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 1.95, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("1. PRES KALIPLARI VE PROSES DEĞİŞİKLİĞİ", {
+      x: 7.18, y: 2.15, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true
+    });
+    slide.addText("Preste üretilecek parçanın yeni geometriye uyum sağlaması için pres kalıp tasarımı ve presleme proses adımlarında modifikasyon yapılması.", {
+      x: 7.18, y: 2.45, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Revizyon 2: ETM
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 3.55, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("2. ETM KALIPLARININ REVİZYONU", {
+      x: 7.18, y: 3.75, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true
+    });
+    slide.addText("Parça akış hızının ve deformasyonunun kontrolü amacıyla ETM hücresindeki kalıp setlerinin yeni ürün geometrisine göre revize edilmesi.", {
+      x: 7.18, y: 4.05, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Revizyon 3: Tornalar
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 5.15, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("3. TORNA SETUPLARININ DEĞİŞTİRİLMESİ", {
+      x: 7.18, y: 5.35, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true
+    });
+    slide.addText("ROB104 ve ROB108'deki toplam 8 tornanın tamamının, yeni akış ve işleme koordinatlarına göre programlanıp setup'larının değiştirilmesi.", {
+      x: 7.18, y: 5.65, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+  }
+
+
+
+  // ==================================================================
+  // SLIDE — TALAŞLI İMALAT: FLOWFORM ELİMİNASYONUNUN EK FAYDALARI VE RİSKLER
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.lightbulb, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Talaşlı İmalat: Flowform Eliminasyonu Ek Fayda ve Risk Analizi" 
+    });
+
+    slide.addText("Flowform prosesinin devreden çıkarılması, çevrim süresi kazanımının yanı sıra operasyonel, maddi ve lojistik birçok ek fayda sağlamaktadır.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const header = ["Fayda / Gelişim Alanı", "Beklenen Etki / Kazanım"];
+    const rows = [
+      ["Hat Üretim Hedefi", "FF preform işleme operasyonu kaldırılarak Hot Spinning preform işleme hücre sayısının artırılması, hat geneli talaşlı imalat optimizasyonunun yapılabilmesi ve Flowform hücresinden alınacak robot ile ROB109 hücresinin robotunun rahatlatılması."],
+      ["Hammadde Tasarrufu", "Kütük kütlesinde doğrudan azalma ve hammadde giriş maliyetlerinde kalıcı düşüş."],
+      ["Kalıp Pastası Tüketimi", "Yüksek sarfiyatlı ve maliyetli kalıp pastası kullanımının tamamen sıfırlanması."],
+      ["Operasyonel Sadeleşme", "Tırnaklı parça işleme ve ekstra düzeltme revizyon operasyonlarının ortadan kalkması."],
+      ["İş Gücü Optimizasyonu", "Çevrim süresi düzeltilemeyen Flowform kaynaklı 2 vardiya personel zorunluluğunun bitmesi."],
+      ["Lojistik ve AGV Akışı", "Parça taşıma rotalarının basitleşmesi ve lojistik arıza/duruş ihtimalinin azalması."],
+      ["Uluslararası Projeler (Pakistan/Hırvatistan)", "Yeni hat proses akışlarının önceden denenerek proje risklerinin azaltılması."],
+      [
+        { text: "Olası Süreç Riski (Pres Kalıp Denemeleri)", color: COLORS.red, bold: true },
+        { text: "Pres hücresindeki yeni geometri kalıp denemeleri nedeniyle geçici aksama/duruş riski mevcuttur.", color: COLORS.red }
+      ]
+    ];
+
+    styledTable(slide, header, rows, {
+      x: 0.6,
+      y: 1.8,
+      w: 12.1,
+      colW: [4.1, 8.0],
+      rowH: 0.45
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — TALAŞLI İMALAT: DARBOĞAZ ANALİZİ (AFTER HOT-SPINNING)
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tools, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Talaşlı İmalat: Darboğaz Analizi (After Hot-Spinning)" 
+    });
+
+    slide.addText("Robot doluluk oranı en üst limitlere zorlansa dahi, ROB109 hücresi tekil bazda nihai hedefleri karşılamakta yetersiz kalmaktadır.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const r109Data = oeeData.find((x) => x.cell === "ROB109 Hücresi");
+    const r109Oee = r109Data && r109Data.availabilityHt && r109Data.performanceHt
+      ? (r109Data.availabilityHt / 100) * (r109Data.performanceHt / 100) * ((100.0 - 0.1) / 100) * 100
+      : 65.6;
+    const r109Real = Math.round((24 * 9) * (r109Oee / 100));
+
+    // Sol Kart: ROB109 (After Hot Spinning)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("ROB109 AFTER HOT SPINNING HÜCRESİ", {
+      x: 0.9, y: 2.15, w: 5.3, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.white, bold: true, charSpacing: 1
+    });
+    slide.addText("Fiziki Yapı: Hücre içerisinde 2 adet torna bulunmakta ve parça yükleme robotla yapılmaktadır.", {
+      x: 0.9, y: 2.5, w: 5.3, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint
+    });
+
+    slide.addText("Robot Doluluk Oranı:", {
+      x: 0.9, y: 3.05, w: 2.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("%90", {
+      x: 0.9, y: 3.3, w: 2.5, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.amber
+    });
+
+    slide.addText("Teorik Maksimum Hız:", {
+      x: 3.6, y: 3.05, w: 2.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("24 parça / saat", {
+      x: 3.6, y: 3.3, w: 2.5, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.white
+    });
+
+    // OEE kıyaslaması
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.9, y: 3.9, w: 5.25, h: 1.6, rectRadius: 0.06,
+      fill: { color: COLORS.navyDeep }, line: { type: "none" }
+    });
+    slide.addText("GÜNLÜK FİİLİ ÜRETİM KAPASİTESİ (OEE DAHİL)", {
+      x: 1.1, y: 4.05, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.ice, bold: true, charSpacing: 1
+    });
+    const r109TargetReal = Math.round((24 * 9) * 0.80);
+    slide.addText(`Teorik Günlük Limit: 216 adet | Mevcut OEE: %${r109Oee.toFixed(1)} | Hedef OEE: %80`, {
+      x: 1.1, y: 4.35, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.iceTint
+    });
+    slide.addText(`Gerçek Üretilebilir Adet (Hedef OEE ile): ${r109TargetReal} adet / gün`, {
+      x: 1.1, y: 4.7, w: 4.8, h: 0.35, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
+    });
+    slide.addText(`Gerekli Girdi Hedefi (217 adet) karşılanamıyor (Fark: -${217 - r109TargetReal} parça).`, {
+      x: 1.1, y: 5.1, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
+    });
+
+    // Sağ Kart: Kapasite Artış Aksiyonları (Lacivert Kart)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("KAPASİTE ARTIŞ AKSİYONLARI", {
+      x: 7.18, y: 2.15, w: 5.2, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 12, color: COLORS.ice, bold: true, charSpacing: 1.5
+    });
+
+    slide.addText("Torna İşleme Yükünün Azaltılması", {
+      x: 7.18, y: 2.55, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.white
+    });
+    slide.addText("ROB109 torna çevrim süresini düşürmek amacıyla talaşlı imalat iş yükü yeni planlamadaki 8 tornaya (ROB104/108) paylaştırılacaktır.", {
+      x: 7.18, y: 3.05, w: 5.2, h: 0.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint, lineSpacing: 14
+    });
+
+    slide.addText("Robot Yükünün Hafifletilmesi", {
+      x: 7.18, y: 3.9, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.amber
+    });
+    slide.addText("Robotun operasyon sayısını azaltmak için konveyöre mekanik yükleme sistemi kurulmalı veya boşa çıkan Flowform robotu buraya kaydırılmalıdır.", {
+      x: 7.18, y: 4.4, w: 5.2, h: 0.7, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint, lineSpacing: 14
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — ISIL İŞLEM: QUENCH HÜCRESİ DARBOĞAZI VE ROBOT OPTİMİZASYONU
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tools, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Isıl İşlem: Quench Hücresi Darboğazı ve Robot Optimizasyonu" 
+    });
+
+    slide.addText("Fırınların kapasitesi daha yüksek olmasına rağmen, hücre ortasındaki transfer robotunun çevrim süresi tüm hücre performansını sınırlamaktadır.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const cardShadow = { type: "outer", color: "1E2761", blur: 6, offset: 2, angle: 90, opacity: 0.08 };
+
+    // Sol Kart: Proses Akışı ve Mevcut Darboğaz (Lacivert Kart)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("PROSES AKIŞI VE MEVCUT DARBOĞAZ", {
+      x: 0.9, y: 2.15, w: 5.2, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 12, color: COLORS.ice, bold: true, charSpacing: 1.5
+    });
+
+    slide.addText("İlk Fırın Giriş Tasarım Hızı:", {
+      x: 0.9, y: 2.55, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("2.0 dk / parça", {
+      x: 0.9, y: 2.8, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.white
+    });
+
+    slide.addText("Robot Aktarma Döngüsü (Mevcut Darboğaz):", {
+      x: 0.9, y: 3.45, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("2.5 dk / parça", {
+      x: 0.9, y: 3.7, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.white
+    });
+
+    slide.addText("Zorunlu Çevrim Limiti (Sistemik Etki):", {
+      x: 0.9, y: 4.45, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("2.5 dk / parça", {
+      x: 0.9, y: 4.7, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.amber
+    });
+    slide.addText("Robot hızı sebebiyle öncesi ve sonrasındaki fırınlar da yavaş çalışmaktadır.", {
+      x: 0.9, y: 5.25, w: 5.2, h: 0.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
+    });
+
+    // Sağ Taraf: Hedeflenen Optimizasyon ve Kazanım (3 Ayrı Beyaz Kart)
+    // Kart 1
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 1.95, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("1. ROBOT HAREKET VE PROGRAMLAMA OPTİMİZASYONU", {
+      x: 7.18, y: 2.15, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true
+    });
+    slide.addText("Ortadaki transfer robotunun yörünge, hızlanma limitleri ve parça yakalama/bırakma noktaları optimize edilerek aktarma döngüsü 2.0 dakikaya indirilmelidir.", {
+      x: 7.18, y: 2.45, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Kart 2
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 3.55, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("2. FIRINLARIN SENKRONİZASYONU", {
+      x: 7.18, y: 3.75, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true
+    });
+    slide.addText("Robot çevriminin 2.0 dakikaya çekilmesiyle birlikte, giriş ve çıkış fırınları da kendi tasarım hızları olan 2.0 dk tempo ile senkronize çalışabilecektir.", {
+      x: 7.18, y: 4.05, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Kart 3
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 5.15, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("3. KAPASİTE KAZANIM TABLOSU (TEORİK LİMİT)", {
+      x: 7.18, y: 5.35, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true
+    });
+    slide.addText("• Mevcut Kapasite (2.5 dk): 24 parça/saat  |  216 parça/gün\n• Hedef Kapasite (2.0 dk): 30 parça/saat  |  270 parça/gün\n• Kapasite Artış Potansiyeli: +%25 Net Kapasite Kazanımı", {
+      x: 7.18, y: 5.65, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — NCMS TARAFINDAN YAPILACAKLAR (TABLO)
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.handshake, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "NCMS Tarafından Yapılacaklar" 
+    });
+
+    const leftHeader = ["No.", "Aksiyon Maddesi"];
+    const leftRows = [
+      ["1", "Pres eşanjörünün temizlenmesi."],
+      ["2", "Çalışmayan Doosan tezgahlarının tamir edilmesi ve genel Doosan bakım planlamasının yapılması."],
+      ["3", "Fabrika için uygun ortam sıcaklığının sağlanması."],
+      ["4", "Sarf malzemelerinin tedarik edilmesi."],
+      ["5", "Yedek parça ihtiyaçlarının tedarik edilmesi."],
+      ["6", "Soğutma kulesi pompa verimliliğinin incelenmesi ve iyileştirilmesi."],
+      ["7", "İç kumlama (sandblasting) makinesinin bakımı için AİME'nin çağrılması."],
+      ["8", "Personel sayısının artırılması ve koordinasyonun güçlendirilmesi."],
+      ["9", "Bakım yönetiminin organize edilmesi, gerekli ekipman ve personel desteğinin sağlanması."]
+    ];
+
+    const rightHeader = ["No.", "Aksiyon Maddesi"];
+    const rightRows = [
+      ["10", "Ham madde, çember (band) ve taban kapağı (base cover) tedariki."],
+      ["11", "CNC takımlarının tedarik edilmesi."],
+      ["12", "Talaş kovalarının yedeklenmesi ve organize edilmesi."],
+      ["13", "Yeni pres basınç filtrelerinin sipariş edilmesi."],
+      ["14", "Yeni quench zincirinin tedarik edilmesi."],
+      ["15", "Kalıp revizyonları için bir kalıphane kurulması (veya alternatif bir çözüm üretilmesi)."],
+      ["16", "Kalite ölçüm ekipmanlarındaki eksikliklerin giderilmesi."],
+      ["17", "Bitmiş parçalar için palet tedarik edilmesi."]
+    ];
+
+    styledTable(slide, leftHeader, leftRows, {
+      x: 0.6,
+      y: 1.6,
+      w: 5.85,
+      colW: [0.6, 5.25],
+      rowH: 0.46
+    });
+
+    styledTable(slide, rightHeader, rightRows, {
+      x: 6.88,
+      y: 1.6,
+      w: 5.85,
+      colW: [0.7, 5.15],
+      rowH: 0.46
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE 17 — NCMS ALAN BAZLI KADRO ÖNERİSİ (TABLO)
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tasks, 
+      eyebrow: "NCMS Kadro Önerisi", 
+      title: "Bölüm Bazlı NCMS Kadro Önerisi" 
+    });
+
+    const header = ["Bölüm", "Vardiya 1", "Vardiya 2", "Vardiya 3", "Toplam"];
+    const leftRows = [
+      ["Testere", "1", "", "", "1"],
+      ["İndüksiyon", "1", "", "", "1"],
+      ["Pres Yanı", "1", "", "", "1"],
+      ["Tav Fırını", "1", "1", "1", "3"],
+      ["ETM", "1", "1", "", "2"],
+      ["Kalite", "2", "", "", "2"],
+      ["Taşıma / Lojistik", "2", "", "", "2"],
+      ["ROB104", "1", "", "", "1"],
+      ["ROB108", "1", "", "", "1"],
+      ["F420", "1", "1", "", "2"],
+      ["N602", "1", "", "", "1"],
+      ["", "", "", "", ""] // empty placeholder to align heights
+    ];
+
+    const rightRows = [
+      ["N603", "1", "", "", "1"],
+      ["ROB109", "1", "", "", "1"],
+      ["Quench", "1", "1", "1", "3"],
+      ["SBU110", "1", "", "", "1"],
+      ["ROB110", "1", "", "", "1"],
+      ["ROB111", "1", "", "", "1"],
+      ["Kalite", "3", "", "", "3"],
+      ["PHO101", "3", "", "", "3"],
+      ["WPL103", "3", "", "", "3"],
+      ["Bakım Ekibi", "2", "2", "2", "6"],
+      ["Spider Operatörler", "3", "", "", "3"],
+      [{ text: "Toplam", bold: true }, "", "", { text: "=", bold: true }, { text: "43", bold: true, color: COLORS.navy }]
+    ];
+
+    styledTable(slide, header, leftRows, {
+      x: 0.6,
+      y: 1.5,
+      w: 5.5,
+      colW: [2.5, 0.75, 0.75, 0.75, 0.75],
+      rowH: 0.38
+    });
+
+    styledTable(slide, header, rightRows, {
+      x: 7.23,
+      y: 1.5,
+      w: 5.5,
+      colW: [2.5, 0.75, 0.75, 0.75, 0.75],
+      rowH: 0.38
+    });
+
+    addFooter(slide, "NCMS Kadro Önerisi");
+  }
+
+  // ==================================================================
+  // SLIDE 18 — NCMS KADRO DAĞILIMI (YERLEŞİM PLANI)
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tasks, 
+      eyebrow: "NCMS Kadro Önerisi", 
+      title: "NCMS Kadro Dağılımının Fabrika Yerleşimi Üzerindeki Görünümü" 
+    });
+
+    const imgPath = path.join(__dirname, "headcount_layout.png");
+    slide.addImage({
+      path: imgPath,
+      x: 0.92,
+      y: 1.4,
+      w: 11.5,
+      h: 5.38
+    });
+
+    addFooter(slide, "NCMS Kadro Önerisi");
+  }
 
   const outPath = "C:\\Users\\tvural.REPKON\\Desktop\\HF901\\Serial Production\\ManufUI\\docs\\sunumlar\\Repkon-HF901-Ust-Yonetim-Sunumu-2026-07.pptx";
   await pres.writeFile({ fileName: outPath });

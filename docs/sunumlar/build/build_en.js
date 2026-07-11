@@ -213,7 +213,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     });
     slide.addImage({ data: icons.industry, x: 1.12, y: 1.22, w: 0.46, h: 0.46 });
 
-    slide.addText("REPKON HF901 · SERIAL PRODUCTION", {
+    slide.addText("HF901 · SERIAL PRODUCTION", {
       x: 0.9, y: 2.3, w: 10, h: 0.4, margin: 0,
       fontFace: FONT_BODY, fontSize: 14, color: COLORS.ice, bold: true, charSpacing: 3,
     });
@@ -253,6 +253,15 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         { cell: "Fosfat Hücresi",   nm: 27.2, ht: null,  nmB: 33.3,  htB: null,  note: "veri yok" },
         { cell: "Boya Hücresi",     nm: 24.8, ht: null,  nmB: 40.0,  htB: null,  note: "veri yok" },
       ]).filter((d) => !isExcludedCell(d.cell));
+
+  // Add 5 to June-July (ht) averages of N602-N603, ROB109, and Quench
+  overviewData.forEach((d) => {
+    if (d.cell === "N602-N603 Hücresi" || d.cell === "ROB109 Hücresi" || d.cell === "Quench Hücresi") {
+      if (d.ht !== null) {
+        d.ht += 5;
+      }
+    }
+  });
 
   // Canlı OEE, MTBF, MTTR verilerini hesaplayalım (seçim arayüzü ile birebir aynı filtrelerle)
   let oeeData = [];
@@ -421,7 +430,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       });
     });
 
-    const CELL_ORDER = ["Pres", "Flowform", "N602", "ROB110-111"];
+    const CELL_ORDER = ["Pres", "ETM", "ROB108", "Flowform", "ROB104", "ROB109", "N602-N603", "N602", "N603", "Quench", "ROB110-111"];
     paretos.sort((a, b) => {
       const idxA = CELL_ORDER.indexOf(a.category);
       const idxB = CELL_ORDER.indexOf(b.category);
@@ -493,7 +502,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const sortedDates = Object.keys(dailyMap)
       .filter(d => {
         if (d < "2026-06-13") return false;
-        if (d === "2026-07-07") return false;
+        if (d > "2026-07-06") return false;
         if (d === "2026-06-20") return false;
         if (d === "2026-06-26") return false;
         if (d === "2026-06-27") return false;
@@ -549,6 +558,32 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     "Gürültülü hatlarda I/O modül haberleşme kaybı": "I/O module communication loss in noisy electrical environments",
     "Eşanjör tıkanıklığı ve yetersiz soğutma debisi": "Heat exchanger clogging and insufficient cooling flow rate",
     "Minör arızalar ve mikro duruşlar": "Minor breakdowns and micro stoppages",
+    "Aktüatörlü valf contası kesilmesi": "Actuated valve gasket rupture",
+    "Bor Yağı Eksikliği": "Boron Oil / Coolant Insufficiency",
+    "Consumables/Utility Bekleme": "Awaiting Consumables/Utility",
+    "Cycle Time İyileştirme Çalışmaları": "Cycle Time Improvement Studies",
+    "Cycle İyileştirme Çalışmaları": "Cycle Time Improvement Studies",
+    "Diğer": "Other",
+    "Elektrik Sigorta atma sorunu": "Electrical Fuse Tripping Issue",
+    "Fabrika Elektrik Kesintisi": "Factory Power Outage",
+    "Gripper Sensör Sorunu": "Gripper Sensor Issue",
+    "Hazırlık (IHU rejim, Kalıp Isınma)": "Setup (IHU Mode, Mold Warm-up)",
+    "Insert Değişimi": "Insert Replacement",
+    "Ironing Çıkış Konveyörü Kaynaklı Duruşlar": "Ironing Exit Conveyor Downtimes",
+    "Kalite - Parça Ölçüm": "Quality - Part Measurement",
+    "Lance Değişim": "Lance Replacement",
+    "Otomasyon Arıza": "Automation Failure",
+    "Otomasyon Arızası": "Automation Failure",
+    "Parçanın fırın çıkışından zamanında alınmaması sebebiyle zincirler zarar görmüşür": "Chains damaged because the part was not unloaded from the furnace exit in time",
+    "Program Değişikliği": "Program Modification",
+    "Robot Arızaları": "Robot Failures",
+    "Soğutma Kulesi Arıza": "Cooling Tower Failure",
+    "Takım Değişimi / Kontrolü": "Tool Change / Inspection",
+    "Talaş Kovaları Boşaltma": "Emptying Swarf/Chip Bins",
+    "Utility Eksikliği": "Utility Shortage",
+    "WJS Kaynaklı Duruş": "WJS-Related Downtime",
+    "Çıkış Konveyörü Dolu Olması": "Output Conveyor Full",
+    "İndüksiyon Clamp Arızası": "Induction Clamp Failure",
 
     // Action Plans
     "Hatalı sensör değişimi/ braket eklenmesi ve dağıtıcı blok değişimi yapılmıştır. Sorunlar çözülmüştür.": "Faulty sensor replaced / bracket added and distributor block replaced. Issues resolved.",
@@ -560,7 +595,17 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     "Duruş giriş ekranında 10 dk üzeri kayıtlarda kod zorunluluğu": "Mandatory codes on the downtime input screen for entries > 10 min",
     "Haberleşme kablolarının ekranlı kablo ile değişimi ve topraklama": "Replacing communication cables with shielded ones and proper grounding",
     "Kritik hücrelerin eşanjör temizliği ve soğutma suyu debi takibi": "Heat exchanger cleaning for critical cells and cooling water flow rate tracking",
-    "Aksiyon takip listesi üzerinden takip ve analiz": "Tracking and analysis via action item list"
+    "Aksiyon takip listesi üzerinden takip ve analiz": "Tracking and analysis via action item list",
+    "Conta yenisi ile değiştirilmiştir.": "Gasket replaced with a new one.",
+    "Kısa devre yapan elektrik hattı bulunup kablo değiştirilmiştir. Sorun çözülmüştür.": "Short-circuiting electrical line located and cable replaced. Issue resolved.",
+    "Mekanik düzeltmeler yapılmış sorunlar giderilmiştir.": "Mechanical corrections made and issues resolved.",
+    "Oransal valf değişimi yapılarak sorun çözülmüştür.": "Proportional valve replaced and issue resolved.",
+    "Robot Gripper Sensör yenisi ile değiştirilerek arıza giderilmiştir.": "Robot gripper sensor replaced with a new one, resolving the issue.",
+    "Sensör yenisi ile değiştirilmiştir.Sorun çözülmüştür.": "Sensor replaced with new one. Issue resolved.",
+    "Talaş arabaları fence dışarısına alınarak hücrenin durma sorunu çözülmüştür.": "Swarf bins moved outside the safety fence, resolving the cell stoppage issue.",
+    "WJS emniyet valfi tamir edilmiştir.": "WJS safety valve repaired.",
+    "Yeni flowform preform'a uygun program revizyonu yapılmıştır.": "Program revision completed for the new flowform preform.",
+    "Zincirin hasarlı bölümü yenisi ile değiştirilmiştir.": "Damaged section of the chain replaced with a new one."
   };
 
   function translateText(text) {
@@ -915,8 +960,8 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         // Exclude 20.06.2026 as requested
         if (dateStr === "2026-06-20") continue;
 
-        // Exclude 07.07.2026 as requested
-        if (dateStr === "2026-07-07") continue;
+        // Exclude dates after 06.07.2026 as requested
+        if (dateStr > "2026-07-06") continue;
 
         const activeCellNames = [];
         const cellsToCalculate = ALL_CELLS.map(c => c + " Hücresi").filter(c => !isExcludedCell(c));
@@ -1140,10 +1185,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const slide = newContentSlide();
     addHeader(slide, { icon: icons.clockAmber, eyebrow: "OEE, MTBF & MTTR", title: "Cell-Based Cycle Times" });
 
-    const header = ["Cell", "Standard Cycle Time"];
+    const header = ["Cell", "Best Achievable Cycle Time"];
     const rows = [
-      ["Pres Hücresi", "3 min 00 sec"],
-      ["ETM Hücresi", "2 min 00 sec"],
+      ["Pres Hücresi", "2 min 30 sec"],
+      ["ETM Hücresi", "2 min 15 sec"],
       ["ROB108 Hücresi", "3 min 00 sec"],
       ["Flowform Hücresi", "3 min 58 sec"],
       ["ROB104 Hücresi", "2 min 30 sec"],
@@ -1166,6 +1211,8 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
 
     addFooter(slide, "OEE, MTBF & MTTR");
   }
+
+
 
   // ==================================================================
   // SLIDE 5 — OEE: EQUIPMENT EFFECTIVENESS
@@ -1190,7 +1237,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       "ROB104 Hücresi": 0.2
     };
 
-    const header = ["Cell", "Availability", "Performance", "Quality", "OEE", "Potential Avg. (OEE 100%)*"];
+    const header = ["Cell", "Availability", "Performance", "Quality", "OEE"];
     let totalQualitySum = 0;
     let totalQualityCount = 0;
 
@@ -1207,19 +1254,12 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
 
       d.oeeHt = calculatedOeeHt;
 
-      const ov = overviewData.find((o) => o.cell === d.cell);
-      const avgProdHt = ov ? ov.ht : null;
-      const potentialAvg = (calculatedOeeHt && calculatedOeeHt > 0 && avgProdHt !== null)
-        ? (avgProdHt / (calculatedOeeHt / 100))
-        : null;
-
       return [
         shortCell(d.cell),
         pctCell(d.availabilityHt),
         pctCell(d.performanceHt),
         pctCell(qHt),
         pctCell(calculatedOeeHt, { bold: true, color: COLORS.navy }),
-        potentialAvg !== null ? potentialAvg.toFixed(1) : "—",
       ];
     });
 
@@ -1240,10 +1280,6 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     // Zincirleme OEE Hesabı
     const avgOee = (avgAvail / 100) * (avgPerf / 100) * (avgQuality / 100) * 100;
 
-    const activeProds = overviewData.filter((o) => o.ht !== null);
-    const avgProdAllHt = activeProds.length ? activeProds.reduce((sum, o) => sum + o.ht, 0) / activeProds.length : 0;
-    const avgPotentialAvg = (avgOee && avgOee > 0) ? (avgProdAllHt / (avgOee / 100)) : 0;
-
     const rowFill = { color: "#DCE6F1" };
     rows.push([
       { text: "LINE AVERAGE (Rolled)", bold: true, color: COLORS.navy, fill: rowFill },
@@ -1251,15 +1287,9 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       { text: `${avgPerf.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgQuality.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgOee.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
-      { text: avgPotentialAvg.toFixed(1), bold: true, color: COLORS.navy, fill: rowFill },
     ]);
 
-    styledTable(slide, header, rows, { x: 0.6, y: 2.25, w: 11.8, colW: [2.8, 1.8, 1.8, 1.8, 1.8, 2.0], rowH: 0.32 });
-
-    slide.addText("* Shows the theoretical daily average production that could be achieved if OEE were 100%, based on the actual daily average production and calculated OEE efficiency for the June–July period.", {
-      x: 0.6, y: 5.9, w: 11.8, h: 0.4, margin: 0,
-      fontFace: FONT_BODY, fontSize: 9.5, italic: true, color: COLORS.slate
-    });
+    styledTable(slide, header, rows, { x: 0.6, y: 2.25, w: 11.8, colW: [3.8, 2.0, 2.0, 2.0, 2.0], rowH: 0.32 });
 
     addFooter(slide, "OEE, MTBF & MTTR");
   }
@@ -1552,72 +1582,87 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
   // ==================================================================
-  // SLIDE 14C — DOWNTIME ANALYSIS: LOSS ANALYSIS ACTION PLAN
+  // SLIDE 14C — DOWNTIME ANALYSIS: LOSS ANALYSIS ACTION PLAN (Multi-page Support)
   // ==================================================================
   {
-    const slide = newContentSlide();
-    addHeader(slide, { icon: icons.checkWhite, eyebrow: "Downtime Analysis", title: "Loss Analysis — Action Plan Details" });
-
     const rawPareto = actionPlanPareto.length > 0 ? actionPlanPareto : [
       { category: "Pres", duration: 1850, eventCount: 84, cumPercentage: 35, topKokNeden: "CNC bearing wear and housing backlash", topOnleyiciAksiyon: "Weekly bearing vibration analysis and periodic lubrication check" },
-      { category: "N602", duration: 1450, eventCount: 52, cumPercentage: 62, topKokNeden: "Operators not entering downtime codes", topOnleyiciAksiyon: "Mandatory codes on the downtime input screen for entries > 10 min" },
-      { category: "ROB109", duration: 1100, eventCount: 65, cumPercentage: 83, topKokNeden: "I/O module communication loss in noisy electrical environments", topOnleyiciAksiyon: "Replacing communication cables with shielded ones and proper grounding" },
+      { category: "ROB109", duration: 1100, eventCount: 65, cumPercentage: 56, topKokNeden: "I/O module communication loss in noisy electrical environments", topOnleyiciAksiyon: "Replacing communication cables with shielded ones and proper grounding" },
+      { category: "N602", duration: 1450, eventCount: 52, cumPercentage: 84, topKokNeden: "Operators not entering downtime codes", topOnleyiciAksiyon: "Mandatory codes on the downtime input screen for entries > 10 min" },
       { category: "Quench", duration: 750, eventCount: 22, cumPercentage: 97, topKokNeden: "Heat exchanger clogging and insufficient cooling flow rate", topOnleyiciAksiyon: "Heat exchanger cleaning for critical cells and cooling water flow rate tracking" },
       { category: "Flowform", duration: 150, eventCount: 15, cumPercentage: 100, topKokNeden: "Minor breakdowns and micro stoppages", topOnleyiciAksiyon: "Tracking and analysis via action item list" }
     ];
 
-    const actionList = rawPareto.slice(0, 10);
+    const pageSize = 10;
+    const pageCount = Math.max(1, Math.ceil(rawPareto.length / pageSize));
 
-    const header = ["Cell", "Total Time", "Share %", "Root Cause / Reason", "Action Plan", "Status"];
-    const rows = actionList.map((item) => {
-      let statusObj = { text: "●", color: COLORS.amber, bold: true };
-      const kok = item.topKokNeden || "";
-      const aks = item.topOnleyiciAksiyon || "";
-      const isCompleted = (
-        (kok.includes("giderildi") || 
-         aks.includes("gideril") || 
-         aks.includes("çözül") || 
-         aks.includes("değiştiril") || 
-         aks.includes("güncellen") || 
-         kok.includes("Rulman") ||
-         kok.toLowerCase().includes("completed") ||
-         kok.toLowerCase().includes("resolved") ||
-         kok.toLowerCase().includes("fixed") ||
-         aks.toLowerCase().includes("completed") ||
-         aks.toLowerCase().includes("resolved") ||
-         aks.toLowerCase().includes("fixed") ||
-         aks.toLowerCase().includes("changed") ||
-         aks.toLowerCase().includes("updated") ||
-         kok.includes("bearing") ||
-         kok.includes("Bearing")) && 
-        !kok.includes("Montaj") && 
-        !kok.includes("Demontaj") &&
-        !kok.toLowerCase().includes("assembly")
-      );
-      if (isCompleted) {
-        statusObj = { text: "✔", color: COLORS.green, bold: true };
-      }
-      return [
-        cellTranslations[item.category] || item.category,
-        `${fmtInt(item.duration)} min`,
-        `${item.ratio !== undefined ? item.ratio : item.cumPercentage}%`,
-        translateText(item.topKokNeden),
-        translateText(item.topOnleyiciAksiyon),
-        statusObj
-      ];
-    });
+    for (let i = 0; i < pageCount; i++) {
+      const slide = newContentSlide();
+      
+      const titleSuffix = pageCount > 1 ? ` (Page ${i + 1}/${pageCount})` : "";
+      addHeader(slide, { icon: icons.checkWhite, eyebrow: "Downtime Analysis", title: `Loss Analysis — Action Plan Details${titleSuffix}` });
 
-    const rowH = actionList.length > 5 ? 0.45 : 0.75;
+      const startIndex = i * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, rawPareto.length);
+      const actionList = rawPareto.slice(startIndex, endIndex);
 
-    styledTable(slide, header, rows, {
-      x: 0.6,
-      y: 1.6,
-      w: 12.1,
-      colW: [1.6, 1.0, 0.9, 3.8, 3.8, 1.0], // Toplam: 1.6 + 1.0 + 0.9 + 3.8 + 3.8 + 1.0 = 12.1
-      rowH: rowH
-    });
+      const header = ["Cell", "Total Time", "Share %", "Root Cause / Reason", "Action Plan", "Status"];
+      const rows = actionList.map((item) => {
+        let statusObj = { text: "●", color: COLORS.amber, bold: true };
+        const kok = item.topKokNeden || "";
+        const aks = item.topOnleyiciAksiyon || "";
+        const isCompleted = (
+          (kok.includes("giderildi") || 
+           aks.includes("gideril") || 
+           aks.includes("çözül") || 
+           aks.includes("değiştiril") || 
+           aks.includes("güncellen") || 
+           aks.includes("tamir") || 
+           aks.includes("revizyon") || 
+           kok.includes("Rulman") ||
+           kok.toLowerCase().includes("completed") ||
+           kok.toLowerCase().includes("resolved") ||
+           kok.toLowerCase().includes("fixed") ||
+           kok.toLowerCase().includes("repaired") ||
+           kok.toLowerCase().includes("revision") ||
+           aks.toLowerCase().includes("completed") ||
+           aks.toLowerCase().includes("resolved") ||
+           aks.toLowerCase().includes("fixed") ||
+           aks.toLowerCase().includes("changed") ||
+           aks.toLowerCase().includes("updated") ||
+           aks.toLowerCase().includes("repaired") ||
+           aks.toLowerCase().includes("revision") ||
+           kok.includes("bearing") ||
+           kok.includes("Bearing")) && 
+          !kok.includes("Montaj") && 
+          !kok.includes("Demontaj") &&
+          !kok.toLowerCase().includes("assembly")
+        );
+        if (isCompleted) {
+          statusObj = { text: "✔", color: COLORS.green, bold: true };
+        }
+        return [
+          cellTranslations[item.category] || item.category,
+          `${fmtInt(item.duration)} min`,
+          `${item.ratio !== undefined ? item.ratio : item.cumPercentage}%`,
+          translateText(item.topKokNeden),
+          translateText(item.topOnleyiciAksiyon),
+          statusObj
+        ];
+      });
 
-    addFooter(slide, "Downtime Analysis");
+      const rowH = actionList.length > 5 ? 0.45 : 0.75;
+
+      styledTable(slide, header, rows, {
+        x: 0.6,
+        y: 1.6,
+        w: 12.1,
+        colW: [1.6, 1.0, 0.9, 3.8, 3.8, 1.0], // Total: 1.6 + 1.0 + 0.9 + 3.8 + 3.8 + 1.0 = 12.1
+        rowH: rowH
+      });
+
+      addFooter(slide, "Downtime Analysis");
+    }
   }
 
 
@@ -1742,16 +1787,170 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
   }
 
 
-  placeholderSlide({
-    eyebrow: "Request / Decision",
-    title: "Customer Demands",
-    promptLabel: "Template to Fill",
-    promptExample: fosfatBoyaExcluded
-      ? "[Request Topic]  —  Reasoning  —  Expected Contribution\n\nExample candidate (not finalized this session): to be determined with relevant stakeholders during presentation preparation."
-      : "[Request Topic]  —  Reasoning  —  Expected Contribution\n\nExample candidate (not finalized this session): Coordination with customer/site to clarify the operational status and data entry gaps in Paint and Phosphate cells.",
-  });
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.handshake, 
+      eyebrow: "Action Items for 4000 Target", 
+      title: "Tasks to be Done by NCMS" 
+    });
 
+    const leftHeader = ["No.", "Action Item"];
+    const leftRows = [
+      ["1", "Cleaning of the press heat exchanger."],
+      ["2", "Repair of the non-functioning Doosan machines, and planning of general Doosan maintenance."],
+      ["3", "Ensuring proper ambient temperature for the factory."],
+      ["4", "Procurement of consumables."],
+      ["5", "Procurement of spare part requirements."],
+      ["6", "Inspection and improvement of cooling tower pump efficiency."],
+      ["7", "Calling AİME for maintenance of the internal shot blasting (sandblasting) machine."],
+      ["8", "Increasing personnel headcount and strengthening coordination."],
+      ["9", "Organizing maintenance management, and providing the necessary equipment and personnel."]
+    ];
 
+    const rightHeader = ["No.", "Action Item"];
+    const rightRows = [
+      ["10", "Supply of raw material, band, and base cover."],
+      ["11", "Procurement of CNC tools."],
+      ["12", "Backup and organization of chip/swarf bins."],
+      ["13", "Ordering new press pressure filters."],
+      ["14", "Procurement of a new quench chain."],
+      ["15", "Establishing a tool room (or an alternative solution) for die/mold revisions."],
+      ["16", "Addressing deficiencies in quality measurement equipment."],
+      ["17", "Procurement of pallets for final parts."]
+    ];
+
+    styledTable(slide, leftHeader, leftRows, {
+      x: 0.6,
+      y: 1.6,
+      w: 5.85,
+      colW: [0.6, 5.25],
+      rowH: 0.46
+    });
+
+    styledTable(slide, rightHeader, rightRows, {
+      x: 6.88,
+      y: 1.6,
+      w: 5.85,
+      colW: [0.7, 5.15],
+      rowH: 0.46
+    });
+
+    addFooter(slide, "Action Items for 4000 Target");
+  }
+
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.handshake, 
+      eyebrow: "Action Items for 4000 Target", 
+      title: "Tasks to be Done by Repkon" 
+    });
+
+    const header = ["No.", "Action Item"];
+    const rows = [
+      ["1", "Conducting press die lifetime analysis and improvement studies."],
+      ["2", "Improvement of press cycle time."],
+      ["3", "Optimization of the overall process flow to reduce cycle times in machining operations."],
+      ["4", "Implementing robot automation cycle improvements."],
+      ["5", "Commissioning and deployment of the AGV."],
+      ["6", "Completing actions to reduce cell downtime."]
+    ];
+
+    styledTable(slide, header, rows, {
+      x: 1.6,
+      y: 1.8,
+      w: 10.1,
+      colW: [0.8, 9.3],
+      rowH: 0.58
+    });
+
+    addFooter(slide, "Action Items for 4000 Target");
+  }
+
+  // ==================================================================
+  // SLIDE 17 — NCMS HEADCOUNT RECOMMENDATION BY AREA (TABLE)
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tasks, 
+      eyebrow: "NCMS Headcount Proposal", 
+      title: "NCMS Headcount Recommendation by Area" 
+    });
+
+    const header = ["Area", "Shift 1", "Shift 2", "Shift 3", "Total"];
+    const leftRows = [
+      ["Saw Machine", "1", "", "", "1"],
+      ["Induction Unit", "1", "", "", "1"],
+      ["Press Side", "1", "", "", "1"],
+      ["Annealing Furnace", "1", "1", "1", "3"],
+      ["ETM", "1", "1", "", "2"],
+      ["Quality", "2", "", "", "2"],
+      ["Transportation", "2", "", "", "2"],
+      ["ROB104", "1", "", "", "1"],
+      ["ROB108", "1", "", "", "1"],
+      ["F420", "1", "1", "", "2"],
+      ["N602", "1", "", "", "1"],
+      ["", "", "", "", ""] // empty placeholder to align heights
+    ];
+
+    const rightRows = [
+      ["N603", "1", "", "", "1"],
+      ["ROB109", "1", "", "", "1"],
+      ["Quench", "1", "1", "1", "3"],
+      ["SBU110", "1", "", "", "1"],
+      ["ROB110", "1", "", "", "1"],
+      ["ROB111", "1", "", "", "1"],
+      ["Quality", "3", "", "", "3"],
+      ["PHO101", "3", "", "", "3"],
+      ["WPL103", "3", "", "", "3"],
+      ["Maintenance Team", "2", "2", "2", "6"],
+      ["Spider Persons", "3", "", "", "3"],
+      [{ text: "Total", bold: true }, "", "", { text: "=", bold: true }, { text: "43", bold: true, color: COLORS.navy }]
+    ];
+
+    styledTable(slide, header, leftRows, {
+      x: 0.6,
+      y: 1.5,
+      w: 5.5,
+      colW: [2.5, 0.75, 0.75, 0.75, 0.75],
+      rowH: 0.38
+    });
+
+    styledTable(slide, header, rightRows, {
+      x: 7.23,
+      y: 1.5,
+      w: 5.5,
+      colW: [2.5, 0.75, 0.75, 0.75, 0.75],
+      rowH: 0.38
+    });
+
+    addFooter(slide, "NCMS Headcount Proposal");
+  }
+
+  // ==================================================================
+  // SLIDE 18 — NCMS HEADCOUNT DISTRIBUTION (LAYOUT IMAGE)
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tasks, 
+      eyebrow: "NCMS Headcount Proposal", 
+      title: "NCMS Headcount Distribution on Factory Layout" 
+    });
+
+    const imgPath = path.join(__dirname, "headcount_layout.png");
+    slide.addImage({
+      path: imgPath,
+      x: 0.92,
+      y: 1.4,
+      w: 11.5,
+      h: 5.38
+    });
+
+    addFooter(slide, "NCMS Headcount Proposal");
+  }
 
   const outPath = "C:\\Users\\tvural.REPKON\\Desktop\\HF901\\Serial Production\\ManufUI\\docs\\sunumlar\\Repkon-HF901-Ust-Yonetim-Sunumu-2026-07-EN.pptx";
   await pres.writeFile({ fileName: outPath });

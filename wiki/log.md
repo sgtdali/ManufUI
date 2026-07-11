@@ -12,6 +12,7 @@ Grep ile son 5 girişi bul: `grep "^## \[" wiki/log.md | tail -5`
 - **Dinamik Çeviri Sözlüğü (`dynamicTranslations`):** Veritabanından gelen Türkçe serbest metinli duruş sebepleri ve aksiyon planları için yerel bir sözlük kuruldu ve `translateText` yardımcısı ile tabloda otomatik çevrilmeleri sağlandı.
 - **İngilizce Slayt Sadeleştirmeleri:** İngilizce sunumdan talep doğrultusunda *"Distribution by Loss Types"* ve *"74 Items — General Status"* slaytları tamamen kaldırıldı (toplam sayfa sayısı 12'ye düşürüldü).
 - **Hücre Bazlı Çevrim Süreleri (Cycle Time) Slaydı:** Hem Türkçe hem İngilizce sunumlara standard çevrim sürelerini listeleyen yeni bir slayt eklendi. Tablo ortalanmış düzenle tasarlandı, sağ taraftaki açıklama kartı kullanıcı talebiyle kaldırıldı.
+- **Hat Kapasite ve Darboğaz Analizi Slaytı:** Çevrim sürelerinin 9 saatlik vardiya kapasitesini OEE %100 potansiyeliyle kıyaslayan yeni bir analiz slaydı eklendi. Darboğaz olan ROB110-111 kırmızıyla, emniyet marjı sıfır olan Pres/ROB108/ROB109 amber ile, kapasite fazlası olan hücreler ise yeşil ile işaretlenerek görselleştirildi. Sağ tarafa durum tespiti yapan 3 maddelik bir özet açıklama kartı yerleştirildi.
 - **Lokal Arayüz Arayüz Butonu:** Lokal web kontrol paneline (port 4590) "İngilizce Sunum Oluştur" butonu eklendi, `/api/generate-en` endpoint'i ile entegre edildi.
 
 ---
