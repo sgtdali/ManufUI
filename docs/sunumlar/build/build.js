@@ -2039,7 +2039,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       fill: { color: COLORS.white }, line: { type: "none" },
       shadow: { ...cardShadow }
     });
-    slide.addText("1. YÜKSEK TONAJ TALEBİ VE GÜÇ LİMİTLERİ", {
+    slide.addText("1. YÜKSEK TONAJ", {
       x: 5.9, y: 2.0, w: 6.5, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true, charSpacing: 1
     });
@@ -2247,7 +2247,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 1.1, y: 4.7, w: 4.8, h: 0.35, margin: 0,
       fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
     });
-    slide.addText(`Gerekli Girdi Hedefi (219 adet) karşılanamıyor (Fark: -${219 - r104TargetReal} parça).`, {
+    slide.addText([
+      { text: "Gerekli Girdi Hedefi (219 adet) karşılanamıyor " },
+      { text: `(Fark: -${219 - r104TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+    ], {
       x: 1.1, y: 5.1, w: 4.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
     });
@@ -2303,7 +2306,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 7.38, y: 4.7, w: 4.8, h: 0.35, margin: 0,
       fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
     });
-    slide.addText(`Gerekli Girdi Hedefi (227 adet) karşılanamıyor (Fark: -${227 - r108TargetReal} parça).`, {
+    slide.addText([
+      { text: "Gerekli Girdi Hedefi (227 adet) karşılanamıyor " },
+      { text: `(Fark: -${227 - r108TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+    ], {
       x: 7.38, y: 5.1, w: 4.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
     });
@@ -2438,7 +2444,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     addHeader(slide, { 
       icon: icons.lightbulb, 
       eyebrow: "4000 Hedefi İçin Yapılacaklar", 
-      title: "Talaşlı İmalat: Flowform Eliminasyonu Ek Fayda ve Risk Analizi" 
+      title: "Talaşlı İmalat: Flowform Eliminasyonu Faydaları" 
     });
 
     slide.addText("Flowform prosesinin devreden çıkarılması, çevrim süresi kazanımının yanı sıra operasyonel, maddi ve lojistik birçok ek fayda sağlamaktadır.", {
@@ -2449,16 +2455,12 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const header = ["Fayda / Gelişim Alanı", "Beklenen Etki / Kazanım"];
     const rows = [
       ["Hat Üretim Hedefi", "FF preform işleme operasyonu kaldırılarak Hot Spinning preform işleme hücre sayısının artırılması, hat geneli talaşlı imalat optimizasyonunun yapılabilmesi ve Flowform hücresinden alınacak robot ile ROB109 hücresinin robotunun rahatlatılması."],
-      ["Hammadde Tasarrufu", "Kütük kütlesinde doğrudan azalma ve hammadde giriş maliyetlerinde kalıcı düşüş."],
-      ["Kalıp Pastası Tüketimi", "Yüksek sarfiyatlı ve maliyetli kalıp pastası kullanımının tamamen sıfırlanması."],
-      ["Operasyonel Sadeleşme", "Tırnaklı parça işleme ve ekstra düzeltme revizyon operasyonlarının ortadan kalkması."],
+      ["Hammadde Tasarrufu", "Pres öncesi kütük kütlesinde doğrudan azalma ve hammadde giriş maliyetlerinde kalıcı düşüş."],
+      ["Lojistik ve AGV Akışı", "Parça taşıma rotalarının sadeleşmesi ve AGV arıza/duruş ihtimalinin azalması."],
+      ["Operasyonel Sadeleşme", "Tırnaklı parça işleme, mandrel değişimi gibi düzenli maliyet kalemlerinin ortadan kalkması."],
       ["İş Gücü Optimizasyonu", "Çevrim süresi düzeltilemeyen Flowform kaynaklı 2 vardiya personel zorunluluğunun bitmesi."],
-      ["Lojistik ve AGV Akışı", "Parça taşıma rotalarının basitleşmesi ve lojistik arıza/duruş ihtimalinin azalması."],
-      ["Uluslararası Projeler (Pakistan/Hırvatistan)", "Yeni hat proses akışlarının önceden denenerek proje risklerinin azaltılması."],
-      [
-        { text: "Olası Süreç Riski (Pres Kalıp Denemeleri)", color: COLORS.red, bold: true },
-        { text: "Pres hücresindeki yeni geometri kalıp denemeleri nedeniyle geçici aksama/duruş riski mevcuttur.", color: COLORS.red }
-      ]
+      ["Kalıp Pastası Tüketimi", "Yüksek sarfiyatlı ve maliyetli kalıp pastası kullanımının tamamen sıfırlanması."],
+      ["Yeni Projelere Etki (Pakistan/Hırvatistan)", "Yeni hat proses akışlarının önceden denenerek proje risklerinin azaltılması."]
     ];
 
     styledTable(slide, header, rows, {
@@ -2467,6 +2469,14 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       w: 12.1,
       colW: [4.1, 8.0],
       rowH: 0.45
+    });
+
+    slide.addText([
+      { text: "Süreç Riski (Pres Kalıp Denemeleri): ", options: { bold: true, color: COLORS.slate } },
+      { text: "Pres hücresindeki yeni geometri kalıp denemeleri nedeniyle geçici aksama/duruş riski mevcuttur.", options: { color: COLORS.slateLight } }
+    ], {
+      x: 0.6, y: 5.6, w: 12.1, h: 0.4,
+      fontFace: FONT_BODY, fontSize: 9.5
     });
 
     addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
@@ -2544,7 +2554,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 1.1, y: 4.7, w: 4.8, h: 0.35, margin: 0,
       fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
     });
-    slide.addText(`Gerekli Girdi Hedefi (217 adet) karşılanamıyor (Fark: -${217 - r109TargetReal} parça).`, {
+    slide.addText([
+      { text: "Gerekli Girdi Hedefi (217 adet) karşılanamıyor " },
+      { text: `(Fark: -${217 - r109TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+    ], {
       x: 1.1, y: 5.1, w: 4.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
     });
@@ -2681,6 +2694,346 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.red, bold: true
     });
     slide.addText("• Mevcut Kapasite (2.5 dk): 24 parça/saat  |  216 parça/gün\n• Hedef Kapasite (2.0 dk): 30 parça/saat  |  270 parça/gün\n• Kapasite Artış Potansiyeli: +%25 Net Kapasite Kazanımı", {
+      x: 7.18, y: 5.65, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — TALAŞLI İMALAT: DARBOĞAZ ANALİZİ (FİNAL HÜCRE)
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tools, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Talaşlı İmalat: Darboğaz Analizi (Final Hücre)" 
+    });
+
+    slide.addText("Final hücrede ROB110 robotunun yüksek doluluğu ve ROB111'deki punta kaynak makinesinin çevrim süresi tüm hattın çıktı hızını sınırlandırmaktadır.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const r110Data = oeeData.find((x) => x.cell === "ROB110-111 Hücresi");
+    const r110Oee = r110Data && r110Data.oeeHt !== null
+      ? r110Data.oeeHt
+      : 27.8;
+    const r110Real = Math.round((22 * 9) * (r110Oee / 100));
+
+    // Sol Kart: ROB110-111 Hücresi (Mevcut Durum)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("ROB110-111 FİNAL HÜCRESİ MEVCUT DURUM", {
+      x: 0.9, y: 2.15, w: 5.3, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.white, bold: true, charSpacing: 1
+    });
+    slide.addText("Fiziki Yapı: ROB110 (1 robot, 3 torna) ve ROB111 (1 robot, Rotating Band, 2 torna, Punta Kaynak) hücrelerinden oluşur.", {
+      x: 0.9, y: 2.5, w: 5.3, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint
+    });
+
+    slide.addText("ROB110 Robot Doluluk:", {
+      x: 0.9, y: 3.05, w: 2.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("%97", {
+      x: 0.9, y: 3.3, w: 2.5, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.amber
+    });
+
+    slide.addText("Teorik Maksimum Hız:", {
+      x: 3.6, y: 3.05, w: 2.5, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("22 parça / saat", {
+      x: 3.6, y: 3.3, w: 2.5, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.white
+    });
+
+    // OEE kıyaslaması
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.9, y: 3.9, w: 5.25, h: 1.6, rectRadius: 0.06,
+      fill: { color: COLORS.navyDeep }, line: { type: "none" }
+    });
+    slide.addText("GÜNLÜK FİİLİ ÜRETİM KAPASİTESİ (OEE DAHİL)", {
+      x: 1.1, y: 4.05, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.ice, bold: true, charSpacing: 1
+    });
+    const r110TargetReal = Math.round((22 * 9) * 0.80);
+    slide.addText(`Teorik Günlük Limit: 198 adet | Mevcut OEE: %${r110Oee.toFixed(1)} | Hedef OEE: %80`, {
+      x: 1.1, y: 4.35, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.iceTint
+    });
+    slide.addText(`Gerçek Üretilebilir Adet (Hedef OEE ile): ${r110TargetReal} adet / gün`, {
+      x: 1.1, y: 4.7, w: 4.8, h: 0.35, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
+    });
+    slide.addText([
+      { text: "Gerekli Girdi Hedefi (215 adet) karşılanamıyor " },
+      { text: `(Fark: -${215 - r110TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+    ], {
+      x: 1.1, y: 5.1, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
+    });
+
+    // Sağ Kart: ROB111 Punta Kaynak Darboğazı (Lacivert Kart)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("ROB111 PUNTA KAYNAK MEVCUT DURUM", {
+      x: 7.18, y: 2.15, w: 5.3, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.white, bold: true, charSpacing: 1
+    });
+    slide.addText("Fiziki Yapı: ROB111 (1 robot, Rotating Band, 2 torna, Punta Kaynak) hücresinden oluşur.", {
+      x: 7.18, y: 2.5, w: 5.3, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint
+    });
+
+    slide.addText("Punta Kaynak Hızı:", {
+      x: 7.18, y: 3.05, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("25 parça / saat", {
+      x: 7.18, y: 3.3, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 20, bold: true, color: COLORS.amber
+    });
+
+    // Punta Kaynak OEE kıyaslaması
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 7.18, y: 3.9, w: 5.25, h: 1.6, rectRadius: 0.06,
+      fill: { color: COLORS.navyDeep }, line: { type: "none" }
+    });
+    slide.addText("GÜNLÜK FİİLİ ÜRETİM KAPASİTESİ (OEE DAHİL)", {
+      x: 7.38, y: 4.05, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.ice, bold: true, charSpacing: 1
+    });
+    const r111TargetReal = Math.round((25 * 9) * 0.80);
+    slide.addText(`Teorik Günlük Limit: 225 adet | Mevcut OEE: %${r110Oee.toFixed(1)} | Hedef OEE: %80`, {
+      x: 7.38, y: 4.35, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 9.5, color: COLORS.iceTint
+    });
+    slide.addText(`Gerçek Üretilebilir Adet (Hedef OEE ile): ${r111TargetReal} adet / gün`, {
+      x: 7.38, y: 4.7, w: 4.8, h: 0.35, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
+    });
+    slide.addText([
+      { text: "Gerekli Girdi Hedefi (215 adet) karşılanamıyor " },
+      { text: `(Fark: -${215 - r111TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+    ], {
+      x: 7.38, y: 5.1, w: 4.8, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — TALAŞLI İMALAT: ROB110 & TORNA-1 OPTİMİZASYON PLANI
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tools, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Talaşlı İmalat: ROB110 & Torna-1 Optimizasyon Planı" 
+    });
+
+    slide.addText("ROB110 robotunun doluluk oranını düşürmek için Torna-1 hücresinin hattan ayrılması ve bağımsız hücre haline getirilmesi.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const cardShadow = { type: "outer", color: "1E2761", blur: 6, offset: 2, angle: 90, opacity: 0.08 };
+
+    // Sol Kart: Kapasite ve Akış Analizi (Lacivert)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("YENİ AKIŞ VE ROBOT DOLULUK ANALİZİ", {
+      x: 0.9, y: 2.15, w: 5.2, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.ice, bold: true, charSpacing: 1
+    });
+    slide.addText("Torna-1'in ayrılmasıyla birlikte ROB110 robotunun torna yükleme/boşaltma ve transfer çevrim süreleri hafifleyecektir.", {
+      x: 0.9, y: 2.5, w: 5.2, h: 0.6, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint, lineSpacing: 14
+    });
+
+    slide.addText("Mevcut Robot Doluluk Oranı:", {
+      x: 0.9, y: 3.25, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("%97", {
+      x: 0.9, y: 3.5, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.red
+    });
+
+    slide.addText("Hedef Robot Doluluk Oranı (Simüle):", {
+      x: 0.9, y: 4.15, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("<%60 (Güvenli Alan)", {
+      x: 0.9, y: 4.4, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.green
+    });
+
+    slide.addText("ROB110 robotunun torna besleme iş yükünün %40'ı yeni hücreye transfer edilmektedir.", {
+      x: 0.9, y: 5.1, w: 5.2, h: 0.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.iceTint, lineSpacing: 13
+    });
+
+    // Sağ Taraf: Yapılacak Revizyonlar (3 Ayrı Beyaz Kart)
+    // Kart 1
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 1.95, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("1. TORNA-1'İN AYRILMASI VE TAŞINMASI", {
+      x: 7.18, y: 2.15, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("Torna-1 makinesi ROB110 hücresinden fiziksel olarak ayrılacak ve giriş tarafındaki iç kumlama makinesinin yanına taşınacaktır.", {
+      x: 7.18, y: 2.45, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Kart 2
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 3.55, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("2. SWAGING ROBOTUNUN YENİ HÜCREYE KURULMASI", {
+      x: 7.18, y: 3.75, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("Fabrika içerisindeki Swaging makinesinde yer alan robot sökülerek Kumlama + Torna-1 ikilisinden oluşan yeni hücrenin parça yükleme/boşaltması için kurulacaktır.", {
+      x: 7.18, y: 4.05, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Kart 3
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 5.15, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("3. ROB110 HÜCRE GİRİŞ AKIŞININ DÜZENLENMENİ", {
+      x: 7.18, y: 5.35, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("Yeni kurulan kumlama/torna hücresinden çıkan önceden işlenmiş parçalar, doğrudan ROB110 hücresine (Torna 2-3 besleme) aktarılacaktır.", {
+      x: 7.18, y: 5.65, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    addFooter(slide, "4000 Hedefi İçin Yapılacaklar");
+  }
+
+  // ==================================================================
+  // SLIDE — TALAŞLI İMALAT: ROB111 & PUNTA KAYNAK OPTİMİZASYON PLANI
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.tools, 
+      eyebrow: "4000 Hedefi İçin Yapılacaklar", 
+      title: "Talaşlı İmalat: ROB111 & Punta Kaynak Optimizasyon Planı" 
+    });
+
+    slide.addText("Punta Kaynak makinesinin hattan ayrılıp HTU hücresine taşınması, 45 adetlik buffer alanı yönetimi ve vardiya sonu 2 saatlik ek çalışma.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const cardShadow = { type: "outer", color: "1E2761", blur: 6, offset: 2, angle: 90, opacity: 0.08 };
+
+    // Sol Kart: Darboğaz ve Buffer Analizi (Lacivert)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.95, w: 5.85, h: 4.65, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("DARBOĞAZ VE BUFFER YÖNETİMİ", {
+      x: 0.9, y: 2.15, w: 5.2, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.ice, bold: true, charSpacing: 1
+    });
+    slide.addText("Punta Kaynak makinesinin yavaşlığı hat temposunu düşürdüğü için, biriktirme ve ek mesai ile eritme stratejisi uygulanacaktır.", {
+      x: 0.9, y: 2.5, w: 5.2, h: 0.6, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.iceTint, lineSpacing: 14
+    });
+
+    slide.addText("HTU Hücresi Buffer Kapasitesi:", {
+      x: 0.9, y: 3.25, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("45 adet parça", {
+      x: 0.9, y: 3.5, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.amber
+    });
+
+    slide.addText("HTU Punta Kaynak Ek Mesai Süresi:", {
+      x: 0.9, y: 4.15, w: 5.2, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.iceTint
+    });
+    slide.addText("+2 saat / gün (Vardiya Sonu)", {
+      x: 0.9, y: 4.4, w: 5.2, h: 0.45, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.amber
+    });
+
+    slide.addText("Gün boyu biriken 45 parça, otomasyon akışı bozulmadan vardiya bitiminde eritilecektir.", {
+      x: 0.9, y: 5.1, w: 5.2, h: 0.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.iceTint, lineSpacing: 13
+    });
+
+    // Sağ Taraf: Yapılacak Revizyonlar (3 Ayrı Beyaz Kart)
+    // Kart 1
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 1.95, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("1. PUNTA KAYNAK MAKİNESİNİN HTU'YA TAŞINMASI", {
+      x: 7.18, y: 2.15, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("Punta Kaynak makinesi ROB111 hücresinden ayrılarak HTU hücresine kurulacaktır. ROB111 robotu rotatig band shrinker ve 2 adet torna beslemesine odaklanacaktır.", {
+      x: 7.18, y: 2.45, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Kart 2
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 3.55, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("2. HTU HÜCRE ROBOTU İLE ENTEGRASYON", {
+      x: 7.18, y: 3.75, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("Taşınan Punta Kaynak makinesinin yükleme-boşaltma işlemleri, HTU hücresinde hali hazırda bulunan robot tarafından otomatik olarak gerçekleştirilecektir.", {
+      x: 7.18, y: 4.05, w: 5.25, h: 0.75, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
+    });
+
+    // Kart 3
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 5.15, w: 5.85, h: 1.4, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("3. EK MESAİ VE OTOMASYON AKIŞI", {
+      x: 7.18, y: 5.35, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("Gün içinde oluşan 45 parçalık buffer, vardiya sonundaki 2 saatlik ek çalışma süresinde punta kaynak işlemi yapılarak eritilecek ve günlük 215 adet hedefine ulaşılacaktır.", {
       x: 7.18, y: 5.65, w: 5.25, h: 0.75, margin: 0,
       fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
     });
