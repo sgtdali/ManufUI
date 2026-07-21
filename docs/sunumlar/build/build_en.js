@@ -1229,11 +1229,11 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       "Pres Hücresi": 0.1,
       "ETM Hücresi": 0.2,
       "ROB108 Hücresi": 0.1,
-      "Flowform Hücresi": 3.6,
+      "Flowform Hücresi": 0.03,
       "N602-N603 Hücresi": 0.7,
       "ROB109 Hücresi": 0.1,
       "Quench Hücresi": 0.8,
-      "ROB110-111 Hücresi": 7.0,
+      "ROB110-111 Hücresi": 0.4,
       "ROB104 Hücresi": 0.2
     };
 

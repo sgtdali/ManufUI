@@ -1,5 +1,5 @@
 ---
-updated: 2026-07-08
+updated: 2026-07-21
 sources: [docs/sunumlar/build/build.js, docs/sunumlar/build/build_en.js, docs/sunumlar/build/tool/dataService.js, docs/sunumlar/build/tool/server.js, docs/sunumlar/build/tool/public/app.js, docs/sunumlar/build/tool/public/index.html, docs/sunumlar/build/tool/public/style.css, docs/sunumlar/2026-07-ust-yonetim-sunum-plani.md]
 ---
 
@@ -75,10 +75,10 @@ Sunum aracındaki `OEE - Planlı Süre` bölümü hücre OEE'sini sunum özelind
 - `Çalışma Süresi = Planlı Süre - Availability kaybı sayılan duruş dakikaları`
 - `Performance = Gerçekleşen Üretim / Düzeltilmiş Hedef`
 - `Düzeltilmiş Hedef = Ham Hedef * ((60 - hedeften düşülecek dakika) / 60)`
-- `Quality = 100% - Red%` (Hücre bazlı fire/red oranları: Pres %0.1, ETM %0.2, ROB108 %0.1, Flowform %3.6, N602-N603 %0.7, ROB109 %0.1, Quench %0.8, ROB110-111 %7.0, ROB104 %0.2)
+- `Quality = 100% - Red%` (Hücre bazlı fire/red oranları: Pres %0.1, ETM %0.2, ROB108 %0.1, Flowform %0.03, N602-N603 %0.7, ROB109 %0.1, Quench %0.8, ROB110-111 %0.4, ROB104 %0.2)
 - `OEE = Availability * Performance * Quality`
 
-Kalite bileşeni sunumda OEE hesaplamasına hücre bazlı gerçek ıskarta/red oranları (Quality = 100% - Red%) üzerinden dahil edilmiştir. Hat Ortalaması satırında ise kümülatif fire yapısını doğru yansıtması için kümülatif zincirleme çarpım (Rolled Throughput Yield) esasına göre hesaplanır.
+Kalite bileşeni sunumda OEE hesaplamasına hücre bazlı gerçek ıskarta/red oranları (Quality = 100% - Red%) üzerinden dahil edilmiştir. Türkçe sunumda tablo başlıkları "Kullanılabilirlik", "Performans", "Fire", "OEE" olarak adlandırılmış ve "Fire" sütunu doğrudan fire oranlarını gösterecek şekilde (%0.1, %0.03 vb.) ayarlanmıştır. Hat Ortalaması satırında ise kümülatif fire yapısını doğru yansıtması için kümülatif zincirleme çarpım (Rolled Throughput Yield) kaybı esasına göre hesaplanır (kümülatif fire oranı gösterilir).
 
 ### Genel Kural Tablosu
 

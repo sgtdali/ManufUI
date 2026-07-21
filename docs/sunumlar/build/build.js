@@ -54,6 +54,40 @@ function fmtPct(from, to, decimals = 0) {
   return `${sign}${pct.toFixed(decimals)}%`;
 }
 
+// Global Quality Reds and Required Targets calculation (source of truth)
+const GLOBAL_QUALITY_REDS = {
+  "Pres Hücresi": 0.1,
+  "ETM Hücresi": 0.2,
+  "ROB108 Hücresi": 0.1,
+  "Flowform Hücresi": 0.03,
+  "N602-N603 Hücresi": 0.7,
+  "ROB109 Hücresi": 0.1,
+  "Quench Hücresi": 0.8,
+  "ROB110-111 Hücresi": 0.4,
+  "ROB104 Hücresi": 0.2
+};
+
+const GLOBAL_REQUIRED_TARGETS = {};
+let _currentTarget = 200; // Nihai sağlam parça hedefi
+const _flowOrder = [
+  "ROB110-111 Hücresi",
+  "Quench Hücresi",
+  "ROB109 Hücresi",
+  "N602-N603 Hücresi",
+  "ROB104 Hücresi",
+  "Flowform Hücresi",
+  "ROB108 Hücresi",
+  "ETM Hücresi",
+  "Pres Hücresi"
+];
+for (const cellName of _flowOrder) {
+  const redPct = GLOBAL_QUALITY_REDS[cellName] || 0.0;
+  const qHt = 100.0 - redPct;
+  const neededInput = _currentTarget / (qHt / 100);
+  GLOBAL_REQUIRED_TARGETS[cellName] = Math.round(neededInput);
+  _currentTarget = neededInput;
+}
+
 // Sunumdan geçici olarak hariç tutulan hücreler. Geri eklemek için sadece bu
 // listeyi boşaltmak yeterli — seçim aracı (tool/server.js) ve dataService.js
 // bundan etkilenmez, orada hâlâ tüm 12 hücre listelenir. Bu liste sadece
@@ -1103,19 +1137,9 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     // oeeData hat akış sırasındadır (Pres → ... → son aktif hücre, dataService.js CELLS ile aynı;
     // EXCLUDED_CELLS'teki hücreler burada filtrelenmiş durumda) —
     // tablo bu sırayla gösterilir (OEE'ye göre sıralanmaz).
-    const QUALITY_REDS = {
-      "Pres Hücresi": 0.1,
-      "ETM Hücresi": 0.2,
-      "ROB108 Hücresi": 0.1,
-      "Flowform Hücresi": 3.6,
-      "N602-N603 Hücresi": 0.7,
-      "ROB109 Hücresi": 0.1,
-      "Quench Hücresi": 0.8,
-      "ROB110-111 Hücresi": 7.0,
-      "ROB104 Hücresi": 0.2
-    };
+    const QUALITY_REDS = GLOBAL_QUALITY_REDS;
 
-    const header = ["Hücre", "Availability", "Performance", "Quality", "OEE"];
+    const header = ["Hücre", "Kullanılabilirlik", "Performans", "Fire", "OEE"];
     let totalQualitySum = 0;
     let totalQualityCount = 0;
 
@@ -1137,7 +1161,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
         shortCell(d.cell),
         pctCell(d.availabilityHt),
         pctCell(d.performanceHt),
-        pctCell(qHt),
+        pctCell(redPct),
         pctCell(calculatedOeeHt, { bold: true, color: COLORS.navy }),
       ];
     });
@@ -1165,7 +1189,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       { text: "HAT ORTALAMASI (Zincirleme)", bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgAvail.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgPerf.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
-      { text: `${avgQuality.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
+      { text: `${(100.0 - avgQuality).toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
       { text: `${avgOee.toFixed(1)}%`, bold: true, color: COLORS.navy, fill: rowFill },
     ]);
 
@@ -1862,17 +1886,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     const slide = newContentSlide();
     addHeader(slide, { icon: icons.warning, eyebrow: "4000 Hedefi İçin Yapılacaklar", title: "Nihai Hedef (200 Parça/Gün) Kapasite Analizi" });
 
-    const QUALITY_REDS = {
-      "Pres Hücresi": 0.1,
-      "ETM Hücresi": 0.2,
-      "ROB108 Hücresi": 0.1,
-      "Flowform Hücresi": 3.6,
-      "N602-N603 Hücresi": 0.7,
-      "ROB109 Hücresi": 0.1,
-      "Quench Hücresi": 0.8,
-      "ROB110-111 Hücresi": 7.0,
-      "ROB104 Hücresi": 0.2
-    };
+    const QUALITY_REDS = GLOBAL_QUALITY_REDS;
 
     const CYCLE_TIMES_SEC = {
       "Pres Hücresi": 150,      // 2 dk 30 sn
@@ -1886,29 +1900,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       "ROB110-111 Hücresi": 190 // 3 dk 10 sn
     };
 
-    // Sondan başa doğru kalite kayıplarını kümülatif yansıtarak gerekli üretim hedeflerini hesaplayalım
-    const requiredTargets = {};
-    let currentTarget = 200; // Nihai sağlam parça hedefi
-    
-    const flowOrder = [
-      "ROB110-111 Hücresi",
-      "Quench Hücresi",
-      "ROB109 Hücresi",
-      "N602-N603 Hücresi",
-      "ROB104 Hücresi",
-      "Flowform Hücresi",
-      "ROB108 Hücresi",
-      "ETM Hücresi",
-      "Pres Hücresi"
-    ];
-
-    for (const cellName of flowOrder) {
-      const redPct = QUALITY_REDS[cellName] || 0.0;
-      const qHt = 100.0 - redPct;
-      const neededInput = currentTarget / (qHt / 100);
-      requiredTargets[cellName] = Math.round(neededInput);
-      currentTarget = neededInput;
-    }
+    const requiredTargets = GLOBAL_REQUIRED_TARGETS;
 
     const header = ["Hücre", "Mevcut OEE", "9 Saat Kapasite", "Gerekli Hedef**", "Gerekli 9s Kapasite*", "Kapasite Farkı"];
     const rows = [
@@ -2247,9 +2239,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 1.1, y: 4.7, w: 4.8, h: 0.35, margin: 0,
       fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
     });
+    const r104ReqTarget = GLOBAL_REQUIRED_TARGETS["ROB104 Hücresi"] || 204;
     slide.addText([
-      { text: "Gerekli Girdi Hedefi (219 adet) karşılanamıyor " },
-      { text: `(Fark: -${219 - r104TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+      { text: `Gerekli Girdi Hedefi (${r104ReqTarget} adet) karşılanamıyor ` },
+      { text: `(Fark: -${r104ReqTarget - r104TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
     ], {
       x: 1.1, y: 5.1, w: 4.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
@@ -2306,9 +2299,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 7.38, y: 4.7, w: 4.8, h: 0.35, margin: 0,
       fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
     });
+    const r108ReqTarget = GLOBAL_REQUIRED_TARGETS["ROB108 Hücresi"] || 205;
     slide.addText([
-      { text: "Gerekli Girdi Hedefi (227 adet) karşılanamıyor " },
-      { text: `(Fark: -${227 - r108TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+      { text: `Gerekli Girdi Hedefi (${r108ReqTarget} adet) karşılanamıyor ` },
+      { text: `(Fark: -${r108ReqTarget - r108TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
     ], {
       x: 7.38, y: 5.1, w: 4.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
@@ -2554,9 +2548,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 1.1, y: 4.7, w: 4.8, h: 0.35, margin: 0,
       fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
     });
+    const r109ReqTarget = GLOBAL_REQUIRED_TARGETS["ROB109 Hücresi"] || 203;
     slide.addText([
-      { text: "Gerekli Girdi Hedefi (217 adet) karşılanamıyor " },
-      { text: `(Fark: -${217 - r109TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+      { text: `Gerekli Girdi Hedefi (${r109ReqTarget} adet) karşılanamıyor ` },
+      { text: `(Fark: -${r109ReqTarget - r109TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
     ], {
       x: 1.1, y: 5.1, w: 4.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
@@ -2773,9 +2768,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 1.1, y: 4.7, w: 4.8, h: 0.35, margin: 0,
       fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
     });
+    const r110ReqTarget = GLOBAL_REQUIRED_TARGETS["ROB110-111 Hücresi"] || 201;
     slide.addText([
-      { text: "Gerekli Girdi Hedefi (215 adet) karşılanamıyor " },
-      { text: `(Fark: -${215 - r110TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+      { text: `Gerekli Girdi Hedefi (${r110ReqTarget} adet) karşılanamıyor ` },
+      { text: `(Fark: -${r110ReqTarget - r110TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
     ], {
       x: 1.1, y: 5.1, w: 4.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
@@ -2822,9 +2818,10 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 7.38, y: 4.7, w: 4.8, h: 0.35, margin: 0,
       fontFace: FONT_HEAD, fontSize: 13.5, bold: true, color: COLORS.amber
     });
+    const r111ReqTarget = GLOBAL_REQUIRED_TARGETS["ROB110-111 Hücresi"] || 201;
     slide.addText([
-      { text: "Gerekli Girdi Hedefi (215 adet) karşılanamıyor " },
-      { text: `(Fark: -${215 - r111TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
+      { text: `Gerekli Girdi Hedefi (${r111ReqTarget} adet) karşılanamıyor ` },
+      { text: `(Fark: -${r111ReqTarget - r111TargetReal} parça).`, options: { color: "FF6B6B", bold: true } }
     ], {
       x: 7.38, y: 5.1, w: 4.8, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10, italic: true, color: COLORS.iceTint
@@ -2954,6 +2951,9 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     });
 
     const cardShadow = { type: "outer", color: "1E2761", blur: 6, offset: 2, angle: 90, opacity: 0.08 };
+    const r110ReqTarget = GLOBAL_REQUIRED_TARGETS["ROB110-111 Hücresi"] || 201;
+    const r111TargetReal = Math.round((25 * 9) * 0.80); // 180
+    const neededBuffer = r110ReqTarget - r111TargetReal; // 21
 
     // Sol Kart: Darboğaz ve Buffer Analizi (Lacivert)
     slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
@@ -2987,7 +2987,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       fontFace: FONT_HEAD, fontSize: 22, bold: true, color: COLORS.amber
     });
 
-    slide.addText("Gün boyu biriken 45 parça, otomasyon akışı bozulmadan vardiya bitiminde eritilecektir.", {
+    slide.addText(`Gün boyu biriken ${neededBuffer} parça, otomasyon akışı bozulmadan vardiya bitiminde eritilecektir.`, {
       x: 0.9, y: 5.1, w: 5.2, h: 0.5, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, italic: true, color: COLORS.iceTint, lineSpacing: 13
     });
@@ -3033,7 +3033,7 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
       x: 7.18, y: 5.35, w: 5.25, h: 0.25, margin: 0,
       fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
     });
-    slide.addText("Gün içinde oluşan 45 parçalık buffer, vardiya sonundaki 2 saatlik ek çalışma süresinde punta kaynak işlemi yapılarak eritilecek ve günlük 215 adet hedefine ulaşılacaktır.", {
+    slide.addText(`Gün içinde oluşan ${neededBuffer} parçalık buffer, vardiya sonundaki 2 saatlik ek çalışma süresinde punta kaynak işlemi yapılarak eritilecek ve günlük ${r110ReqTarget} adet hedefine ulaşılacaktır.`, {
       x: 7.18, y: 5.65, w: 5.25, h: 0.75, margin: 0,
       fontFace: FONT_BODY, fontSize: 11, color: COLORS.slate, lineSpacing: 14
     });
@@ -3178,6 +3178,172 @@ const ACTIVE_CELLS = ALL_CELLS.filter((c) => !isExcludedCell(c));
     });
 
     addFooter(slide, "NCMS Kadro Önerisi");
+  }
+
+  // ==================================================================
+  // SLIDE — KICKOFF YOL HARİTASI VE ZAMAN PLANI (ROADMAP)
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.calendar, 
+      eyebrow: "Kickoff & Zaman Planı", 
+      title: "Yol Haritası ve Zaman Planı (4000 Adet Üretim Hedefi)" 
+    });
+
+    slide.addText("Hedeflenen 4000 parça üretimi için hazırlık, sahaya gidiş ve seri üretim aşamalarını içeren zaman çizelgesi.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const cardShadow = { type: "outer", color: "1E2761", blur: 6, offset: 2, angle: 90, opacity: 0.08 };
+
+    // Yol çizgisini çizelim (kartların arkasında kalacak şekilde önce ekliyoruz)
+    slide.addShape(pres.shapes.LINE, {
+      x: 0.6, y: 4.0, w: 12.1, h: 0.0,
+      line: { color: COLORS.border, width: 3 }
+    });
+
+    // Faz 1 Kartı: Hazırlık Dönemi
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.95, w: 3.8, h: 4.25, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("FAZ 1: HAZIRLIK DÖNEMİ", {
+      x: 0.8, y: 2.15, w: 3.4, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("Bugün – 5 Ekim", {
+      x: 0.8, y: 2.45, w: 3.4, h: 0.35, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 14, bold: true, color: COLORS.amber
+    });
+    slide.addText([
+      { text: "Kritik Hazırlık Maddeleri:\n", options: { bold: true, color: COLORS.slate } },
+      { text: "• Sarf malzemeleri ve kritik yedek parçaların şimdiden sipariş edilmesi (filtreler, quench zinciri vb.).\n" },
+      { text: "• NCMS tarafında 43 kişilik kadro organizasyonunun ve onaylarının tamamlanması.\n" },
+      { text: "• Kalıphane kurulumu/revizyon planının netleştirilmesi.\n" },
+      { text: "• Haftalık ilerleme takip toplantılarının yapılması ve ekiplere görevler atanıp izlenmesi." }
+    ], {
+      x: 0.8, y: 2.9, w: 3.4, h: 3.1, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, color: COLORS.slate, lineSpacing: 13
+    });
+
+    // Faz 2 Kartı: Ön Hazırlık & Mobilizasyon
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 4.765, y: 1.95, w: 3.8, h: 4.25, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("FAZ 2: ÖN HAZIRLIK & SAHA", {
+      x: 4.965, y: 2.15, w: 3.4, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("5 Ekim – 15 Ekim", {
+      x: 4.965, y: 2.45, w: 3.4, h: 0.35, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 14, bold: true, color: COLORS.amber
+    });
+    slide.addText([
+      { text: "10 Günlük Saha Hazırlığı:\n", options: { bold: true, color: COLORS.slate } },
+      { text: "• Ekiplerin sahaya mobilizasyonu ve görev dağılımının yapılması.\n" },
+      { text: "• Pres eşanjör temizliği ve soğutma kuleleri bakımlarının yapılması.\n" },
+      { text: "• Doosan tezgahlarının bakımı ve test üretimleri ile hattın ısındırılması.\n" },
+      { text: "• Personelin saha ve hat oryantasyon süreçlerinin tamamlanması." }
+    ], {
+      x: 4.965, y: 2.9, w: 3.4, h: 3.1, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, color: COLORS.slate, lineSpacing: 13
+    });
+
+    // Faz 3 Kartı: 4000 Adet Üretim Hedefi
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 8.93, y: 1.95, w: 3.8, h: 4.25, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("FAZ 3: SERİ ÜRETİM FAZI", {
+      x: 9.13, y: 2.15, w: 3.4, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText("15 Ekim – 15 Kasım", {
+      x: 9.13, y: 2.45, w: 3.4, h: 0.35, margin: 0,
+      fontFace: FONT_HEAD, fontSize: 14, bold: true, color: COLORS.amber
+    });
+    slide.addText([
+      { text: "30 Günlük Seri Üretim:\n", options: { bold: true, color: COLORS.slate } },
+      { text: "• 3 vardiyalı tam kapasite çalışma düzenine geçilmesi.\n" },
+      { text: "• Anlık OEE takibi ve duruşlara hızlı bakım müdahaleleri.\n" },
+      { text: "• Kalite kontrol sıklığının artırılması ve fire oranlarının takibi.\n" },
+      { text: "• Günlük üretim adetlerinin ve hedeflerin yakından izlenmesi." }
+    ], {
+      x: 9.13, y: 2.9, w: 3.4, h: 3.1, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10, color: COLORS.slate, lineSpacing: 13
+    });
+
+    addFooter(slide, "Kickoff & Zaman Planı");
+  }
+
+  // ==================================================================
+  // SLIDE — KICKOFF VE PROJE TAKİP YAPISI
+  // ==================================================================
+  {
+    const slide = newContentSlide();
+    addHeader(slide, { 
+      icon: icons.bullseye, 
+      eyebrow: "Kickoff & Zaman Planı", 
+      title: "Kickoff Toplantısı ve Proje Takip Yapısı" 
+    });
+
+    slide.addText("Hazırlık döneminden seri üretim sonuna kadar uygulanacak olan koordinasyon ve takip yapısı.", {
+      x: 0.6, y: 1.4, w: 12.1, h: 0.45, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, italic: true, color: COLORS.slateLight
+    });
+
+    const cardShadow = { type: "outer", color: "1E2761", blur: 6, offset: 2, angle: 90, opacity: 0.08 };
+
+    // Sol Bölüm: Takip ve Koordinasyon
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 0.6, y: 1.95, w: 5.85, h: 4.25, rectRadius: 0.08,
+      fill: { color: COLORS.white }, line: { type: "none" },
+      shadow: { ...cardShadow }
+    });
+    slide.addText("HAFTALIK TAKİP TOPLANTILARI VE KOORDİNASYON", {
+      x: 0.9, y: 2.15, w: 5.25, h: 0.25, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.navy, bold: true
+    });
+    slide.addText([
+      { text: "• Kickoff Toplantısı:\n", options: { bold: true, color: COLORS.navy } },
+      { text: "  Repkon ve NCMS ekiplerinin katılımıyla hedeflerin resmi kickoff toplantısı ile paylaşılması.\n\n" },
+      { text: "• Haftalık Hazırlık Toplantıları:\n", options: { bold: true, color: COLORS.navy } },
+      { text: "  5 Ekim'e kadar her hafta düzenli durum değerlendirme toplantısı yapılması. Kritik tedarik süreçleri ve kadro aşamaları gözden geçirilecektir.\n\n" },
+      { text: "• Görev ve Sorumluluk Atamaları:\n", options: { bold: true, color: COLORS.navy } },
+      { text: "  Her aksiyon maddesinin bir sorumluya atanması ve ManufUI üzerindeki Aksiyon Takip modülünden ilerlemenin anlık olarak izlenmesi." }
+    ], {
+      x: 0.9, y: 2.5, w: 5.25, h: 3.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, color: COLORS.slate, lineSpacing: 13
+    });
+
+    // Sağ Bölüm: Kritik Başarı Faktörleri (Koyu Lacivert Kart)
+    slide.addShape(pres.shapes.ROUNDED_RECTANGLE, {
+      x: 6.88, y: 1.95, w: 5.85, h: 4.25, rectRadius: 0.08,
+      fill: { color: COLORS.navy }, line: { type: "none" }
+    });
+    slide.addText("KRİTİK BAŞARI FAKTÖRLERİ", {
+      x: 7.18, y: 2.15, w: 5.25, h: 0.3, margin: 0,
+      fontFace: FONT_BODY, fontSize: 11, color: COLORS.white, bold: true, charSpacing: 1
+    });
+    slide.addText([
+      { text: "1. Şimdiden Sipariş Edilmesi Gerekenler:\n", options: { bold: true, color: COLORS.ice, fontSize: 10.5 } },
+      { text: "Pres filtreleri, quench zinciri, soğutma kulesi yedekleri gibi uzun tedarik süreli kritik malzemelerin siparişlerinin şimdiden geçilmesi.\n\n", options: { color: COLORS.iceTint } },
+      { text: "2. NCMS Kadro Netliği:\n", options: { bold: true, color: COLORS.ice, fontSize: 10.5 } },
+      { text: "43 kişilik önerilen kadro planının NCMS yönetimiyle şimdiden mutabakata varılarak netleştirilmesi ve onay süreçlerinin yürütülmesi.\n\n", options: { color: COLORS.iceTint } },
+      { text: "3. Aksiyonların Zamanında Kapatılması:\n", options: { bold: true, color: COLORS.ice, fontSize: 10.5 } },
+      { text: "Hazırlık dönemindeki tüm Repkon ve NCMS aksiyonlarının 5 Ekim'e kadar eksiksiz kapatılması seri üretim başarısı için kritik öneme sahiptir.", options: { color: COLORS.iceTint } }
+    ], {
+      x: 7.18, y: 2.5, w: 5.25, h: 3.5, margin: 0,
+      fontFace: FONT_BODY, fontSize: 10.5, lineSpacing: 13
+    });
+
+    addFooter(slide, "Kickoff & Zaman Planı");
   }
 
   const outPath = "C:\\Users\\tvural.REPKON\\Desktop\\HF901\\Serial Production\\ManufUI\\docs\\sunumlar\\Repkon-HF901-Ust-Yonetim-Sunumu-2026-07.pptx";
